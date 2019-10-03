@@ -20,7 +20,6 @@
  void AddSC_Transmogrification();
  void AddSC_GOMove_commandscript();
  void AddSC_custom_reload_commands();
- void AddSC_arena_spectator_script();
 
 
  // The name of this function should match:
@@ -31,5 +30,4 @@
      AddSC_Transmogrification();
      AddSC_GOMove_commandscript();
      AddSC_custom_reload_commands();
-     AddSC_arena_spectator_script();
  }
