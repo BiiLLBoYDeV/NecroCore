@@ -2814,9 +2814,6 @@ SpellCastResult WorldObject::CastSpell(WorldObject* target, uint32 spellId, Cast
     SpellCastTargets targets;
     if (target)
     {
-        if (Player *tmpPlayer = target->ToPlayer())
-          if (tmpPlayer->IsSpectator())
-            return SPELL_FAILED_SPELL_UNAVAILABLE;
 
         if (Unit* unitTarget = target->ToUnit())
             targets.SetUnitTarget(unitTarget);

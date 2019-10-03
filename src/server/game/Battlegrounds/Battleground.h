@@ -24,7 +24,6 @@
 #include "ObjectGuid.h"
 #include "Position.h"
 #include "SharedDefines.h"
-#include "SpectatorAddon.h"
 #include <map>
 
 namespace WorldPackets
@@ -330,13 +329,6 @@ class TC_GAME_API Battleground
         bool HasFreeSlots() const;
         uint32 GetFreeSlotsForTeam(uint32 Team) const;
 
-        /* Arena Spectator */
-        typedef std::set<uint32> SpectatorList;
-        void AddSpectator(uint32 playerId) { m_Spectators.insert(playerId); }
-        void RemoveSpectator(uint32 playerId) { m_Spectators.erase(playerId); }
-        bool HaveSpectators() { return (m_Spectators.size() > 0); }
-        /* Arena Spectator */
-
         bool isArena() const        { return m_IsArena; }
         bool isBattleground() const { return !m_IsArena; }
         bool isRated() const        { return m_IsRated; }
@@ -613,9 +605,6 @@ class TC_GAME_API Battleground
 
         // Players count by team
         uint32 m_PlayersCount[PVP_TEAMS_COUNT];
-
-        // Arena Spectator
-        SpectatorList m_Spectators;
 
         // Arena team ids by team
         uint32 m_ArenaTeamIds[PVP_TEAMS_COUNT];

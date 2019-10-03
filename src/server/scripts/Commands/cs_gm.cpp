@@ -137,9 +137,6 @@ public:
                 (!handler->GetSession() || itr->second->IsVisibleGloballyFor(handler->GetSession()->GetPlayer())))
             {
 
-              if (itr->second->IsSpectator())
-                    continue; // don't show spectators, they're not really gms
-
                 if (first)
                 {
                     first = false;
