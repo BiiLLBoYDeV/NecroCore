@@ -325,7 +325,7 @@ Battleground* BattlegroundMgr::GetBattlegroundTemplate(BattlegroundTypeId bgType
 
 uint32 BattlegroundMgr::CreateClientVisibleInstanceId(BattlegroundTypeId bgTypeId, BattlegroundBracketId bracket_id)
 {
-    if (BGArenaType(bgTypeId))
+    if (IsArenaType(bgTypeId))
         return 0;                                           //arenas don't have client-instanceids
 
     // we create here an instanceid, which is just for
