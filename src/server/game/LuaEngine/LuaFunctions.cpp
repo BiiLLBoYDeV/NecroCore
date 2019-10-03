@@ -600,6 +600,7 @@ ElunaRegister<Player> PlayerMethods[] =
     // {"HasPendingBind", &LuaPlayer::HasPendingBind},                                      // :HasPendingBind() - UNDOCUMENTED - Returns true if the player has a pending instance bind
 #if (!defined(TBC) && !defined(CLASSIC))
     { "HasAchieved", &LuaPlayer::HasAchieved },
+    { "SetCompletedAchievement", &LuaPlayer::SetCompletedAchievement },
 #endif
     { "CanUninviteFromGroup", &LuaPlayer::CanUninviteFromGroup },
     { "IsRested", &LuaPlayer::IsRested },
@@ -1102,6 +1103,7 @@ ElunaRegister<Guild> GuildMethods[] =
     { "Disband", &LuaGuild::Disband },
     { "AddMember", &LuaGuild::AddMember },
     { "DeleteMember", &LuaGuild::DeleteMember },
+    { "SetCoinage", &LuaGuild::SetCoinage },
 
     { NULL, NULL }
 };

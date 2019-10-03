@@ -706,6 +706,8 @@ class TC_GAME_API Guild
         void DeleteMember(SQLTransaction& trans, ObjectGuid guid, bool isDisbanding = false, bool isKicked = false, bool canDeleteGuild = false);
         bool ChangeMemberRank(SQLTransaction& trans, ObjectGuid guid, uint8 newRank);
 
+        bool ModifyBankMoney(SQLTransaction& trans, uint64 amount, bool add);
+
         // Bank
         void SwapItems(Player* player, uint8 tabId, uint8 slotId, uint8 destTabId, uint8 destSlotId, uint32 splitedAmount);
         void SwapItemsWithInventory(Player* player, bool toChar, uint8 tabId, uint8 slotId, uint8 playerBag, uint8 playerSlotId, uint32 splitedAmount);

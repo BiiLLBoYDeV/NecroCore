@@ -6,6 +6,8 @@
 
 #ifndef GUILDMETHODS_H
 #define GUILDMETHODS_H
+#include "GuildMgr.h"
+#include "Guild.h"
 
 /***
  * Inherits all methods from: none
@@ -299,6 +301,15 @@ namespace LuaGuild
 #else
         guild->ChangeMemberRank(player->GET_GUID(), newRank);
 #endif
+        return 0;
+    }
+
+    int SetCoinage(lua_State* L, Guild* guild)
+    {
+        uint64 money = Eluna::CHECKVAL<uint64>(L, 2);
+        SQLTransaction trans = CharacterDatabase.BeginTransaction();
+        guild->ModifyBankMoney(trans, money, true);
+        CharacterDatabase.CommitTransaction(trans);
         return 0;
     }
 };

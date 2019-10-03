@@ -370,7 +370,7 @@ void ObjectMgr::LoadCreatureTemplates()
     // 5. Select "Number to Insert", Initial number 1, Increase by 1
     // 6. Run this regex
     //  a.find    "\/\/[ ]+
-    //  b.replace "\r\n\t\t\/\/ 
+    //  b.replace "\r\n\t\t\/\/
 
     QueryResult result = WorldDatabase.Query(
         //  0
@@ -2204,11 +2204,11 @@ void ObjectMgr::LoadCreatures()
             }
         }
 
-        if (data.phaseMask == 0)
-        {
-            TC_LOG_ERROR("sql.sql", "Table `creature` has creature (GUID: %u Entry: %u) with `phaseMask`=0 (not visible for anyone), set to 1.", guid, data.id);
-            data.phaseMask = 1;
-        }
+        //if (data.phaseMask == 0)
+        //{
+        //    TC_LOG_ERROR("sql.sql", "Table `creature` has creature (GUID: %u Entry: %u) with `phaseMask`=0 (not visible for anyone), set to 1.", guid, data.id);
+        //    data.phaseMask = 1;
+        //}
 
         if (sWorld->getBoolConfig(CONFIG_CALCULATE_CREATURE_ZONE_AREA_DATA))
         {
@@ -2509,11 +2509,11 @@ void ObjectMgr::LoadGameObjects()
             data.rotation = QuaternionData::fromEulerAnglesZYX(data.spawnPoint.GetOrientation(), 0.0f, 0.0f);
         }
 
-        if (data.phaseMask == 0)
-        {
-            TC_LOG_ERROR("sql.sql", "Table `gameobject` has gameobject (GUID: %u Entry: %u) with `phaseMask`=0 (not visible for anyone), set to 1.", guid, data.id);
-            data.phaseMask = 1;
-        }
+        //if (data.phaseMask == 0)
+        //{
+        //    TC_LOG_ERROR("sql.sql", "Table `gameobject` has gameobject (GUID: %u Entry: %u) with `phaseMask`=0 (not visible for anyone), set to 1.", guid, data.id);
+        //    data.phaseMask = 1;
+        //}
 
         if (sWorld->getBoolConfig(CONFIG_CALCULATE_GAMEOBJECT_ZONE_AREA_DATA))
         {
@@ -2890,7 +2890,7 @@ void ObjectMgr::LoadItemTemplates()
         for (uint8 i = 0; i < itemTemplate.StatsCount; ++i)
         {
             itemTemplate.ItemStat[i].ItemStatType  = uint32(fields[28 + i*2].GetUInt8());
-            itemTemplate.ItemStat[i].ItemStatValue = int32(fields[29 + i*2].GetInt16());
+            itemTemplate.ItemStat[i].ItemStatValue = int32(fields[29 + i*2].GetInt32());
         }
 
         itemTemplate.ScalingStatDistribution = uint32(fields[48].GetUInt16());

@@ -269,7 +269,7 @@ void WorldSession::HandleMessagechatOpcode(WorldPacket& recvData)
                 GetPlayer()->GetGUID().GetCounter());
             return;
         }
-        
+
         // collapse multiple spaces into one
         if (sWorld->getBoolConfig(CONFIG_CHAT_FAKE_MESSAGE_PREVENTING))
         {
@@ -696,6 +696,12 @@ void WorldSession::HandleTextEmoteOpcode(WorldPacket& recvData)
     recvData >> text_emote;
     recvData >> emoteNum;
     recvData >> guid;
+
+    if (GetPlayer()->IsSpectator())
+    {
+        SendNotification(LANG_SPEC_CAN_NOT_CHAT);
+        return;
+    }
 
     sScriptMgr->OnPlayerTextEmote(GetPlayer(), text_emote, emoteNum, guid);
 

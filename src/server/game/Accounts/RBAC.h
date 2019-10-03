@@ -782,6 +782,16 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_DEBUG_QUESTRESET                       = 878,
     RBAC_PERM_COMMAND_DEBUG_POOLSTATUS                       = 879,
     //
+    //Arena Spectator
+    //
+    RBAC_PERM_COMMAND_SPECTATE                               = 1003,
+    RBAC_PERM_COMMAND_SPECTATE_PLAYER                        = 1004,
+    RBAC_PERM_COMMAND_SPECTATE_VIEW                          = 1005,
+    RBAC_PERM_COMMAND_SPECTATE_RESET                         = 1006,
+    RBAC_PERM_COMMAND_SPECTATE_LEAVE                         = 1007,
+    //
+
+    //
     // IF YOU ADD NEW PERMISSIONS, ADD THEM IN MASTER BRANCH AS WELL!
     //
     // custom permissions 1000+

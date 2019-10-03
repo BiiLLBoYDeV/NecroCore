@@ -2614,6 +2614,25 @@ bool Guild::_ModifyBankMoney(SQLTransaction& trans, uint64 amount, bool add)
     return true;
 }
 
+bool Guild::ModifyBankMoney(SQLTransaction& trans, uint64 amount, bool add)
+{
+    if (add)
+        m_bankMoney += amount;
+    else
+    {
+        // Check if there is enough money in bank.
+        if (m_bankMoney < amount)
+            return false;
+        m_bankMoney -= amount;
+    }
+
+    PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GUILD_BANK_MONEY);
+    stmt->setUInt64(0, m_bankMoney);
+    stmt->setUInt32(1, m_id);
+    trans->Append(stmt);
+    return true;
+}
+
 void Guild::_SetLeaderGUID(Member* pLeader)
 {
     if (!pLeader)
