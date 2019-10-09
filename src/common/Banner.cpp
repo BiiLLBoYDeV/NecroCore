@@ -22,11 +22,12 @@
 void Trinity::Banner::Show(char const* applicationName, void(*log)(char const* text), void(*logExtraInfo)())
 {
     log("<Ctrl-C> to stop.\n");
-    log(",   .                    ,---.               ");
-    log("|\  |,---.,---.,---.,---.|    ,---.,---.,---.");
-    log("| \ ||---'|    |    |   ||    |   ||    |---'");
-    log("`  `'`---'`---'`    `---'`---'`---'`    `---'");
-    log("github.com/necromancers-dev/NecroCore.git    ");
+
+log("_/      _/                                            _/_/_/                               ");
+log("_/_/    _/    _/_/      _/_/_/  _/  _/_/    _/_/    _/          _/_/    _/  _/_/    _/_/    ");
+log("_/  _/  _/  _/_/_/_/  _/        _/_/      _/    _/  _/        _/    _/  _/_/      _/_/_/_/   ");
+log("_/    _/_/  _/        _/        _/        _/    _/  _/        _/    _/  _/        _/          ");
+log("_/      _/    _/_/_/    _/_/_/  _/          _/_/      _/_/_/    _/_/    _/          _/_/_/     ");
     if (logExtraInfo)
         logExtraInfo();
 }
