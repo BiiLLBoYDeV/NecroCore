@@ -1,4 +1,4 @@
-#NecroCore
+# NecroCore
 NecroCore est un fork de TrinityCore avec les scripts de : 
 
 @Rochet2 :
