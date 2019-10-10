@@ -193,7 +193,7 @@ include_directories(
   ${ZMQ_INCLUDE_DIR}
 )
 
-add_dependencies(game ${CMAKE_SOURCE_DIR}/dep/lualib)
+# add_dependencies(game ${CMAKE_SOURCE_DIR}/dep/lualib)
 
 if (ELUNA)
 target_link_libraries(game
