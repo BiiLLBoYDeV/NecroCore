@@ -14,7 +14,7 @@
 #ifdef TRINITY
 #include "Define.h"
 #else
-#include "Platform/Define.h"
+#include "common/Define.h"
 #endif
 
 class Eluna;
