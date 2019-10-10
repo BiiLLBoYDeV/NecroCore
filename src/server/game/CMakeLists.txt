@@ -193,8 +193,8 @@ include_directories(
   ${ZMQ_INCLUDE_DIR}
 )
 
-add_dependencies(game revision.h)
-add_dependencies(game lualib)
+target_include_directories(game revision.h)
+target_include_directories(game lualib)
 
 if (ELUNA)
 target_link_libraries(game
