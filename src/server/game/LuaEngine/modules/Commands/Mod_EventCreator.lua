@@ -6,7 +6,7 @@
 ## _|      _|    _|_|_|    _|_|_|  _|          _|_|      _|_|_|    _|_|    _|          _|_|_|
 ##                                              https://github.com/necromancers-dev/NecroCore
 ##
-## -| Support NecroCore |- paypal.me/DevNecromancers
+## -| Support NecroCore |- paypal.me/Necromancers
 ## -| Debug NecroCore   |- debug.arcanic.eu
 ## -| Contributors      |- Necromancers, Hidoyatmz, Rochet2, BillBoy
 ##
