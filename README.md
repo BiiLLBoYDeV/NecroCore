@@ -7,7 +7,7 @@ NecroCore est un fork de TrinityCore avec les scripts de :
 - guild:SetCoinage(amount)
 - player:SetCompletedAchievement(HFentry)
 - Modules_Active
-- AdminCreateModule
+- AdminCreateModule (80%)
 - EventCreator
 
 #### @Hidoyatmz - [Wow-Crusade](https://wow-crusade.com) :
