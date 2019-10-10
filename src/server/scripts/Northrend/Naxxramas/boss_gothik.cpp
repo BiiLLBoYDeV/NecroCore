@@ -17,7 +17,6 @@
 
 #include "ScriptMgr.h"
 #include "AreaBoundary.h"
-#include "CombatAI.h"
 #include "GridNotifiers.h"
 #include "InstanceScript.h"
 #include "Log.h"
@@ -131,15 +130,15 @@ enum Actions
 
 
 /* Room side checking logic */
-static AreaBoundary* const livingSide = new RectangleBoundary(2633.84f, 2750.49f, -3434.0f, -3360.78f);
-static AreaBoundary* const deadSide = new RectangleBoundary(2633.84f, 2750.49f, -3360.78f, -3285.0f);
+AreaBoundary* const livingSide = new RectangleBoundary(2633.84f, 2750.49f, -3434.0f, -3360.78f);
+AreaBoundary* const deadSide = new RectangleBoundary(2633.84f, 2750.49f, -3360.78f, -3285.0f);
 enum Side
 {
     SIDE_NONE = 0,
     SIDE_LIVING,
     SIDE_DEAD
 };
-inline static Side GetSide(Position const* who)
+inline Side GetSide(Position const* who)
 {
     if (livingSide->IsWithinBoundary(who))
         return SIDE_LIVING;
@@ -147,11 +146,11 @@ inline static Side GetSide(Position const* who)
         return SIDE_DEAD;
     return SIDE_NONE;
 }
-inline static bool IsOnSameSide(Position const* who, Position const* other)
+inline bool IsOnSameSide(Position const* who, Position const* other)
 {
     return (GetSide(who) == GetSide(other));
 }
-static Player* FindEligibleTarget(Creature const* me, bool isGateOpen)
+inline Player* FindEligibleTarget(Creature const* me, bool isGateOpen)
 {
     Map::PlayerList const& players = me->GetMap()->GetPlayers();
     for (Map::PlayerList::const_iterator it = players.begin(); it != players.end(); ++it)
@@ -398,7 +397,7 @@ class boss_gothik : public CreatureScript
                 switch (action)
                 {
                     case ACTION_MINION_EVADE:
-                        if (_gateIsOpen || me->GetThreatManager().IsThreatListEmpty())
+                        if (_gateIsOpen || me->getThreatManager().isThreatListEmpty())
                             return EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
                         if (_gateCanOpen)
                             OpenGate();
@@ -424,8 +423,8 @@ class boss_gothik : public CreatureScript
                     // thus we only do a cursory check to make sure (edge cases?)
                     if (Player* newTarget = FindEligibleTarget(me, _gateIsOpen))
                     {
-                        ResetThreatList();
-                        AddThreat(newTarget, 1.0f);
+                        me->getThreatManager().resetAllAggro();
+                        me->AddThreat(newTarget, 1.0f);
                         AttackStart(newTarget);
                     }
                     else
@@ -507,7 +506,7 @@ class boss_gothik : public CreatureScript
                             Talk(SAY_PHASE_TWO);
                             Talk(EMOTE_PHASE_TWO);
                             me->SetReactState(REACT_PASSIVE);
-                            ResetThreatList();
+                            me->getThreatManager().resetAllAggro();
                             DoCastAOE(SPELL_TELEPORT_LIVE);
                             break;
                         case EVENT_TELEPORT:
@@ -517,7 +516,7 @@ class boss_gothik : public CreatureScript
                                 me->AttackStop();
                                 me->StopMoving();
                                 me->SetReactState(REACT_PASSIVE);
-                                ResetThreatList();
+                                me->getThreatManager().resetAllAggro();
                                 DoCastAOE(_lastTeleportDead ? SPELL_TELEPORT_LIVE : SPELL_TELEPORT_DEAD);
                                 _lastTeleportDead = !_lastTeleportDead;
 
@@ -584,7 +583,7 @@ struct npc_gothik_minion_baseAI : public ScriptedAI
 
         void DamageTaken(Unit* attacker, uint32 &damage) override
         { // do not allow minions to take damage before the gate is opened
-            if (!_gateIsOpen && (!attacker || !isOnSameSide(attacker)))
+            if (!_gateIsOpen && !isOnSameSide(attacker))
                 damage = 0;
         }
 
@@ -594,11 +593,11 @@ struct npc_gothik_minion_baseAI : public ScriptedAI
             {
                 case ACTION_GATE_OPENED:
                     _gateIsOpen = true;
-                    /* fallthrough */
+                    // intentional missing break
                 case ACTION_ACQUIRE_TARGET:
                     if (Player* target = FindEligibleTarget(me, _gateIsOpen))
                     {
-                        AddThreat(target, 1.0f);
+                        me->AddThreat(target, 1.0f);
                         AttackStart(target);
                     }
                     else
@@ -626,8 +625,8 @@ struct npc_gothik_minion_baseAI : public ScriptedAI
                 if (Player* newTarget = FindEligibleTarget(me, _gateIsOpen))
                 {
                     me->RemoveAurasByType(SPELL_AURA_MOD_TAUNT);
-                    ResetThreatList();
-                    AddThreat(newTarget, 1.0f);
+                    me->getThreatManager().resetAllAggro();
+                    me->AddThreat(newTarget, 1.0f);
                     AttackStart(newTarget);
                 }
                 else
@@ -889,11 +888,6 @@ class npc_gothik_trigger : public CreatureScript
 public:
     npc_gothik_trigger() : CreatureScript("npc_gothik_trigger") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetNaxxramasAI<npc_gothik_triggerAI>(creature);
-    }
-
     struct npc_gothik_triggerAI : public ScriptedAI
     {
         npc_gothik_triggerAI(Creature* creature) : ScriptedAI(creature) { creature->SetDisableGravity(true); }
@@ -967,6 +961,11 @@ public:
                 gothik->AI()->SummonedCreatureDespawn(summon);
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetNaxxramasAI<npc_gothik_triggerAI>(creature);
+    }
 };
 
 class spell_gothik_shadow_bolt_volley : public SpellScriptLoader

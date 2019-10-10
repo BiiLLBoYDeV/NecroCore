@@ -32,7 +32,6 @@ if(PLATFORM EQUAL 64)
   target_compile_definitions(trinity-compile-option-interface
     INTERFACE
       -D_WIN64)
-
   message(STATUS "MSVC: 64-bit platform, enforced -D_WIN64 parameter")
 
 else()
@@ -50,16 +49,14 @@ else()
 endif()
 
 # Set build-directive (used in core to tell which buildtype we used)
-# msbuild/devenv don't set CMAKE_MAKE_PROGRAM, you can choose build type from a dropdown after generating projects
-if("${CMAKE_MAKE_PROGRAM}" MATCHES "MSBuild")
-  target_compile_definitions(trinity-compile-option-interface
-    INTERFACE
-      -D_BUILD_DIRECTIVE="$(ConfigurationName)")
-else()
-  # while all make-like generators do (nmake, ninja)
+if(CMAKE_MAKE_PROGRAM MATCHES "nmake")
   target_compile_definitions(trinity-compile-option-interface
     INTERFACE
       -D_BUILD_DIRECTIVE="${CMAKE_BUILD_TYPE}")
+else()
+  target_compile_definitions(trinity-compile-option-interface
+    INTERFACE
+      -D_BUILD_DIRECTIVE="$(ConfigurationName)")
 endif()
 
 # multithreaded compiling on VS
@@ -72,7 +69,6 @@ if((PLATFORM EQUAL 64) OR (NOT CMAKE_CXX_COMPILER_VERSION VERSION_LESS 19.0.2302
   target_compile_options(trinity-compile-option-interface
     INTERFACE
       /bigobj)
-
   message(STATUS "MSVC: Enabled increased number of sections in object files")
 endif()
 
@@ -100,7 +96,7 @@ target_compile_definitions(trinity-compile-option-interface
     -D_CRT_SECURE_NO_WARNINGS)
 message(STATUS "MSVC: Disabled NON-SECURE warnings")
 
-# Ignore warnings about POSIX deprecation
+#Ignore warnings about POSIX deprecation
 target_compile_definitions(trinity-compile-option-interface
   INTERFACE
     -D_CRT_NONSTDC_NO_WARNINGS)
@@ -124,7 +120,6 @@ if(NOT WITH_WARNINGS)
       /wd4267
       /wd4619
       /wd4512)
-
   message(STATUS "MSVC: Disabled generic compiletime warnings")
 endif()
 
@@ -135,7 +130,6 @@ if (BUILD_SHARED_LIBS)
     INTERFACE
       /wd4251
       /wd4275)
-
   message(STATUS "MSVC: Enabled shared linking")
 endif()
 

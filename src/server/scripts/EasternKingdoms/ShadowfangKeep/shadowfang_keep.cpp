@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
@@ -28,11 +28,11 @@ npc_shadowfang_prisoner
 EndContentData */
 
 #include "ScriptMgr.h"
-#include "shadowfang_keep.h"
 #include "InstanceScript.h"
 #include "Player.h"
 #include "ScriptedEscortAI.h"
 #include "ScriptedGossip.h"
+#include "shadowfang_keep.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
 
@@ -67,16 +67,38 @@ class npc_shadowfang_prisoner : public CreatureScript
 public:
     npc_shadowfang_prisoner() : CreatureScript("npc_shadowfang_prisoner") { }
 
-    struct npc_shadowfang_prisonerAI : public EscortAI
+    struct npc_shadowfang_prisonerAI : public npc_escortAI
     {
-        npc_shadowfang_prisonerAI(Creature* creature) : EscortAI(creature)
-        {
-            instance = creature->GetInstanceScript();
-        }
+        npc_shadowfang_prisonerAI(Creature* creature) : npc_escortAI(creature), instance(creature->GetInstanceScript()) { }
 
         InstanceScript* instance;
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+        {
+            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+            ClearGossipMenuFor(player);
+            if (action == GOSSIP_ACTION_INFO_DEF + 1)
+            {
+                CloseGossipMenuFor(player);
+
+                Start(false, false);
+            }
+            return true;
+        }
+
+        bool GossipHello(Player* player) override
+        {
+            InstanceScript* instance = me->GetInstanceScript();
+
+            if (instance && instance->GetData(TYPE_FREE_NPC) != DONE && instance->GetData(TYPE_RETHILGORE) == DONE)
+                AddGossipItemFor(player, Player::GetDefaultGossipMenuForSource(me), 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+
+            SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
+
+            return true;
+        }
+
+        void WaypointReached(uint32 waypointId) override
         {
             switch (waypointId)
             {
@@ -113,27 +135,6 @@ public:
 
         void Reset() override { }
         void JustEngagedWith(Unit* /*who*/) override { }
-
-        bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
-        {
-            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
-            ClearGossipMenuFor(player);
-            if (action == GOSSIP_ACTION_INFO_DEF + 1)
-            {
-                CloseGossipMenuFor(player);
-                Start(false, false);
-            }
-            return true;
-        }
-
-        bool GossipHello(Player* player) override
-        {
-            if (instance->GetData(TYPE_FREE_NPC) != DONE && instance->GetData(TYPE_RETHILGORE) == DONE)
-                AddGossipItemFor(player, Player::GetDefaultGossipMenuForSource(me), 0, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-
-            SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
-            return true;
-        }
     };
 
     CreatureAI* GetAI(Creature* creature) const override
@@ -146,11 +147,6 @@ class npc_arugal_voidwalker : public CreatureScript
 {
 public:
     npc_arugal_voidwalker() : CreatureScript("npc_arugal_voidwalker") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetShadowfangKeepAI<npc_arugal_voidwalkerAI>(creature);
-    }
 
     struct npc_arugal_voidwalkerAI : public ScriptedAI
     {
@@ -197,6 +193,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetShadowfangKeepAI<npc_arugal_voidwalkerAI>(creature);
+    }
 };
 
 enum ArugalSpells
@@ -257,10 +257,10 @@ class boss_archmage_arugal : public CreatureScript
             {
                 _JustEngagedWith();
                 Talk(SAY_AGGRO);
-                events.ScheduleEvent(EVENT_CURSE, 7s);
-                events.ScheduleEvent(EVENT_TELEPORT, 15s);
-                events.ScheduleEvent(EVENT_VOID_BOLT, 1s);
-                events.ScheduleEvent(EVENT_THUNDERSHOCK, 10s);
+                events.ScheduleEvent(EVENT_CURSE, Seconds(7));
+                events.ScheduleEvent(EVENT_TELEPORT, Seconds(15));
+                events.ScheduleEvent(EVENT_VOID_BOLT, Seconds(1));
+                events.ScheduleEvent(EVENT_THUNDERSHOCK, Seconds(10));
             }
 
             void AttackStart(Unit* who) override
@@ -333,7 +333,7 @@ class spell_shadowfang_keep_haunting_spirits : public SpellScriptLoader
 
             void HandleDummyTick(AuraEffect const* aurEff)
             {
-                GetTarget()->CastSpell(nullptr, aurEff->GetAmount(), true);
+                GetTarget()->CastSpell((Unit*)nullptr, aurEff->GetAmount(), true);
             }
 
             void HandleUpdatePeriodic(AuraEffect* aurEff)

@@ -31,7 +31,6 @@
 struct ItemTemplate;
 enum class VisibilityDistanceType : uint8;
 
-// EnumUtils: DESCRIBE THIS
 enum CreatureFlagsExtra : uint32
 {
     CREATURE_FLAG_EXTRA_INSTANCE_BIND        = 0x00000001,       // creature kill bind instance with killer and killer's group
@@ -70,78 +69,18 @@ enum CreatureFlagsExtra : uint32
     // Masks
     CREATURE_FLAG_EXTRA_UNUSED               = (CREATURE_FLAG_EXTRA_UNUSED_13 | CREATURE_FLAG_EXTRA_UNUSED_16 | CREATURE_FLAG_EXTRA_UNUSED_22 |
                                                 CREATURE_FLAG_EXTRA_UNUSED_23 | CREATURE_FLAG_EXTRA_UNUSED_24 | CREATURE_FLAG_EXTRA_UNUSED_25 |
-                                                CREATURE_FLAG_EXTRA_UNUSED_26 | CREATURE_FLAG_EXTRA_UNUSED_27 | CREATURE_FLAG_EXTRA_UNUSED_31), // SKIP
+                                                CREATURE_FLAG_EXTRA_UNUSED_26 | CREATURE_FLAG_EXTRA_UNUSED_27 | CREATURE_FLAG_EXTRA_UNUSED_31),
 
-    CREATURE_FLAG_EXTRA_DB_ALLOWED           = (0xFFFFFFFF & ~(CREATURE_FLAG_EXTRA_UNUSED | CREATURE_FLAG_EXTRA_DUNGEON_BOSS)) // SKIP
+    CREATURE_FLAG_EXTRA_DB_ALLOWED           = (0xFFFFFFFF & ~(CREATURE_FLAG_EXTRA_UNUSED | CREATURE_FLAG_EXTRA_DUNGEON_BOSS))
 };
 
-enum class CreatureGroundMovementType : uint8
-{
-    None,
-    Run,
-    Hover,
+static uint32 const CREATURE_REGEN_INTERVAL = 2 * IN_MILLISECONDS;
+static uint32 const CREATURE_NOPATH_EVADE_TIME = 5 * IN_MILLISECONDS;
 
-    Max
-};
-
-enum class CreatureFlightMovementType : uint8
-{
-    None,
-    DisableGravity,
-    CanFly,
-
-    Max
-};
-
-enum class CreatureChaseMovementType : uint8
-{
-    Run,
-    CanWalk,
-    AlwaysWalk,
-
-    Max
-};
-
-enum class CreatureRandomMovementType : uint8
-{
-    Walk,
-    CanRun,
-    AlwaysRun,
-
-    Max
-};
-
-struct TC_GAME_API CreatureMovementData
-{
-    CreatureMovementData() : Ground(CreatureGroundMovementType::Run), Flight(CreatureFlightMovementType::None), Swim(true), Rooted(false), Chase(CreatureChaseMovementType::Run),
-        Random(CreatureRandomMovementType::Walk) { }
-
-    CreatureGroundMovementType Ground;
-    CreatureFlightMovementType Flight;
-    bool Swim;
-    bool Rooted;
-    CreatureChaseMovementType Chase;
-    CreatureRandomMovementType Random;
-
-    bool IsGroundAllowed() const { return Ground != CreatureGroundMovementType::None; }
-    bool IsSwimAllowed() const { return Swim; }
-    bool IsFlightAllowed() const { return Flight != CreatureFlightMovementType::None; }
-    bool IsRooted() const { return Rooted; }
-
-    CreatureChaseMovementType GetChase() const { return Chase; }
-    CreatureRandomMovementType GetRandom() const { return Random; }
-
-    std::string ToString() const;
-};
-
-static const uint32 CREATURE_REGEN_INTERVAL = 2 * IN_MILLISECONDS;
-static const uint32 PET_FOCUS_REGEN_INTERVAL = 4 * IN_MILLISECONDS;
-static const uint32 CREATURE_NOPATH_EVADE_TIME = 5 * IN_MILLISECONDS;
-
-static const uint8 MAX_KILL_CREDIT = 2;
-static const uint32 MAX_CREATURE_MODELS = 4;
-static const uint32 MAX_CREATURE_QUEST_ITEMS = 6;
-static const uint32 MAX_CREATURE_SPELLS = 8;
+static uint8 const MAX_KILL_CREDIT = 2;
+static uint32 const MAX_CREATURE_MODELS = 4;
+static uint32 const MAX_CREATURE_QUEST_ITEMS = 6;
+static uint32 const MAX_CREATURE_SPELLS = 8;
 
 // from `creature_template` table
 struct TC_GAME_API CreatureTemplate
@@ -154,12 +93,14 @@ struct TC_GAME_API CreatureTemplate
     uint32  Modelid3;
     uint32  Modelid4;
     std::string  Name;
+    std::string FemaleName;
     std::string  Title;
     std::string  IconName;
     uint32  GossipMenuId;
     uint8   minlevel;
     uint8   maxlevel;
     uint32  expansion;
+    uint32  expansionUnknown;                               // either 0 or 3, sent to the client / wdb
     uint32  faction;
     uint32  npcflag;
     float   speed_walk;
@@ -176,8 +117,12 @@ struct TC_GAME_API CreatureTemplate
     uint32  unit_flags2;                                    // enum UnitFlags2 mask values
     uint32  dynamicflags;
     CreatureFamily  family;                                 // enum CreatureFamily values (optional)
+    uint32  trainer_type;
+    uint32  trainer_class;
+    uint32  trainer_race;
     uint32  type;                                           // enum CreatureType values
     uint32  type_flags;                                     // enum CreatureTypeFlags mask values
+    uint32  type_flags2;                                    // unknown enum, only set for 4 creatures (with value 1)
     uint32  lootid;
     uint32  pickpocketLootId;
     uint32  SkinLootId;
@@ -189,10 +134,12 @@ struct TC_GAME_API CreatureTemplate
     uint32  maxgold;
     std::string AIName;
     uint32  MovementType;
-    CreatureMovementData Movement;
+    uint32  InhabitType;
     float   HoverHeight;
     float   ModHealth;
+    float   ModHealthExtra;
     float   ModMana;
+    float   ModManaExtra;                                   // Added in 4.x, this value is usually 2 for a small group of creatures with double mana
     float   ModArmor;
     float   ModDamage;
     float   ModExperience;
@@ -203,7 +150,6 @@ struct TC_GAME_API CreatureTemplate
     uint32  SpellSchoolImmuneMask;
     uint32  flags_extra;
     uint32  ScriptID;
-    WorldPacket QueryData[TOTAL_LOCALES];
     uint32  GetRandomValidModelId() const;
     uint32  GetFirstValidModelId() const;
     uint32  GetFirstInvisibleModel() const;
@@ -235,9 +181,6 @@ struct TC_GAME_API CreatureTemplate
         // if can tame exotic then can tame any tameable
         return canTameExotic || !IsExotic();
     }
-
-    void InitializeQueryData();
-    WorldPacket BuildQueryData(LocaleConstant loc) const;
 };
 
 #pragma pack(push, 1)
@@ -256,7 +199,7 @@ struct TC_GAME_API CreatureBaseStats
 
     uint32 GenerateHealth(CreatureTemplate const* info) const
     {
-        return uint32(ceil(BaseHealth[info->expansion] * info->ModHealth));
+        return uint32(ceil(BaseHealth[info->expansion] * info->ModHealth * info->ModHealthExtra));
     }
 
     uint32 GenerateMana(CreatureTemplate const* info) const
@@ -265,7 +208,7 @@ struct TC_GAME_API CreatureBaseStats
         if (!BaseMana)
             return 0;
 
-        return uint32(ceil(BaseMana * info->ModMana));
+        return uint32(ceil(BaseMana * info->ModMana * info->ModManaExtra));
     }
 
     uint32 GenerateArmor(CreatureTemplate const* info) const
@@ -281,9 +224,12 @@ struct TC_GAME_API CreatureBaseStats
     static CreatureBaseStats const* GetBaseStats(uint8 level, uint8 unitClass);
 };
 
+typedef std::unordered_map<uint16, CreatureBaseStats> CreatureBaseStatsContainer;
+
 struct CreatureLocale
 {
     std::vector<std::string> Name;
+    std::vector<std::string> FemaleName;
     std::vector<std::string> Title;
 };
 
@@ -306,7 +252,6 @@ struct CreatureData : public SpawnData
     uint32 npcflag = 0;
     uint32 unit_flags = 0;
     uint32 dynamicflags = 0;
-    float size = -1.0f;
 };
 
 struct CreatureModelInfo
@@ -337,6 +282,9 @@ struct CreatureAddon
     uint32 bytes1;
     uint32 bytes2;
     uint32 emote;
+    uint16 aiAnimKit;
+    uint16 movementAnimKit;
+    uint16 meleeAnimKit;
     std::vector<uint32> auras;
     VisibilityDistanceType visibilityDistanceType;
 };
@@ -344,13 +292,14 @@ struct CreatureAddon
 // Vendors
 struct VendorItem
 {
-    VendorItem(uint32 _item, int32 _maxcount, uint32 _incrtime, uint32 _ExtendedCost)
-        : item(_item), maxcount(_maxcount), incrtime(_incrtime), ExtendedCost(_ExtendedCost) { }
+    VendorItem(uint32 _item, int32 _maxcount, uint32 _incrtime, uint32 _ExtendedCost, uint8 _Type)
+        : item(_item), maxcount(_maxcount), incrtime(_incrtime), ExtendedCost(_ExtendedCost), Type(_Type) { }
 
     uint32 item;
     uint32 maxcount;                                        // 0 for infinity item amount
     uint32 incrtime;                                        // time for restore items amount if maxcount != 0
     uint32 ExtendedCost;
+    uint8  Type;
 
     //helpers
     bool IsGoldRequired(ItemTemplate const* pProto) const;
@@ -368,17 +317,52 @@ struct VendorItemData
         return &m_items[slot];
     }
     bool Empty() const { return m_items.empty(); }
-    uint8 GetItemCount() const { return m_items.size(); }
-    void AddItem(uint32 item, int32 maxcount, uint32 ptime, uint32 ExtendedCost)
+    uint32 GetItemCount() const { return m_items.size(); }
+    void AddItem(uint32 item, int32 maxcount, uint32 ptime, uint32 ExtendedCost, uint8 type)
     {
-        m_items.emplace_back(item, maxcount, ptime, ExtendedCost);
+        m_items.emplace_back(item, maxcount, ptime, ExtendedCost, type);
     }
-    bool RemoveItem(uint32 item_id);
-    VendorItem const* FindItemCostPair(uint32 item_id, uint32 extendedCost) const;
+    bool RemoveItem(uint32 item_id, uint8 type);
+    VendorItem const* FindItemCostPair(uint32 item_id, uint32 extendedCost, uint8 type) const;
     void Clear()
     {
         m_items.clear();
     }
 };
+
+struct TrainerSpell
+{
+    TrainerSpell() : SpellID(0), MoneyCost(0), ReqSkillLine(0), ReqSkillRank(0), ReqLevel(0), Index(0)
+    {
+        for (uint8 i = 0; i < MAX_SPELL_EFFECTS; ++i)
+            ReqAbility[i] = 0;
+    }
+
+    uint32 SpellID;
+    uint32 MoneyCost;
+    uint32 ReqSkillLine;
+    uint32 ReqSkillRank;
+    uint32 ReqLevel;
+    uint32 ReqAbility[3];
+    uint32 Index;
+
+    // helpers
+    bool IsCastable() const { return ReqAbility[0] != SpellID; }
+};
+
+typedef std::unordered_map<uint32 /*spellid*/, TrainerSpell> TrainerSpellMap;
+
+struct TC_GAME_API TrainerSpellData
+{
+    TrainerSpellData() : trainerType(0) { }
+    ~TrainerSpellData() { spellList.clear(); }
+
+    TrainerSpellMap spellList;
+    uint32 trainerType;                                     // trainer type based at trainer spells, can be different from creature_template value.
+                                                            // req. for correct show non-prof. trainers like weaponmaster, allowed values 0 and 2.
+    TrainerSpell const* Find(uint32 spell_id) const;
+};
+
+typedef std::unordered_map<uint32, float /*SparringHealthLimit*/> CreatureSparringTemplateMap;
 
 #endif // CreatureData_h__

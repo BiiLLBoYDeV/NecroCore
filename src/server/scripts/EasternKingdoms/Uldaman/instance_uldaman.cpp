@@ -24,14 +24,13 @@ SDCategory: Uldaman
 EndScriptData */
 
 #include "ScriptMgr.h"
-#include "Creature.h"
-#include "CreatureAI.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Log.h"
 #include "Map.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
+#include "ScriptedCreature.h"
 #include "uldaman.h"
 
 enum Spells
@@ -61,7 +60,7 @@ class instance_uldaman : public InstanceMapScript
 
         struct instance_uldaman_InstanceMapScript : public InstanceScript
         {
-            instance_uldaman_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_uldaman_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 memset(&m_auiEncounter, 0, sizeof(m_auiEncounter));
@@ -226,30 +225,30 @@ class instance_uldaman : public InstanceMapScript
                 for (GuidVector::const_iterator i = archaedasWallMinions.begin(); i != archaedasWallMinions.end(); ++i)
                 {
                     Creature* target = instance->GetCreature(*i);
-                    if (!target || target->isDead() || target->GetFaction() != FACTION_MONSTER)
+                    if (!target || target->isDead() || target->GetFaction() != 14)
                         continue;
-
-                    target->DespawnOrUnsummon();
+                    target->setDeathState(JUST_DIED);
+                    target->RemoveCorpse();
                 }
 
                 // Vault Walkers
                 for (GuidVector::const_iterator i = vaultWalkers.begin(); i != vaultWalkers.end(); ++i)
                 {
                     Creature* target = instance->GetCreature(*i);
-                    if (!target || target->isDead() || target->GetFaction() != FACTION_MONSTER)
+                    if (!target || target->isDead() || target->GetFaction() != 14)
                         continue;
-
-                    target->DespawnOrUnsummon();
+                    target->setDeathState(JUST_DIED);
+                    target->RemoveCorpse();
                 }
 
                 // Earthen Guardians
                 for (GuidVector::const_iterator i = earthenGuardians.begin(); i != earthenGuardians.end(); ++i)
                 {
                     Creature* target = instance->GetCreature(*i);
-                    if (!target || target->isDead() || target->GetFaction() != FACTION_MONSTER)
+                    if (!target || target->isDead() || target->GetFaction() != 14)
                         continue;
-
-                    target->DespawnOrUnsummon();
+                    target->setDeathState(JUST_DIED);
+                    target->RemoveCorpse();
                 }
             }
 

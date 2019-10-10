@@ -19,9 +19,8 @@
 #ifndef LOAD_LIB_H
 #define LOAD_LIB_H
 
+#include "StormLib.h"
 #include "Define.h"
-
-#include <string>
 
 #define FILE_FORMAT_VERSION    18
 
@@ -46,6 +45,7 @@ struct file_MVER
     uint32 ver;
 };
 
+
 class FileLoader{
     uint8  *data;
     uint32  data_size;
@@ -57,7 +57,7 @@ public:
     file_MVER *version;
     FileLoader();
     ~FileLoader();
-    bool loadFile(std::string const& fileName, bool log = true);
+    bool loadFile(HANDLE mpq, char *filename, bool log = true);
     virtual void free();
 };
 

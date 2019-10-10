@@ -57,7 +57,7 @@ class boss_magmus : public CreatureScript
                 if (InstanceScript* instance = me->GetInstanceScript())
                     instance->SetData(TYPE_IRON_HALL, IN_PROGRESS);
                 _events.SetPhase(PHASE_ONE);
-                _events.ScheduleEvent(EVENT_FIERY_BURST, 5s);
+                _events.ScheduleEvent(EVENT_FIERY_BURST, 5000);
             }
 
             void DamageTaken(Unit* /*attacker*/, uint32& damage) override
@@ -82,11 +82,11 @@ class boss_magmus : public CreatureScript
                     {
                         case EVENT_FIERY_BURST:
                             DoCastVictim(SPELL_FIERYBURST);
-                            _events.ScheduleEvent(EVENT_FIERY_BURST, 6s);
+                            _events.ScheduleEvent(EVENT_FIERY_BURST, 6000);
                             break;
                         case EVENT_WARSTOMP:
                             DoCastVictim(SPELL_WARSTOMP);
-                            _events.ScheduleEvent(EVENT_WARSTOMP, 8s, 0, PHASE_TWO);
+                            _events.ScheduleEvent(EVENT_WARSTOMP, 8000, 0, PHASE_TWO);
                             break;
                         default:
                             break;

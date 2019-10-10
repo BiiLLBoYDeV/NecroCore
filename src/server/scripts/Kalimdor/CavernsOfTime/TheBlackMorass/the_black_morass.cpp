@@ -59,11 +59,6 @@ class npc_medivh_bm : public CreatureScript
 public:
     npc_medivh_bm() : CreatureScript("npc_medivh_bm") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetBlackMorassAI<npc_medivh_bmAI>(creature);
-    }
-
     struct npc_medivh_bmAI : public ScriptedAI
     {
         npc_medivh_bmAI(Creature* creature) : ScriptedAI(creature)
@@ -205,7 +200,8 @@ public:
                     //if we reach this it means event was running but at some point reset.
                     if (instance->GetData(TYPE_MEDIVH) == NOT_STARTED)
                     {
-                        me->DespawnOrUnsummon();
+                        me->DealDamage(me, me->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+                        me->RemoveCorpse();
                         me->Respawn();
                         return;
                     }
@@ -231,6 +227,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetBlackMorassAI<npc_medivh_bmAI>(creature);
+    }
 };
 
 struct Wave
@@ -249,11 +249,6 @@ class npc_time_rift : public CreatureScript
 {
 public:
     npc_time_rift() : CreatureScript("npc_time_rift") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetBlackMorassAI<npc_time_riftAI>(creature);
-    }
 
     struct npc_time_riftAI : public ScriptedAI
     {
@@ -306,11 +301,11 @@ public:
             Position pos = me->GetRandomNearPosition(10.0f);
 
             //normalize Z-level if we can, if rift is not at ground level.
-            pos.m_positionZ = std::max(me->GetMap()->GetHeight(pos.m_positionX, pos.m_positionY, MAX_HEIGHT), me->GetMap()->GetWaterLevel(pos.m_positionX, pos.m_positionY));
+            pos.m_positionZ = std::max(me->GetMap()->GetHeight(me->GetPhaseShift(), pos.m_positionX, pos.m_positionY, MAX_HEIGHT), me->GetMap()->GetWaterLevel(me->GetPhaseShift(), pos.m_positionX, pos.m_positionY));
 
             if (Unit* Summon = DoSummon(creature_entry, pos, 30000, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT))
                 if (Unit* temp = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_MEDIVH)))
-                    AddThreat(temp, 0.0f, Summon);
+                    Summon->AddThreat(temp, 0.0f);
         }
 
         void DoSelectSummon()
@@ -351,6 +346,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetBlackMorassAI<npc_time_riftAI>(creature);
+    }
 };
 
 void AddSC_the_black_morass()

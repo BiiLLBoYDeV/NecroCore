@@ -1,4 +1,4 @@
-# Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+# Copyright (C) 2008-2018 TrinityCore <http://www.trinitycore.org/>
 #
 # This file is free software; as a special exception the author gives
 # unlimited permission to copy and/or distribute it, with or without
@@ -25,7 +25,7 @@ target_link_libraries(mmaps_generator
     common
     Recast
     Detour
-    mpq)
+    storm)
 
 CollectIncludeDirectories(
   ${CMAKE_CURRENT_SOURCE_DIR}

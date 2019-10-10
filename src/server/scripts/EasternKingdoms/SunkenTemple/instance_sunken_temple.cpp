@@ -63,14 +63,9 @@ class instance_sunken_temple : public InstanceMapScript
 public:
     instance_sunken_temple() : InstanceMapScript(STScriptName, 109) { }
 
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_sunken_temple_InstanceMapScript(map);
-    }
-
     struct instance_sunken_temple_InstanceMapScript : public InstanceScript
     {
-        instance_sunken_temple_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_sunken_temple_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             State = 0;
@@ -204,6 +199,10 @@ public:
          }
     };
 
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_sunken_temple_InstanceMapScript(map);
+    }
 };
 
 void AddSC_instance_sunken_temple()

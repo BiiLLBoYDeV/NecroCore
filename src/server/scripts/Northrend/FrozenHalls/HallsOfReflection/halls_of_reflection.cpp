@@ -15,24 +15,19 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "ScriptMgr.h"
 #include "halls_of_reflection.h"
-#include "Creature.h"
-#include "EventProcessor.h"
 #include "InstanceScript.h"
 #include "MotionMaster.h"
-#include "MoveSplineInit.h"
 #include "ObjectAccessor.h"
-#include "ObjectGuid.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
-#include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
 #include "TemporarySummon.h"
 #include "Transport.h"
-#include "Unit.h"
 
 enum Text
 {
@@ -348,6 +343,12 @@ Position const IceWallTargetPosition[] =
     { 5318.289f, 1749.184f, 771.9423f, 0.8726646f }  // 4th Icewall
 };
 
+void GameObjectDeleteDelayEvent::DeleteGameObject()
+{
+    if (GameObject* go = ObjectAccessor::GetGameObject(*_owner, _gameObjectGUID))
+        go->Delete();
+}
+
 class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
 {
     public:
@@ -363,11 +364,12 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
             bool GossipHello(Player* player) override
             {
                 // override default gossip
-                if (_instance->GetData(DATA_QUEL_DELAR_EVENT) == IN_PROGRESS || _instance->GetData(DATA_QUEL_DELAR_EVENT) == SPECIAL)
-                {
-                    ClearGossipMenuFor(player);
-                    return true;
-                }
+                if (InstanceScript* instance = me->GetInstanceScript())
+                    if (instance->GetData(DATA_QUEL_DELAR_EVENT) == IN_PROGRESS || instance->GetData(DATA_QUEL_DELAR_EVENT) == SPECIAL)
+                    {
+                        ClearGossipMenuFor(player);
+                        return true;
+                    }
 
                 // load default gossip
                 return false;
@@ -381,12 +383,12 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                 {
                     case 0:
                         player->PlayerTalkClass->SendCloseGossip();
-                        _events.ScheduleEvent(EVENT_START_INTRO, 1s);
+                        _events.ScheduleEvent(EVENT_START_INTRO, 1000);
                         me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                         break;
                     case 1:
                         player->PlayerTalkClass->SendCloseGossip();
-                        _events.ScheduleEvent(EVENT_SKIP_INTRO, 1s);
+                        _events.ScheduleEvent(EVENT_SKIP_INTRO, 1000);
                         me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP | UNIT_NPC_FLAG_QUESTGIVER);
                         break;
                     default:
@@ -627,7 +629,7 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                             lichking->GetMotionMaster()->MovePoint(0, LichKingIntroPosition[2]);
                             _lichkingGUID = lichking->GetGUID();
                             _events.ScheduleEvent(EVENT_OPEN_IMPENETRABLE_DOOR, 0);
-                            _events.ScheduleEvent(EVENT_CLOSE_IMPENETRABLE_DOOR, 4s);
+                            _events.ScheduleEvent(EVENT_CLOSE_IMPENETRABLE_DOOR, 4000);
                         }
                         if (Creature* uther = ObjectAccessor::GetCreature(*me, _utherGUID))
                         {
@@ -659,7 +661,7 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                         if (Creature* lichking = ObjectAccessor::GetCreature(*me, _lichkingGUID))
                         {
                             if (GameObject* frostmourne = ObjectAccessor::GetGameObject(*me, _instance->GetGuidData(DATA_FROSTMOURNE)))
-                                frostmourne->SetPhaseMask(2, true);
+                                frostmourne->SetLootState(GO_JUST_DEACTIVATED);
                             lichking->CastSpell(lichking, SPELL_TAKE_FROSTMOURNE, true);
                             lichking->CastSpell(lichking, SPELL_FROSTMOURNE_VISUAL, true);
                         }
@@ -689,7 +691,7 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                             lichking->GetMotionMaster()->MovePoint(0, LichKingMoveAwayPos);
                         }
                         _events.ScheduleEvent(EVENT_INTRO_LK_7, 10000);
-                        _events.ScheduleEvent(EVENT_OPEN_IMPENETRABLE_DOOR, 5s);
+                        _events.ScheduleEvent(EVENT_OPEN_IMPENETRABLE_DOOR, 5000);
                         break;
                     case EVENT_INTRO_LK_7:
                         if (Creature* marwyn = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_MARWYN)))
@@ -734,18 +736,18 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                             else
                                 lichking->AI()->Talk(SAY_LK_SYLVANAS_INTRO_END);
                         }
-                        _events.ScheduleEvent(EVENT_INTRO_END, 5s);
+                        _events.ScheduleEvent(EVENT_INTRO_END, 5000);
                         break;
                     case EVENT_INTRO_END:
                         _instance->SetData(DATA_INTRO_EVENT, DONE);
-                        _events.ScheduleEvent(EVENT_KORELN_LORALEN_DEATH, 8s);
+                        _events.ScheduleEvent(EVENT_KORELN_LORALEN_DEATH, 8000);
                         if (Creature* lichking = ObjectAccessor::GetCreature(*me, _lichkingGUID))
                         {
                             lichking->DespawnOrUnsummon(5000);
                             _lichkingGUID.Clear();
                         }
                         me->DespawnOrUnsummon(10000);
-                        _events.ScheduleEvent(EVENT_CLOSE_IMPENETRABLE_DOOR, 7s);
+                        _events.ScheduleEvent(EVENT_CLOSE_IMPENETRABLE_DOOR, 7000);
                         break;
                     case EVENT_SKIP_INTRO:
                         if (_instance->GetData(DATA_TEAM_IN_INSTANCE) == ALLIANCE)
@@ -763,7 +765,7 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
                             lichking->SetReactState(REACT_PASSIVE);
                             _lichkingGUID = lichking->GetGUID();
                             _events.ScheduleEvent(EVENT_OPEN_IMPENETRABLE_DOOR, 0);
-                            _events.ScheduleEvent(EVENT_CLOSE_IMPENETRABLE_DOOR, 4s);
+                            _events.ScheduleEvent(EVENT_CLOSE_IMPENETRABLE_DOOR, 4000);
                         }
                         _events.ScheduleEvent(EVENT_INTRO_LK_4, 15000);
                         break;
@@ -795,33 +797,6 @@ class npc_jaina_or_sylvanas_intro_hor : public CreatureScript
         }
 };
 
-class HoRGameObjectDeleteDelayEvent : public BasicEvent
-{
-    public:
-        explicit HoRGameObjectDeleteDelayEvent(Unit* owner, ObjectGuid gameObjectGUID) : _owner(owner), _gameObjectGUID(gameObjectGUID) { }
-
-        void DeleteGameObject()
-        {
-            if (GameObject* go = ObjectAccessor::GetGameObject(*_owner, _gameObjectGUID))
-                go->Delete();
-        }
-
-        bool Execute(uint64 /*execTime*/, uint32 /*diff*/) override
-        {
-            DeleteGameObject();
-            return true;
-        }
-
-        void Abort(uint64 /*execTime*/) override
-        {
-            DeleteGameObject();
-        }
-
-    private:
-        Unit* _owner;
-        ObjectGuid _gameObjectGUID;
-};
-
 class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
 {
     public:
@@ -836,7 +811,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
             {
                 _events.Reset();
                 _icewall = 0;
-                _events.ScheduleEvent(EVENT_ESCAPE, 1s);
+                _events.ScheduleEvent(EVENT_ESCAPE, 1000);
                 _instance->DoStopTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEV_NOT_RETREATING_EVENT);
             }
 
@@ -883,12 +858,13 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
             bool GossipHello(Player* player) override
             {
                 // override default gossip
-                if (_instance->GetBossState(DATA_THE_LICH_KING_ESCAPE) == DONE)
-                {
-                    player->PrepareGossipMenu(me, me->GetEntry() == NPC_JAINA_ESCAPE ? GOSSIP_MENU_JAINA_FINAL : GOSSIP_MENU_SYLVANAS_FINAL, true);
-                    player->SendPreparedGossip(me);
-                    return true;
-                }
+                if (InstanceScript* instance = me->GetInstanceScript())
+                    if (instance->GetBossState(DATA_THE_LICH_KING_ESCAPE) == DONE)
+                    {
+                        player->PrepareGossipMenu(me, me->GetEntry() == NPC_JAINA_ESCAPE ? GOSSIP_MENU_JAINA_FINAL : GOSSIP_MENU_SYLVANAS_FINAL, true);
+                        player->SendPreparedGossip(me);
+                        return true;
+                    }
 
                 // load default gossip
                 return false;
@@ -919,7 +895,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
                     me->RemoveAurasDueToSpell(SPELL_SYLVANAS_DESTROY_ICE_WALL);
 
                 _instance->HandleGameObject(_instance->GetGuidData(DATA_ICEWALL), true);
-                me->m_Events.AddEvent(new HoRGameObjectDeleteDelayEvent(me, _instance->GetGuidData(DATA_ICEWALL)), me->m_Events.CalculateTime(5000));
+                me->m_Events.AddEvent(new GameObjectDeleteDelayEvent(me, _instance->GetGuidData(DATA_ICEWALL)), me->m_Events.CalculateTime(5000));
 
                 if (Creature* wallTarget = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_ICEWALL_TARGET)))
                     wallTarget->DespawnOrUnsummon();
@@ -985,9 +961,14 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
 
             void DeleteAllFromThreatList(Unit* target, ObjectGuid except)
             {
-                for (ThreatReference* ref : target->GetThreatManager().GetModifiableThreatList())
-                  if (ref->GetVictim()->GetGUID() != except)
-                    ref->ClearThreat();
+                ThreatContainer::StorageType threatlist = target->getThreatManager().getThreatList();
+                for (auto i : threatlist)
+                {
+                    if (i->getUnitGuid() == except)
+                        continue;
+
+                    i->removeReference();
+                }
             }
 
             void UpdateAI(uint32 diff) override
@@ -1057,7 +1038,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
 
                             if (Creature* lichking = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_THE_LICH_KING_ESCAPE)))
                             {
-                                lichking->SetImmuneToPC(true);
+                                lichking->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                                 lichking->RemoveAllAttackers();
 
                                 DeleteAllFromThreatList(lichking, me->GetGUID());
@@ -1071,8 +1052,7 @@ class npc_jaina_or_sylvanas_escape_hor : public CreatureScript
                         case EVENT_ESCAPE_6:
                             if (Creature* lichking = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_THE_LICH_KING_ESCAPE)))
                             {
-                                lichking->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED);
-                                lichking->SetImmuneToPC(false);
+                                lichking->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_PACIFIED);
 
                                 if (_instance->GetData(DATA_TEAM_IN_INSTANCE) == ALLIANCE)
                                 {
@@ -1266,35 +1246,35 @@ class npc_the_lich_king_escape_hor : public CreatureScript
                     case 0: // 6 Ghouls, 1 Witch Doctor
                         DoZoneInCombat();
                         _events.ScheduleEvent(EVENT_REMORSELESS_WINTER, 0);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 8s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 14s);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 8000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 14000);
                         Talk(SAY_LK_ESCAPE_ICEWALL_SUMMONED_1);
                         break;
                     case 1: // 6 Ghouls, 2 Witch Doctor, 1 Lumbering Abomination
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 8s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 13s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 15s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 18s);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 8000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 13000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 16000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 18000);
                         Talk(SAY_LK_ESCAPE_ICEWALL_SUMMONED_2);
                         break;
                     case 2: // 6 Ghouls, 2 Witch Doctor, 2 Lumbering Abomination
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 9s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 14s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 15s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 19s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 39s);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 9000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 14000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 17000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 19000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 39000);
                         Talk(SAY_LK_ESCAPE_ICEWALL_SUMMONED_3);
                         break;
                     case 3: // 12 Ghouls, 4 Witch Doctor, 3 Lumbering Abomination
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 9s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 15s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 19s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 40s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 45s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 55s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 62s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 65s);
-                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 14s);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 9000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 17000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 19000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 40000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 46000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_GHOULS, 55000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 62000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_WITCH_DOCTOR, 66000);
+                        _events.ScheduleEvent(EVENT_ESCAPE_SUMMON_LUMBERING_ABOMINATION, 14000);
                         Talk(SAY_LK_ESCAPE_ICEWALL_SUMMONED_4);
                         break;
                     default:
@@ -1363,11 +1343,11 @@ class npc_the_lich_king_escape_hor : public CreatureScript
                 if (!me->HasReactState(REACT_PASSIVE))
                 {
                     if (Unit* victim = me->SelectVictim())
-                        if (!me->HasSpellFocus() && victim != me->GetVictim())
+                        if (!me->IsFocusing(nullptr, true) && victim != me->GetVictim())
                             AttackStart(victim);
                     return me->GetVictim() != nullptr;
                 }
-                else if (me->GetCombatManager().GetPvECombatRefs().size() < 2 && me->HasAura(SPELL_REMORSELESS_WINTER))
+                else if (me->getThreatManager().getThreatList().size() < 2 && me->HasAura(SPELL_REMORSELESS_WINTER))
                 {
                     EnterEvadeMode(EVADE_REASON_OTHER);
                     return false;
@@ -1511,10 +1491,10 @@ class npc_ghostly_priest : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                _events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 6s, 15s);
-                _events.ScheduleEvent(EVENT_CIRCLE_OF_DESTRUCTION, 12s);
-                _events.ScheduleEvent(EVENT_COWER_IN_FEAR, 10s);
-                _events.ScheduleEvent(EVENT_DARK_MENDING, 20s);
+                _events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, urand(6000, 15000));
+                _events.ScheduleEvent(EVENT_CIRCLE_OF_DESTRUCTION, 12000);
+                _events.ScheduleEvent(EVENT_COWER_IN_FEAR, 10000);
+                _events.ScheduleEvent(EVENT_DARK_MENDING, 20000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1532,29 +1512,29 @@ class npc_ghostly_priest : public CreatureScript
                     case EVENT_SHADOW_WORD_PAIN:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
                             DoCast(target, SPELL_SHADOW_WORD_PAIN);
-                        _events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 6s, 15s);
+                        _events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, urand(6000, 15000));
                         break;
                     case EVENT_CIRCLE_OF_DESTRUCTION:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 10.0f, true))
                             DoCast(target, SPELL_CIRCLE_OF_DESTRUCTION);
-                        _events.ScheduleEvent(EVENT_CIRCLE_OF_DESTRUCTION, 12s);
+                        _events.ScheduleEvent(EVENT_CIRCLE_OF_DESTRUCTION, 12000);
                         break;
                     case EVENT_COWER_IN_FEAR:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 20.0f, true))
                             DoCast(target, SPELL_COWER_IN_FEAR);
-                        _events.ScheduleEvent(EVENT_COWER_IN_FEAR, 10s);
+                        _events.ScheduleEvent(EVENT_COWER_IN_FEAR, 10000);
                         break;
                     case EVENT_DARK_MENDING:
                         // find an ally with missing HP
                         if (Unit* target = DoSelectLowestHpFriendly(40, DUNGEON_MODE(30000, 50000)))
                         {
                             DoCast(target, SPELL_DARK_MENDING);
-                            _events.ScheduleEvent(EVENT_DARK_MENDING, 20s);
+                            _events.ScheduleEvent(EVENT_DARK_MENDING, 20000);
                         }
                         else
                         {
                             // no friendly unit with missing hp. re-check in just 5 sec.
-                            _events.ScheduleEvent(EVENT_DARK_MENDING, 5s);
+                            _events.ScheduleEvent(EVENT_DARK_MENDING, 5000);
                         }
                         break;
                     default:
@@ -1588,11 +1568,11 @@ class npc_phantom_mage : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                _events.ScheduleEvent(EVENT_FIREBALL, 3s);
-                _events.ScheduleEvent(EVENT_FLAMESTRIKE, 6s);
-                _events.ScheduleEvent(EVENT_FROSTBOLT, 9s);
-                _events.ScheduleEvent(EVENT_CHAINS_OF_ICE, 12s);
-                _events.ScheduleEvent(EVENT_HALLUCINATION, 40s);
+                _events.ScheduleEvent(EVENT_FIREBALL, 3000);
+                _events.ScheduleEvent(EVENT_FLAMESTRIKE, 6000);
+                _events.ScheduleEvent(EVENT_FROSTBOLT, 9000);
+                _events.ScheduleEvent(EVENT_CHAINS_OF_ICE, 12000);
+                _events.ScheduleEvent(EVENT_HALLUCINATION, 40000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1610,22 +1590,22 @@ class npc_phantom_mage : public CreatureScript
                     case EVENT_FIREBALL:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
                             DoCast(target, SPELL_FIREBALL);
-                        _events.ScheduleEvent(EVENT_FIREBALL, 15s);
+                        _events.ScheduleEvent(EVENT_FIREBALL, 15000);
                         break;
                     case EVENT_FLAMESTRIKE:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
                             DoCast(target, SPELL_FLAMESTRIKE);
-                        _events.ScheduleEvent(EVENT_FLAMESTRIKE, 15s);
+                        _events.ScheduleEvent(EVENT_FLAMESTRIKE, 15000);
                         break;
                     case EVENT_FROSTBOLT:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
                             DoCast(target, SPELL_FROSTBOLT);
-                        _events.ScheduleEvent(EVENT_FROSTBOLT, 15s);
+                        _events.ScheduleEvent(EVENT_FROSTBOLT, 15000);
                         break;
                     case EVENT_CHAINS_OF_ICE:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM))
                             DoCast(target, SPELL_CHAINS_OF_ICE);
-                        _events.ScheduleEvent(EVENT_CHAINS_OF_ICE, 15s);
+                        _events.ScheduleEvent(EVENT_CHAINS_OF_ICE, 15000);
                         break;
                     case EVENT_HALLUCINATION:
                         // removing any dots on mage or else the invisibility spell will break duration
@@ -1657,7 +1637,7 @@ class npc_phantom_hallucination : public CreatureScript
 
             void Reset() override
             {
-                DoZoneInCombat(me);
+                DoZoneInCombat(me, 150.0f);
             }
 
             void EnterEvadeMode(EvadeReason why) override
@@ -1674,7 +1654,7 @@ class npc_phantom_hallucination : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetHallsOfReflectionAI<npc_phantom_hallucinationAI>(creature);
+            return new npc_phantom_hallucinationAI(creature);
         }
 };
 
@@ -1689,10 +1669,10 @@ class npc_shadowy_mercenary : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                _events.ScheduleEvent(EVENT_SHADOW_STEP, 23s);
-                _events.ScheduleEvent(EVENT_DEADLY_POISON, 5s);
-                _events.ScheduleEvent(EVENT_ENVENOMED_DAGGER_THROW, 10s);
-                _events.ScheduleEvent(EVENT_KIDNEY_SHOT, 12s);
+                _events.ScheduleEvent(EVENT_SHADOW_STEP, 23000);
+                _events.ScheduleEvent(EVENT_DEADLY_POISON, 5000);
+                _events.ScheduleEvent(EVENT_ENVENOMED_DAGGER_THROW, 10000);
+                _events.ScheduleEvent(EVENT_KIDNEY_SHOT, 12000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1710,20 +1690,20 @@ class npc_shadowy_mercenary : public CreatureScript
                     case EVENT_SHADOW_STEP:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true))
                             DoCast(target, SPELL_SHADOW_STEP);
-                        _events.ScheduleEvent(EVENT_SHADOW_STEP, 8s);
+                        _events.ScheduleEvent(EVENT_SHADOW_STEP, 8000);
                         break;
                     case EVENT_DEADLY_POISON:
                         DoCastVictim(SPELL_DEADLY_POISON);
-                        _events.ScheduleEvent(EVENT_DEADLY_POISON, 10s);
+                        _events.ScheduleEvent(EVENT_DEADLY_POISON, 10000);
                         break;
                     case EVENT_ENVENOMED_DAGGER_THROW:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
                             DoCast(target, SPELL_ENVENOMED_DAGGER_THROW);
-                        _events.ScheduleEvent(EVENT_ENVENOMED_DAGGER_THROW, 10s);
+                        _events.ScheduleEvent(EVENT_ENVENOMED_DAGGER_THROW, 10000);
                         break;
                     case EVENT_KIDNEY_SHOT:
                         DoCastVictim(SPELL_KIDNEY_SHOT);
-                        _events.ScheduleEvent(EVENT_KIDNEY_SHOT, 10s);
+                        _events.ScheduleEvent(EVENT_KIDNEY_SHOT, 10000);
                         break;
                     default:
                         break;
@@ -1750,9 +1730,9 @@ class npc_spectral_footman : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                _events.ScheduleEvent(EVENT_SPECTRAL_STRIKE, 14s);
-                _events.ScheduleEvent(EVENT_SHIELD_BASH, 10s);
-                _events.ScheduleEvent(EVENT_TORTURED_ENRAGE, 15s);
+                _events.ScheduleEvent(EVENT_SPECTRAL_STRIKE, 14000);
+                _events.ScheduleEvent(EVENT_SHIELD_BASH, 10000);
+                _events.ScheduleEvent(EVENT_TORTURED_ENRAGE, 15000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1769,15 +1749,15 @@ class npc_spectral_footman : public CreatureScript
                 {
                     case EVENT_SPECTRAL_STRIKE:
                         DoCastVictim(SPELL_SPECTRAL_STRIKE);
-                        _events.ScheduleEvent(EVENT_SPECTRAL_STRIKE, 5s);
+                        _events.ScheduleEvent(EVENT_SPECTRAL_STRIKE, 5000);
                         break;
                     case EVENT_SHIELD_BASH:
                         DoCastVictim(SPELL_SHIELD_BASH);
-                        _events.ScheduleEvent(EVENT_SHIELD_BASH, 5s);
+                        _events.ScheduleEvent(EVENT_SHIELD_BASH, 5000);
                         break;
                     case EVENT_TORTURED_ENRAGE:
                         DoCast(me, SPELL_TORTURED_ENRAGE);
-                        _events.ScheduleEvent(EVENT_TORTURED_ENRAGE, 15s);
+                        _events.ScheduleEvent(EVENT_TORTURED_ENRAGE, 15000);
                         break;
                     default:
                         break;
@@ -1805,9 +1785,9 @@ class npc_tortured_rifleman : public CreatureScript
             void JustEngagedWith(Unit* /*who*/) override
             {
                 _events.ScheduleEvent(EVENT_SHOOT, 1);
-                _events.ScheduleEvent(EVENT_CURSED_ARROW, 7s);
-                _events.ScheduleEvent(EVENT_FROST_TRAP, 10s);
-                _events.ScheduleEvent(EVENT_ICE_SHOT, 15s);
+                _events.ScheduleEvent(EVENT_CURSED_ARROW, 7000);
+                _events.ScheduleEvent(EVENT_FROST_TRAP, 10000);
+                _events.ScheduleEvent(EVENT_ICE_SHOT, 15000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1825,21 +1805,21 @@ class npc_tortured_rifleman : public CreatureScript
                     case EVENT_SHOOT:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
                             DoCast(target, SPELL_SHOOT);
-                        _events.ScheduleEvent(EVENT_SHOOT, 2s);
+                        _events.ScheduleEvent(EVENT_SHOOT, 2000);
                         break;
                     case EVENT_CURSED_ARROW:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
                             DoCast(target, SPELL_CURSED_ARROW);
-                        _events.ScheduleEvent(EVENT_CURSED_ARROW, 10s);
+                        _events.ScheduleEvent(EVENT_CURSED_ARROW, 10000);
                         break;
                     case EVENT_FROST_TRAP:
                         DoCast(me, SPELL_FROST_TRAP);
-                        _events.ScheduleEvent(EVENT_FROST_TRAP, 30s);
+                        _events.ScheduleEvent(EVENT_FROST_TRAP, 30000);
                         break;
                     case EVENT_ICE_SHOT:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
                             DoCast(target, SPELL_ICE_SHOT);
-                        _events.ScheduleEvent(EVENT_ICE_SHOT, 15s);
+                        _events.ScheduleEvent(EVENT_ICE_SHOT, 15000);
                         break;
                     default:
                         break;
@@ -1906,9 +1886,9 @@ class npc_frostsworn_general : public CreatureScript
             {
                 Talk(SAY_AGGRO);
                 DoZoneInCombat();
-                _events.ScheduleEvent(EVENT_SHIELD, 5s);
-                _events.ScheduleEvent(EVENT_SPIKE, 14s);
-                _events.ScheduleEvent(EVENT_CLONE, 22s);
+                _events.ScheduleEvent(EVENT_SHIELD, 5000);
+                _events.ScheduleEvent(EVENT_SPIKE, 14000);
+                _events.ScheduleEvent(EVENT_CLONE, 22000);
                 _instance->SetData(DATA_FROSTSWORN_GENERAL, IN_PROGRESS);
             }
 
@@ -1929,16 +1909,16 @@ class npc_frostsworn_general : public CreatureScript
                         case EVENT_SHIELD:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 45.0f, true))
                                 DoCast(target, SPELL_SHIELD_THROWN);
-                            _events.ScheduleEvent(EVENT_SHIELD, 8s, 12s);
+                            _events.ScheduleEvent(EVENT_SHIELD, urand(8000, 12000));
                             break;
                         case EVENT_SPIKE:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 45.0f, true))
                                 DoCast(target, SPELL_SPIKE);
-                            _events.ScheduleEvent(EVENT_SPIKE, 15s, 20s);
+                            _events.ScheduleEvent(EVENT_SPIKE, urand(15000, 20000));
                             break;
                         case EVENT_CLONE:
                             SummonClones();
-                            _events.ScheduleEvent(EVENT_CLONE, 1min);
+                            _events.ScheduleEvent(EVENT_CLONE, 60000);
                             break;
                         default:
                             break;
@@ -1950,12 +1930,12 @@ class npc_frostsworn_general : public CreatureScript
             void SummonClones()
             {
                 std::list<Unit*> playerList;
-                SelectTargetList(playerList, 5, SELECT_TARGET_MAXTHREAT, 0, 0.0f, true);
+                SelectTargetList(playerList, 5, SELECT_TARGET_TOPAGGRO, 0.0f, true);
                 for (Unit* target : playerList)
                 {
                     if (Creature* reflection = me->SummonCreature(NPC_REFLECTION, *target, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 3000))
                     {
-                        reflection->SetImmuneToPC(false);
+                        reflection->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                         target->CastSpell(reflection, SPELL_CLONE, true);
                         target->CastSpell(reflection, SPELL_GHOST_VISUAL, true);
                         reflection->AI()->AttackStart(target);
@@ -1990,7 +1970,7 @@ class npc_spiritual_reflection : public CreatureScript
 
             void JustEngagedWith(Unit* /*victim*/) override
             {
-                _events.ScheduleEvent(EVENT_BALEFUL_STRIKE, 3s);
+                _events.ScheduleEvent(EVENT_BALEFUL_STRIKE, 3000);
             }
 
             void JustDied(Unit* /*killer*/) override
@@ -2013,7 +1993,7 @@ class npc_spiritual_reflection : public CreatureScript
                     case EVENT_BALEFUL_STRIKE:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 8.0f, true))
                             DoCast(target, SPELL_BALEFUL_STRIKE);
-                        _events.ScheduleEvent(EVENT_BALEFUL_STRIKE, 3s, 8s);
+                        _events.ScheduleEvent(EVENT_BALEFUL_STRIKE, urand(3000, 8000));
                         break;
                     default:
                         break;
@@ -2028,7 +2008,7 @@ class npc_spiritual_reflection : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetHallsOfReflectionAI<npc_spiritual_reflectionAI>(creature);
+            return new npc_spiritual_reflectionAI(creature);
         }
 };
 
@@ -2148,10 +2128,13 @@ enum EscapeEvents
     EVENT_LUMBERING_ABOMINATION_CLEAVE
 };
 
-class HoRStartMovementEvent : public BasicEvent
+namespace hor
+{
+
+class StartMovementEvent : public BasicEvent
 {
     public:
-        explicit HoRStartMovementEvent(Creature* owner) : _owner(owner) { }
+        StartMovementEvent(Creature* owner) : _owner(owner) { }
 
         bool Execute(uint64 /*execTime*/, uint32 /*diff*/) override
         {
@@ -2164,6 +2147,8 @@ class HoRStartMovementEvent : public BasicEvent
     private:
         Creature* _owner;
 };
+
+} // namespace hor
 
 struct npc_escape_event_trash : public ScriptedAI
 {
@@ -2180,15 +2165,15 @@ struct npc_escape_event_trash : public ScriptedAI
             me->DespawnOrUnsummon();
     }
 
-    void IsSummonedBy(WorldObject* /*summoner*/) override
+    void IsSummonedBy(Unit* /*summoner*/) override
     {
-        DoZoneInCombat(me);
+        DoZoneInCombat(me, 0.0f);
         if (Creature* leader = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_ESCAPE_LEADER)))
         {
-            me->SetImmuneToPC(false);
+            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
             me->SetInCombatWith(leader);
             leader->SetInCombatWith(me);
-            AddThreat(leader, 0.0f);
+            me->AddThreat(leader, 0.0f);
         }
     }
 
@@ -2209,15 +2194,15 @@ class npc_raging_ghoul : public CreatureScript
             void Reset() override
             {
                 npc_escape_event_trash::Reset();
-                _events.ScheduleEvent(EVENT_RAGING_GHOUL_JUMP, 5s);
+                _events.ScheduleEvent(EVENT_RAGING_GHOUL_JUMP, 5000);
             }
 
-            void IsSummonedBy(WorldObject* summoner) override
+            void IsSummonedBy(Unit* summoner) override
             {
                 me->CastSpell(me, SPELL_RAGING_GHOUL_SPAWN, true);
                 me->SetReactState(REACT_PASSIVE);
                 me->HandleEmoteCommand(EMOTE_ONESHOT_EMERGE);
-                me->m_Events.AddEvent(new HoRStartMovementEvent(me), me->m_Events.CalculateTime(5000));
+                me->m_Events.AddEvent(new hor::StartMovementEvent(me), me->m_Events.CalculateTime(5000));
 
                 npc_escape_event_trash::IsSummonedBy(summoner);
             }
@@ -2245,7 +2230,7 @@ class npc_raging_ghoul : public CreatureScript
                                 return;
                             }
                         }
-                        _events.ScheduleEvent(EVENT_RAGING_GHOUL_JUMP, 500ms);
+                        _events.ScheduleEvent(EVENT_RAGING_GHOUL_JUMP, 500);
                         break;
                     default:
                         break;
@@ -2273,17 +2258,17 @@ class npc_risen_witch_doctor : public CreatureScript
             void Reset() override
             {
                 npc_escape_event_trash::Reset();
-                _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT, 6s);
-                _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT_VOLLEY, 15s);
-                _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_CURSE, 7s);
+                _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT, 6000);
+                _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT_VOLLEY, 15000);
+                _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_CURSE, 7000);
             }
 
-            void IsSummonedBy(WorldObject* summoner) override
+            void IsSummonedBy(Unit* summoner) override
             {
                 me->CastSpell(me, SPELL_RISEN_WITCH_DOCTOR_SPAWN, true);
                 me->SetReactState(REACT_PASSIVE);
                 me->HandleEmoteCommand(EMOTE_ONESHOT_EMERGE);
-                me->m_Events.AddEvent(new HoRStartMovementEvent(me), me->m_Events.CalculateTime(5000));
+                me->m_Events.AddEvent(new hor::StartMovementEvent(me), me->m_Events.CalculateTime(5000));
 
                 npc_escape_event_trash::IsSummonedBy(summoner);
             }
@@ -2305,17 +2290,17 @@ class npc_risen_witch_doctor : public CreatureScript
                     case EVENT_RISEN_WITCH_DOCTOR_CURSE:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 30.0f, true))
                             DoCast(target, SPELL_CURSE_OF_DOOM);
-                        _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_CURSE, 10s, 15s);
+                        _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_CURSE, urand(10000, 15000));
                         break;
                     case EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT:
-                        if (Unit* target = SelectTarget(SELECT_TARGET_MAXTHREAT, 0, 20.0f, true))
+                        if (Unit* target = SelectTarget(SELECT_TARGET_TOPAGGRO, 0, 20.0f, true))
                             DoCast(target, SPELL_SHADOW_BOLT);
-                        _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT, 2s, 3s);
+                        _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT, urand(2000, 3000));
                         break;
                     case EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT_VOLLEY:
                         if (SelectTarget(SELECT_TARGET_RANDOM, 0, 30.0f, true))
                             DoCastAOE(SPELL_SHADOW_BOLT_VOLLEY);
-                        _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT_VOLLEY, 15s, 22s);
+                        _events.ScheduleEvent(EVENT_RISEN_WITCH_DOCTOR_SHADOW_BOLT_VOLLEY, urand(15000, 22000));
                         break;
                     default:
                         break;
@@ -2343,8 +2328,8 @@ class npc_lumbering_abomination : public CreatureScript
             void Reset() override
             {
                 npc_escape_event_trash::Reset();
-                _events.ScheduleEvent(EVENT_LUMBERING_ABOMINATION_VOMIT_SPRAY, 15s);
-                _events.ScheduleEvent(EVENT_LUMBERING_ABOMINATION_CLEAVE, 6s);
+                _events.ScheduleEvent(EVENT_LUMBERING_ABOMINATION_VOMIT_SPRAY, 15000);
+                _events.ScheduleEvent(EVENT_LUMBERING_ABOMINATION_CLEAVE, 6000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -2363,11 +2348,11 @@ class npc_lumbering_abomination : public CreatureScript
                 {
                     case EVENT_LUMBERING_ABOMINATION_VOMIT_SPRAY:
                         DoCastVictim(SPELL_VOMIT_SPRAY);
-                        _events.ScheduleEvent(EVENT_LUMBERING_ABOMINATION_VOMIT_SPRAY, 15s, 20s);
+                        _events.ScheduleEvent(EVENT_LUMBERING_ABOMINATION_VOMIT_SPRAY, urand(15000, 20000));
                         break;
                     case EVENT_LUMBERING_ABOMINATION_CLEAVE:
                         DoCastVictim(SPELL_CLEAVE);
-                        _events.ScheduleEvent(EVENT_LUMBERING_ABOMINATION_CLEAVE, 7s, 9s);
+                        _events.ScheduleEvent(EVENT_LUMBERING_ABOMINATION_CLEAVE, urand(7000, 9000));
                         break;
                     default:
                         break;
@@ -2504,7 +2489,7 @@ class npc_uther_quel_delar : public CreatureScript
                 switch (pointId)
                 {
                     case 1:
-                        _events.ScheduleEvent(EVENT_UTHER_FACING, 1s);
+                        _events.ScheduleEvent(EVENT_UTHER_FACING, 1000);
                         break;
                     default:
                         break;
@@ -2572,7 +2557,7 @@ class npc_uther_quel_delar : public CreatureScript
                         case EVENT_UTHER_FACING:
                             if (Creature* bunny = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_FROSTMOURNE_ALTAR_BUNNY)))
                                 me->SetFacingToObject(bunny);
-                            _events.ScheduleEvent(EVENT_UTHER_KNEEL, 1s);
+                            _events.ScheduleEvent(EVENT_UTHER_KNEEL, 1000);
                             break;
                         case EVENT_UTHER_KNEEL:
                             me->HandleEmoteCommand(EMOTE_STATE_KNEEL);
@@ -2616,14 +2601,14 @@ class npc_quel_delar_sword : public CreatureScript
                 if (_intro)
                     _events.ScheduleEvent(EVENT_QUEL_DELAR_INIT, 0);
                 else
-                    me->SetImmuneToAll(false);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
             }
 
             void JustEngagedWith(Unit* /*victim*/) override
             {
-                _events.ScheduleEvent(EVENT_QUEL_DELAR_HEROIC_STRIKE, 4s);
-                _events.ScheduleEvent(EVENT_QUEL_DELAR_BLADESTORM, 6s);
-                _events.ScheduleEvent(EVENT_QUEL_DELAR_WHIRLWIND, 6s);
+                _events.ScheduleEvent(EVENT_QUEL_DELAR_HEROIC_STRIKE, 4000);
+                _events.ScheduleEvent(EVENT_QUEL_DELAR_BLADESTORM, 6000);
+                _events.ScheduleEvent(EVENT_QUEL_DELAR_WHIRLWIND, 6000);
             }
 
             void JustDied(Unit* /*killer*/) override
@@ -2664,7 +2649,7 @@ class npc_quel_delar_sword : public CreatureScript
                                 if (Creature* bunny = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_FROSTMOURNE_ALTAR_BUNNY)))
                                     bunny->AI()->Talk(SAY_FROSTMOURNE_BUNNY);
                                 _intro = false;
-                                _events.ScheduleEvent(EVENT_QUEL_DELAR_FLIGHT_INIT, 2500ms);
+                                _events.ScheduleEvent(EVENT_QUEL_DELAR_FLIGHT_INIT, 2500);
                                 break;
                             case EVENT_QUEL_DELAR_FLIGHT_INIT:
                                 me->GetMotionMaster()->MoveTakeoff(POINT_TAKE_OFF, QuelDelarMovement[0]);
@@ -2672,19 +2657,19 @@ class npc_quel_delar_sword : public CreatureScript
                             case EVENT_QUEL_DELAR_FLIGHT:
                             {
                                 me->GetMotionMaster()->MoveCirclePath(QuelDelarCenterPos.GetPositionX(), QuelDelarCenterPos.GetPositionY(), 718.046f, 18.0f, true, 16);
-                                _events.ScheduleEvent(EVENT_QUEL_DELAR_LAND, 15s);
+                                _events.ScheduleEvent(EVENT_QUEL_DELAR_LAND, 15000);
                                 break;
                             }
                             case EVENT_QUEL_DELAR_LAND:
                                 me->StopMoving();
                                 me->GetMotionMaster()->Clear();
                                 me->GetMotionMaster()->MoveLand(0, QuelDelarMovement[1]);
-                                _events.ScheduleEvent(EVENT_QUEL_DELAR_FIGHT, 6s);
+                                _events.ScheduleEvent(EVENT_QUEL_DELAR_FIGHT, 6000);
                                 break;
                             case EVENT_QUEL_DELAR_FIGHT:
                                 Talk(SAY_QUEL_DELAR_SWORD);
                                 me->GetMotionMaster()->MovePoint(0, QuelDelarMovement[2]);
-                                me->SetImmuneToAll(false);
+                                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
                                 break;
                             default:
                                 break;
@@ -2699,15 +2684,15 @@ class npc_quel_delar_sword : public CreatureScript
                         {
                             case EVENT_QUEL_DELAR_BLADESTORM:
                                 DoCast(me, SPELL_BLADESTORM);
-                                _events.ScheduleEvent(EVENT_QUEL_DELAR_BLADESTORM, 10s);
+                                _events.ScheduleEvent(EVENT_QUEL_DELAR_BLADESTORM, 10000);
                                 break;
                             case EVENT_QUEL_DELAR_HEROIC_STRIKE:
                                 DoCastVictim(SPELL_HEROIC_STRIKE);
-                                _events.ScheduleEvent(EVENT_QUEL_DELAR_HEROIC_STRIKE, 6s);
+                                _events.ScheduleEvent(EVENT_QUEL_DELAR_HEROIC_STRIKE, 6000);
                                 break;
                             case EVENT_QUEL_DELAR_WHIRLWIND:
                                 DoCastAOE(SPELL_WHIRLWIND);
-                                _events.ScheduleEvent(EVENT_QUEL_DELAR_WHIRLWIND, 1s);
+                                _events.ScheduleEvent(EVENT_QUEL_DELAR_WHIRLWIND, 1000);
                                 break;
                             default:
                                 break;
@@ -2810,7 +2795,7 @@ class spell_hor_evasion : public SpellScriptLoader
                 if (pos.IsInDist2d(&home, 15.0f))
                     return;
 
-                float angle = pos.GetAbsoluteAngle(&home);
+                float angle = pos.GetAngle(&home);
                 float dist = GetSpellInfo()->Effects[EFFECT_0].CalcRadius(GetCaster());
                 target->MovePosition(pos, dist, angle);
 
@@ -2844,9 +2829,9 @@ class spell_hor_gunship_cannon_fire : public SpellScriptLoader
                 if (!urand(0, 2))
                 {
                     if (GetTarget()->GetEntry() == NPC_GUNSHIP_CANNON_HORDE)
-                        GetTarget()->CastSpell(nullptr, SPELL_GUNSHIP_CANNON_FIRE_MISSILE_HORDE, true);
+                        GetTarget()->CastSpell((Unit*)nullptr, SPELL_GUNSHIP_CANNON_FIRE_MISSILE_HORDE, true);
                     else
-                        GetTarget()->CastSpell(nullptr, SPELL_GUNSHIP_CANNON_FIRE_MISSILE_ALLIANCE, true);
+                        GetTarget()->CastSpell((Unit*)nullptr, SPELL_GUNSHIP_CANNON_FIRE_MISSILE_ALLIANCE, true);
                 }
             }
 

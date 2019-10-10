@@ -29,14 +29,9 @@ class instance_scholomance : public InstanceMapScript
     public:
         instance_scholomance() : InstanceMapScript(ScholomanceScriptName, 289) { }
 
-        InstanceScript* GetInstanceScript(InstanceMap* map) const override
-        {
-            return new instance_scholomance_InstanceMapScript(map);
-        }
-
         struct instance_scholomance_InstanceMapScript : public InstanceScript
         {
-            instance_scholomance_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_scholomance_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -178,6 +173,11 @@ class instance_scholomance : public InstanceMapScript
             ObjectGuid GateIlluciaGUID;
             ObjectGuid BrazierOfTheHeraldGUID;
         };
+
+        InstanceScript* GetInstanceScript(InstanceMap* map) const override
+        {
+            return new instance_scholomance_InstanceMapScript(map);
+        }
 };
 
 void AddSC_instance_scholomance()

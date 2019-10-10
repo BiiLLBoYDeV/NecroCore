@@ -28,6 +28,7 @@ EndScriptData */
 #include "Config.h"
 #include "Language.h"
 #include "Player.h"
+#include "RBAC.h"
 #include "Realm.h"
 #include "World.h"
 #include "WorldSession.h"

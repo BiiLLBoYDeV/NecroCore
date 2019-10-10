@@ -99,7 +99,7 @@ public:
             Initialize();
         }
 
-        bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
+        bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId)  override
         {
             if (menuId == MENU_ID_SYLVANAS && gossipListId == GOSSIP_OPTION_ID)
             {

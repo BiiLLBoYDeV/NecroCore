@@ -33,7 +33,7 @@ enum ScoreType
     SCORE_DAMAGE_DONE           = 5,
     SCORE_HEALING_DONE          = 6,
 
-    // WS and EY
+    // WS, EY and TP
     SCORE_FLAG_CAPTURES         = 7,
     SCORE_FLAG_RETURNS          = 8,
 
@@ -59,8 +59,8 @@ struct BattlegroundScore
     friend class Battleground;
 
     protected:
-        BattlegroundScore(ObjectGuid playerGuid) : PlayerGuid(playerGuid), KillingBlows(0), Deaths(0),
-            HonorableKills(0), BonusHonor(0), DamageDone(0), HealingDone(0) { }
+        BattlegroundScore(ObjectGuid playerGuid, uint32 team) : PlayerGuid(playerGuid), TeamId(team == ALLIANCE ? 1 : 0),
+            KillingBlows(0), Deaths(0), HonorableKills(0), BonusHonor(0), DamageDone(0), HealingDone(0) { }
 
         virtual ~BattlegroundScore() { }
 
@@ -92,8 +92,8 @@ struct BattlegroundScore
             }
         }
 
-        virtual void AppendToPacket(WorldPacket& data);
-        virtual void BuildObjectivesBlock(WorldPacket& /*data*/) = 0;
+        virtual void AppendToPacket(WorldPacket& data, ByteBuffer& content);
+        virtual void BuildObjectivesBlock(WorldPacket& /*data*/, ByteBuffer& /*content*/) = 0;
 
         // For Logging purpose
         virtual std::string ToString() const { return ""; }
@@ -112,6 +112,7 @@ struct BattlegroundScore
         virtual uint32 GetAttr5() const { return 0; }
 
         ObjectGuid PlayerGuid;
+        uint8 TeamId;
 
         // Default score, present in every type
         uint32 KillingBlows;

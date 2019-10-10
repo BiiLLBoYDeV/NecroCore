@@ -71,7 +71,7 @@ public:
         if (target)
             target->ResetAchievements();
         else
-            AchievementMgr::DeleteFromDB(targetGuid);
+            AchievementMgr<Player>::DeleteFromDB(targetGuid);
 
         return true;
     }
@@ -82,11 +82,8 @@ public:
         if (!handler->extractPlayerTarget((char*)args, &target))
             return false;
 
-        target->SetHonorPoints(0);
         target->SetUInt32Value(PLAYER_FIELD_KILLS, 0);
         target->SetUInt32Value(PLAYER_FIELD_LIFETIME_HONORABLE_KILLS, 0);
-        target->SetUInt32Value(PLAYER_FIELD_TODAY_CONTRIBUTION, 0);
-        target->SetUInt32Value(PLAYER_FIELD_YESTERDAY_CONTRIBUTION, 0);
         target->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_EARN_HONORABLE_KILL);
 
         return true;
@@ -107,7 +104,7 @@ public:
         if (!player->HasAuraType(SPELL_AURA_MOD_SHAPESHIFT))
             player->SetShapeshiftForm(FORM_NONE);
 
-        player->SetFactionForRace(player->GetRace());
+        player->SetFactionForRace(player->getRace());
 
         player->SetPowerType(Powers(powerType), false);
 
@@ -115,9 +112,9 @@ public:
         if (player->GetShapeshiftForm() == FORM_NONE)
             player->InitDisplayIds();
 
-        player->SetByteValue(UNIT_FIELD_BYTES_2, UNIT_BYTES_2_OFFSET_PVP_FLAG, UNIT_BYTE2_FLAG_PVP);
+        player->SetByteValue(UNIT_FIELD_BYTES_2, 1, UNIT_BYTE2_FLAG_PVP);
 
-        player->SetUInt32Value(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+        player->SetUInt32Value(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP_ATTACKABLE);
 
         //-1 is default value
         player->SetUInt32Value(PLAYER_FIELD_WATCHED_FACTION_INDEX, uint32(-1));

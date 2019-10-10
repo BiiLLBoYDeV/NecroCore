@@ -86,38 +86,40 @@ struct DumpTable
 
 DumpTable const DumpTables[] =
 {
-    { "characters",                     DTT_CHARACTER    },
-    { "character_account_data",         DTT_CHAR_TABLE   },
-    { "character_achievement",          DTT_CHAR_TABLE   },
-    { "character_achievement_progress", DTT_CHAR_TABLE   },
-    { "character_action",               DTT_CHAR_TABLE   },
-    { "character_aura",                 DTT_CHAR_TABLE   },
-    { "character_declinedname",         DTT_CHAR_TABLE   },
-    { "character_equipmentsets",        DTT_EQSET_TABLE  },
-    { "character_fishingsteps",         DTT_CHAR_TABLE   },
-    { "character_glyphs",               DTT_CHAR_TABLE   },
-    { "character_homebind",             DTT_CHAR_TABLE   },
-    { "character_inventory",            DTT_INVENTORY    },
-    { "character_pet",                  DTT_PET          },
-    { "character_pet_declinedname",     DTT_PET          },
-    { "character_queststatus",          DTT_CHAR_TABLE   },
-    { "character_queststatus_daily",    DTT_CHAR_TABLE   },
-    { "character_queststatus_weekly",   DTT_CHAR_TABLE   },
-    { "character_queststatus_monthly",  DTT_CHAR_TABLE   },
-    { "character_queststatus_seasonal", DTT_CHAR_TABLE   },
-    { "character_queststatus_rewarded", DTT_CHAR_TABLE   },
-    { "character_reputation",           DTT_CHAR_TABLE   },
-    { "character_skills",               DTT_CHAR_TABLE   },
-    { "character_spell",                DTT_CHAR_TABLE   },
-    { "character_spell_cooldown",       DTT_CHAR_TABLE   },
-    { "character_talent",               DTT_CHAR_TABLE   },
-    { "mail",                           DTT_MAIL         },
-    { "mail_items",                     DTT_MAIL_ITEM    }, // must be after mail
-    { "pet_aura",                       DTT_PET_TABLE    }, // must be after character_pet
-    { "pet_spell",                      DTT_PET_TABLE    }, // must be after character_pet
-    { "pet_spell_cooldown",             DTT_PET_TABLE    }, // must be after character_pet
-    { "item_instance",                  DTT_ITEM         }, // must be after character_inventory and mail_items
-    { "character_gifts",                DTT_ITEM_GIFT    }  // must be after item_instance
+    { "characters",                     DTT_CHARACTER  },
+    { "character_account_data",         DTT_CHAR_TABLE },
+    { "character_achievement",          DTT_CHAR_TABLE },
+    { "character_achievement_progress", DTT_CHAR_TABLE },
+    { "character_action",               DTT_CHAR_TABLE },
+    { "character_aura",                 DTT_CHAR_TABLE },
+    { "character_currency",             DTT_CHAR_TABLE },
+    { "character_cuf_profiles",         DTT_CHAR_TABLE },
+    { "character_declinedname",         DTT_CHAR_TABLE },
+    { "character_equipmentsets",        DTT_EQSET_TABLE},
+    { "character_fishingsteps",         DTT_CHAR_TABLE },
+    { "character_glyphs",               DTT_CHAR_TABLE },
+    { "character_homebind",             DTT_CHAR_TABLE },
+    { "character_inventory",            DTT_INVENTORY  },
+    { "character_pet",                  DTT_PET        },
+    { "character_pet_declinedname",     DTT_PET        },
+    { "character_queststatus",          DTT_CHAR_TABLE },
+    { "character_queststatus_daily",    DTT_CHAR_TABLE },
+    { "character_queststatus_weekly",   DTT_CHAR_TABLE },
+    { "character_queststatus_monthly",  DTT_CHAR_TABLE },
+    { "character_queststatus_seasonal", DTT_CHAR_TABLE },
+    { "character_queststatus_rewarded", DTT_CHAR_TABLE },
+    { "character_reputation",           DTT_CHAR_TABLE },
+    { "character_skills",               DTT_CHAR_TABLE },
+    { "character_spell",                DTT_CHAR_TABLE },
+    { "character_spell_cooldown",       DTT_CHAR_TABLE },
+    { "character_talent",               DTT_CHAR_TABLE },
+    { "mail",                           DTT_MAIL       },
+    { "mail_items",                     DTT_MAIL_ITEM  }, // must be after mail
+    { "pet_aura",                       DTT_PET_TABLE  }, // must be after character_pet
+    { "pet_spell",                      DTT_PET_TABLE  }, // must be after character_pet
+    { "pet_spell_cooldown",             DTT_PET_TABLE  }, // must be after character_pet
+    { "item_instance",                  DTT_ITEM       }, // must be after character_inventory and mail_items
+    { "character_gifts",                DTT_ITEM_GIFT  }, // must be after item_instance
 };
 
 uint32 const DUMP_TABLE_COUNT = std::extent<decltype(DumpTables)>::value;
@@ -543,7 +545,7 @@ inline void AppendTableDump(StringTransaction& trans, TableStruct const& tableSt
 
             // null pointer -> we have null
             if (!cString)
-                ss << "'NULL'";
+                ss << "'nullptr'";
             else
             {
                 std::string s(cString);
@@ -581,10 +583,10 @@ inline std::string GenerateWhereStr(std::string const& field, SetType<T, Rest...
             break;
 
         if (itr != guidSet.end())
-            whereStr << "','";
+            whereStr << "', '";
     }
     whereStr << "')";
-    return whereStr.str();
+    return whereStr.str();;
 }
 
 // Writing - High-level functions
@@ -605,6 +607,7 @@ void PlayerDumpWriter::PopulateGuids(ObjectGuid::LowType guid)
 
         std::string whereStr = GenerateWhereStr(baseTable.PlayerGuid, guid);
         QueryResult result = CharacterDatabase.PQuery("SELECT %s FROM %s WHERE %s", baseTable.PrimaryKey, baseTable.TableName, whereStr.c_str());
+
         if (!result)
             continue;
 
@@ -613,16 +616,16 @@ void PlayerDumpWriter::PopulateGuids(ObjectGuid::LowType guid)
             switch (baseTable.StoredType)
             {
                 case GUID_TYPE_ITEM:
-                    if (ObjectGuid::LowType itemLowGuid = (*result)[0].GetUInt32())
-                        _items.insert(itemLowGuid);
+                    if (ObjectGuid::LowType guid = (*result)[0].GetUInt32())
+                        _items.insert(guid);
                     break;
                 case GUID_TYPE_MAIL:
-                    if (ObjectGuid::LowType mailLowGuid = (*result)[0].GetUInt32())
-                        _mails.insert(mailLowGuid);
+                    if (ObjectGuid::LowType guid = (*result)[0].GetUInt32())
+                        _mails.insert(guid);
                     break;
                 case GUID_TYPE_PET:
-                    if (ObjectGuid::LowType petLowGuid = (*result)[0].GetUInt32())
-                        _pets.insert(petLowGuid);
+                    if (ObjectGuid::LowType guid = (*result)[0].GetUInt32())
+                        _pets.insert(guid);
                     break;
                 case GUID_TYPE_EQUIPMENT_SET:
                     if (uint64 eqSetId = (*result)[0].GetUInt64())
@@ -634,7 +637,6 @@ void PlayerDumpWriter::PopulateGuids(ObjectGuid::LowType guid)
         } while (result->NextRow());
     }
 }
-
 bool PlayerDumpWriter::AppendTable(StringTransaction& trans, ObjectGuid::LowType guid, TableStruct const& tableStruct, DumpTable const& dumpTable)
 {
     std::string whereStr;
@@ -687,6 +689,7 @@ bool PlayerDumpWriter::AppendTable(StringTransaction& trans, ObjectGuid::LowType
             break;
         default:
             break;
+
     }
 
     AppendTableDump(trans, tableStruct, result);
@@ -717,7 +720,7 @@ bool PlayerDumpWriter::GetDump(ObjectGuid::LowType guid, std::string& dump)
 DumpReturn PlayerDumpWriter::WriteDump(std::string const& file, ObjectGuid::LowType guid)
 {
     if (sWorld->getBoolConfig(CONFIG_PDUMP_NO_PATHS))
-        if (strchr(file.c_str(), '\\') || strchr(file.c_str(), '/'))
+        if (strstr(file.c_str(), "\\") || strstr(file.c_str(), "/"))
             return DUMP_FILE_OPEN_ERROR;
 
     if (sWorld->getBoolConfig(CONFIG_PDUMP_NO_OVERWRITE))
@@ -743,11 +746,11 @@ DumpReturn PlayerDumpWriter::WriteDump(std::string const& file, ObjectGuid::LowT
 // Reading - High-level functions
 inline void FixNULLfields(std::string& line)
 {
-    static std::string const NullString("'NULL'");
+    static std::string const NullString("'nullptr'");
     size_t pos = line.find(NullString);
     while (pos != std::string::npos)
     {
-        line.replace(pos, NullString.length(), "NULL");
+        line.replace(pos, NullString.length(), "nullptr");
         pos = line.find(NullString);
     }
 }
@@ -770,7 +773,6 @@ DumpReturn PlayerDumpReader::LoadDump(std::string const& file, uint32 account, s
     {
         PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHECK_GUID);
         stmt->setUInt32(0, guid);
-
         if (PreparedQueryResult result = CharacterDatabase.Query(stmt))
             guid = sObjectMgr->GetGenerator<HighGuid::Player>().GetNextAfterMaxUsed();                     // use first free if exists
         else
@@ -787,7 +789,6 @@ DumpReturn PlayerDumpReader::LoadDump(std::string const& file, uint32 account, s
     {
         PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHECK_NAME);
         stmt->setString(0, name);
-
         if (PreparedQueryResult result = CharacterDatabase.Query(stmt))
             name.clear();                                       // use the one from the dump
     }
@@ -908,7 +909,7 @@ DumpReturn PlayerDumpReader::LoadDump(std::string const& file, uint32 account, s
                     break;
                 case GUID_TYPE_NULL:
                 {
-                    static std::string const NullString("NULL");
+                    static std::string const NullString("nullptr");
                     if (!ChangeColumn(ts, line, field.FieldName, NullString))
                         return DUMP_FILE_BROKEN;
                     break;
@@ -958,6 +959,7 @@ DumpReturn PlayerDumpReader::LoadDump(std::string const& file, uint32 account, s
     sCharacterCache->AddCharacterCacheEntry(ObjectGuid(HighGuid::Player, guid), account, name, gender, race, playerClass, level);
 
     sObjectMgr->GetGenerator<HighGuid::Item>().Set(sObjectMgr->GetGenerator<HighGuid::Item>().GetNextAfterMaxUsed() + items.size());
+
     sObjectMgr->_mailId += mails.size();
     sObjectMgr->_hiPetNumber += petIds.size();
     sObjectMgr->_equipmentSetGuid += equipmentSetIds.size();

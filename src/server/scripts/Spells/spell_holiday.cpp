@@ -26,6 +26,7 @@
 #include "CreatureAIImpl.h"
 #include "GridNotifiersImpl.h"
 #include "Player.h"
+#include "ScriptedCreature.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
 #include "Vehicle.h"
@@ -569,7 +570,7 @@ class spell_pilgrims_bounty_feast_on : public SpellScriptLoader
                         if (Player* player = target->ToPlayer())
                         {
                             player->CastSpell(player, SPELL_ON_PLATE_EAT_VISUAL, true);
-                            caster->CastSpell(player, _spellId, player->GetGUID());
+                            caster->CastSpell(player, _spellId, true, nullptr, nullptr, player->GetGUID());
                         }
 
                 if (Aura* aura = caster->GetAura(GetEffectValue()))
@@ -679,54 +680,54 @@ class spell_pilgrims_bounty_well_fed : public SpellScriptLoader
 
         class spell_pilgrims_bounty_well_fed_SpellScript : public SpellScript
         {
-            PrepareSpellScript(spell_pilgrims_bounty_well_fed_SpellScript);
+            public:
+                spell_pilgrims_bounty_well_fed_SpellScript(uint32 triggeredSpellId) : SpellScript(), _triggeredSpellId(triggeredSpellId) { }
 
-            uint32 _triggeredSpellId;
+            private:
+                PrepareSpellScript(spell_pilgrims_bounty_well_fed_SpellScript);
 
-        public:
-            spell_pilgrims_bounty_well_fed_SpellScript(uint32 triggeredSpellId) : SpellScript(), _triggeredSpellId(triggeredSpellId) { }
+                uint32 _triggeredSpellId;
 
-        private:
-            bool Validate(SpellInfo const* /*spell*/) override
-            {
-                return ValidateSpellInfo({ _triggeredSpellId });
-            }
-
-            void HandleScript(SpellEffIndex effIndex)
-            {
-                PreventHitDefaultEffect(effIndex);
-                Player* target = GetHitPlayer();
-                if (!target)
-                    return;
-
-                if (Aura const* aura = target->GetAura(GetSpellInfo()->Id))
+                bool Validate(SpellInfo const* /*spell*/) override
                 {
-                    if (aura->GetStackAmount() == 5)
-                        target->CastSpell(target, _triggeredSpellId, true);
+                    return ValidateSpellInfo({ _triggeredSpellId });
                 }
 
-                Aura const* turkey = target->GetAura(SPELL_TURKEY_HELPINS);
-                Aura const* cranberies = target->GetAura(SPELL_CRANBERRY_HELPINS);
-                Aura const* stuffing = target->GetAura(SPELL_STUFFING_HELPINS);
-                Aura const* sweetPotatoes = target->GetAura(SPELL_SWEET_POTATO_HELPINS);
-                Aura const* pie = target->GetAura(SPELL_PIE_HELPINS);
-
-                if ((turkey && turkey->GetStackAmount() == 5) && (cranberies && cranberies->GetStackAmount() == 5) && (stuffing && stuffing->GetStackAmount() == 5)
-                    && (sweetPotatoes && sweetPotatoes->GetStackAmount() == 5) && (pie && pie->GetStackAmount() == 5))
+                void HandleScript(SpellEffIndex effIndex)
                 {
-                    target->CastSpell(target, SPELL_THE_SPIRIT_OF_SHARING, true);
-                    target->RemoveAurasDueToSpell(SPELL_TURKEY_HELPINS);
-                    target->RemoveAurasDueToSpell(SPELL_CRANBERRY_HELPINS);
-                    target->RemoveAurasDueToSpell(SPELL_STUFFING_HELPINS);
-                    target->RemoveAurasDueToSpell(SPELL_SWEET_POTATO_HELPINS);
-                    target->RemoveAurasDueToSpell(SPELL_PIE_HELPINS);
-                }
-            }
+                    PreventHitDefaultEffect(effIndex);
+                    Player* target = GetHitPlayer();
+                    if (!target)
+                        return;
 
-            void Register() override
-            {
-                OnEffectHitTarget += SpellEffectFn(spell_pilgrims_bounty_well_fed_SpellScript::HandleScript, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
-            }
+                    if (Aura const* aura = target->GetAura(GetSpellInfo()->Id))
+                    {
+                        if (aura->GetStackAmount() == 5)
+                            target->CastSpell(target, _triggeredSpellId, true);
+                    }
+
+                    Aura const* turkey = target->GetAura(SPELL_TURKEY_HELPINS);
+                    Aura const* cranberies = target->GetAura(SPELL_CRANBERRY_HELPINS);
+                    Aura const* stuffing = target->GetAura(SPELL_STUFFING_HELPINS);
+                    Aura const* sweetPotatoes = target->GetAura(SPELL_SWEET_POTATO_HELPINS);
+                    Aura const* pie = target->GetAura(SPELL_PIE_HELPINS);
+
+                    if ((turkey && turkey->GetStackAmount() == 5) && (cranberies && cranberies->GetStackAmount() == 5) && (stuffing && stuffing->GetStackAmount() == 5)
+                        && (sweetPotatoes && sweetPotatoes->GetStackAmount() == 5) && (pie && pie->GetStackAmount() == 5))
+                    {
+                        target->CastSpell(target, SPELL_THE_SPIRIT_OF_SHARING, true);
+                        target->RemoveAurasDueToSpell(SPELL_TURKEY_HELPINS);
+                        target->RemoveAurasDueToSpell(SPELL_CRANBERRY_HELPINS);
+                        target->RemoveAurasDueToSpell(SPELL_STUFFING_HELPINS);
+                        target->RemoveAurasDueToSpell(SPELL_SWEET_POTATO_HELPINS);
+                        target->RemoveAurasDueToSpell(SPELL_PIE_HELPINS);
+                    }
+                }
+
+                void Register() override
+                {
+                    OnEffectHitTarget += SpellEffectFn(spell_pilgrims_bounty_well_fed_SpellScript::HandleScript, EFFECT_1, SPELL_EFFECT_SCRIPT_EFFECT);
+                }
         };
 
         SpellScript* GetSpellScript() const override
@@ -782,108 +783,112 @@ class spell_pilgrims_bounty_on_plate : public SpellScriptLoader
 
     public:
         spell_pilgrims_bounty_on_plate(char const* name, uint32 triggeredSpellId1, uint32 triggeredSpellId2, uint32 triggeredSpellId3, uint32 triggeredSpellId4) : SpellScriptLoader(name),
-            _triggeredSpellId1(triggeredSpellId1), _triggeredSpellId2(triggeredSpellId2), _triggeredSpellId3(triggeredSpellId3), _triggeredSpellId4(triggeredSpellId4) { }
+            _triggeredSpellId1(triggeredSpellId1), _triggeredSpellId2(triggeredSpellId2), _triggeredSpellId3(triggeredSpellId3), _triggeredSpellId4(triggeredSpellId4)
+        {
+        }
 
         class spell_pilgrims_bounty_on_plate_SpellScript : public SpellScript
         {
-            PrepareSpellScript(spell_pilgrims_bounty_on_plate_SpellScript);
-
-            uint32 _triggeredSpellId1;
-            uint32 _triggeredSpellId2;
-            uint32 _triggeredSpellId3;
-            uint32 _triggeredSpellId4;
-
-        public:
-            spell_pilgrims_bounty_on_plate_SpellScript(uint32 triggeredSpellId1, uint32 triggeredSpellId2, uint32 triggeredSpellId3, uint32 triggeredSpellId4) : SpellScript(),
-                _triggeredSpellId1(triggeredSpellId1), _triggeredSpellId2(triggeredSpellId2), _triggeredSpellId3(triggeredSpellId3), _triggeredSpellId4(triggeredSpellId4) { }
-
-        private:
-            bool Validate(SpellInfo const* /*spell*/) override
-            {
-                return ValidateSpellInfo(
+            public:
+                spell_pilgrims_bounty_on_plate_SpellScript(uint32 triggeredSpellId1, uint32 triggeredSpellId2, uint32 triggeredSpellId3, uint32 triggeredSpellId4) : SpellScript(),
+                    _triggeredSpellId1(triggeredSpellId1), _triggeredSpellId2(triggeredSpellId2), _triggeredSpellId3(triggeredSpellId3), _triggeredSpellId4(triggeredSpellId4)
                 {
-                    _triggeredSpellId1,
-                    _triggeredSpellId2,
-                    _triggeredSpellId3,
-                    _triggeredSpellId4
-                });
-            }
-
-            Vehicle* GetTable(Unit* target)
-            {
-                if (target->GetTypeId() == TYPEID_PLAYER)
-                {
-                    if (Unit* vehBase = target->GetVehicleBase())
-                        if (Vehicle* table = vehBase->GetVehicle())
-                            if (table->GetCreatureEntry() == NPC_BOUNTIFUL_TABLE)
-                                return table;
                 }
-                else if (Vehicle* veh = target->GetVehicle())
-                    if (veh->GetCreatureEntry() == NPC_BOUNTIFUL_TABLE)
-                        return veh;
 
-                return nullptr;
-            }
+            private:
+                uint32 _triggeredSpellId1;
+                uint32 _triggeredSpellId2;
+                uint32 _triggeredSpellId3;
+                uint32 _triggeredSpellId4;
 
-            Unit* GetPlateInSeat(Vehicle* table, uint8 seat)
-            {
-                if (Unit* holderUnit = table->GetPassenger(SEAT_PLATE_HOLDER))
-                    if (Vehicle* holder = holderUnit->GetVehicleKit())
-                        if (Unit* plate = holder->GetPassenger(seat))
-                            return plate;
+                PrepareSpellScript(spell_pilgrims_bounty_on_plate_SpellScript);
 
-                return nullptr;
-            }
-
-            void HandleDummy(SpellEffIndex /*effIndex*/)
-            {
-                Unit* caster = GetCaster();
-                Unit* target = GetHitUnit();
-                if (!target || caster == target)
-                    return;
-
-                Vehicle* table = GetTable(caster);
-                if (!table || table != GetTable(target))
-                    return;
-
-                if (Vehicle* casterChair = caster->GetVehicleKit())
-                    if (Unit* casterPlr = casterChair->GetPassenger(SEAT_PLAYER))
+                bool Validate(SpellInfo const* /*spell*/) override
+                {
+                    return ValidateSpellInfo(
                     {
-                        if (casterPlr == target)
-                            return;
+                        _triggeredSpellId1,
+                        _triggeredSpellId2,
+                        _triggeredSpellId3,
+                        _triggeredSpellId4
+                    });
+                }
 
-                        casterPlr->CastSpell(casterPlr, _triggeredSpellId2, true); //Credit for Sharing is Caring(always)
+                Vehicle* GetTable(Unit* target)
+                {
+                    if (target->GetTypeId() == TYPEID_PLAYER)
+                    {
+                        if (Unit* vehBase = target->GetVehicleBase())
+                            if (Vehicle* table = vehBase->GetVehicle())
+                                if (table->GetCreatureEntry() == NPC_BOUNTIFUL_TABLE)
+                                    return table;
+                    }
+                    else if (Vehicle* veh = target->GetVehicle())
+                        if (veh->GetCreatureEntry() == NPC_BOUNTIFUL_TABLE)
+                            return veh;
 
-                        uint8 seat = target->GetTransSeat();
-                        if (target->GetTypeId() == TYPEID_PLAYER && target->GetVehicleBase())
-                            seat = target->GetVehicleBase()->GetTransSeat();
+                    return nullptr;
+                }
 
-                        if (Unit* plate = GetPlateInSeat(table, seat))
+                Unit* GetPlateInSeat(Vehicle* table, uint8 seat)
+                {
+                    if (Unit* holderUnit = table->GetPassenger(SEAT_PLATE_HOLDER))
+                        if (Vehicle* holder = holderUnit->GetVehicleKit())
+                            if (Unit* plate = holder->GetPassenger(seat))
+                                return plate;
+
+                    return nullptr;
+                }
+
+                void HandleDummy(SpellEffIndex /*effIndex*/)
+                {
+                    Unit* caster = GetCaster();
+                    Unit* target = GetHitUnit();
+                    if (!target || caster == target)
+                        return;
+
+                    Vehicle* table = GetTable(caster);
+                    if (!table || table != GetTable(target))
+                        return;
+
+                    if (Vehicle* casterChair = caster->GetVehicleKit())
+                        if (Unit* casterPlr = casterChair->GetPassenger(SEAT_PLAYER))
                         {
-                            if (target->GetTypeId() == TYPEID_PLAYER) //Food Fight case
+                            if (casterPlr == target)
+                                return;
+
+                            casterPlr->CastSpell(casterPlr, _triggeredSpellId2, true); //Credit for Sharing is Caring(always)
+
+                            uint8 seat = target->GetTransSeat();
+                            if (target->GetTypeId() == TYPEID_PLAYER && target->GetVehicleBase())
+                                seat = target->GetVehicleBase()->GetTransSeat();
+
+                            if (Unit* plate = GetPlateInSeat(table, seat))
                             {
-                                casterPlr->CastSpell(target, _triggeredSpellId1, true);
-                                caster->CastSpell(target->GetVehicleBase(), _triggeredSpellId4, true); //CanEat-chair(always)
-                            }
-                            else
-                            {
-                                casterPlr->CastSpell(plate, _triggeredSpellId3, true); //Food Visual on plate
-                                caster->CastSpell(target, _triggeredSpellId4, true); //CanEat-chair(always)
+                                if (target->GetTypeId() == TYPEID_PLAYER) //Food Fight case
+                                {
+                                    casterPlr->CastSpell(target, _triggeredSpellId1, true);
+                                    caster->CastSpell(target->GetVehicleBase(), _triggeredSpellId4, true); //CanEat-chair(always)
+                                }
+                                else
+                                {
+                                    casterPlr->CastSpell(plate, _triggeredSpellId3, true); //Food Visual on plate
+                                    caster->CastSpell(target, _triggeredSpellId4, true); //CanEat-chair(always)
+                                }
                             }
                         }
-                    }
-            }
+                }
 
-            void Register() override
-            {
-                OnEffectHitTarget += SpellEffectFn(spell_pilgrims_bounty_on_plate_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
-            }
+                void Register() override
+                {
+                    OnEffectHitTarget += SpellEffectFn(spell_pilgrims_bounty_on_plate_SpellScript::HandleDummy, EFFECT_0, SPELL_EFFECT_DUMMY);
+                }
         };
 
-        SpellScript* GetSpellScript() const override
-        {
-            return new spell_pilgrims_bounty_on_plate_SpellScript(_triggeredSpellId1, _triggeredSpellId2, _triggeredSpellId3, _triggeredSpellId4);
-        }
+    SpellScript* GetSpellScript() const override
+    {
+        return new spell_pilgrims_bounty_on_plate_SpellScript(_triggeredSpellId1, _triggeredSpellId2, _triggeredSpellId3, _triggeredSpellId4);
+    }
 };
 
 /* 61804 - A Serving of Cranberries
@@ -907,12 +912,12 @@ class spell_pilgrims_bounty_a_serving_of : public SpellScriptLoader
         {
             PrepareAuraScript(spell_pilgrims_bounty_a_serving_of_AuraScript);
 
+        private:
             uint32 _triggeredSpellId;
 
         public:
             spell_pilgrims_bounty_a_serving_of_AuraScript(uint32 triggeredSpellId) : AuraScript(), _triggeredSpellId(triggeredSpellId) { }
 
-        private:
             bool Validate(SpellInfo const* /*spell*/) override
             {
                 return ValidateSpellInfo({ _triggeredSpellId });
@@ -1183,23 +1188,15 @@ class spell_brewfest_ram : public SpellScriptLoader
                             target->CastSpell(target, SPELL_BREWFEST_QUEST_SPEED_BUNNY_GREEN, true);
                         break;
                     case SPELL_RAM_CANTER:
-                    {
-                        CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                        args.AddSpellMod(SPELLVALUE_AURA_STACK, 1);
-                        target->CastSpell(target, SPELL_RAM_FATIGUE, args);
+                        target->CastCustomSpell(SPELL_RAM_FATIGUE, SPELLVALUE_AURA_STACK, 1, target, TRIGGERED_FULL_MASK);
                         if (aurEff->GetTickNumber() == 8)
                             target->CastSpell(target, SPELL_BREWFEST_QUEST_SPEED_BUNNY_YELLOW, true);
                         break;
-                    }
                     case SPELL_RAM_GALLOP:
-                    {
-                        CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                        args.AddSpellMod(SPELLVALUE_AURA_STACK, target->HasAura(SPELL_RAM_FATIGUE) ? 4 : 5 /*Hack*/);
-                        target->CastSpell(target, SPELL_RAM_FATIGUE, args);
+                        target->CastCustomSpell(SPELL_RAM_FATIGUE, SPELLVALUE_AURA_STACK, target->HasAura(SPELL_RAM_FATIGUE) ? 4 : 5 /*Hack*/, target, TRIGGERED_FULL_MASK);
                         if (aurEff->GetTickNumber() == 8)
                             target->CastSpell(target, SPELL_BREWFEST_QUEST_SPEED_BUNNY_RED, true);
                         break;
-                    }
                     default:
                         break;
                 }
@@ -1326,7 +1323,7 @@ class spell_brewfest_relay_race_intro_force_player_to_throw : public SpellScript
                 PreventHitDefaultEffect(effIndex);
                 // All this spells trigger a spell that requires reagents; if the
                 // triggered spell is cast as "triggered", reagents are not consumed
-                GetHitUnit()->CastSpell(nullptr, GetSpellInfo()->Effects[effIndex].TriggerSpell, TriggerCastFlags(TRIGGERED_FULL_MASK & ~TRIGGERED_IGNORE_POWER_AND_REAGENT_COST));
+                GetHitUnit()->CastSpell((Unit*)nullptr, GetSpellInfo()->Effects[effIndex].TriggerSpell, TriggerCastFlags(TRIGGERED_FULL_MASK & ~TRIGGERED_IGNORE_POWER_AND_REAGENT_COST));
             }
 
             void Register() override
@@ -1497,175 +1494,124 @@ enum TorchSpells
     SPELL_TORCH_TOSSING_PRACTICE                    = 46630,
     SPELL_TORCH_TOSSING_TRAINING_SUCCESS_ALLIANCE   = 45719,
     SPELL_TORCH_TOSSING_TRAINING_SUCCESS_HORDE      = 46651,
-    SPELL_TARGET_INDICATOR_COSMETIC                 = 46901,
-    SPELL_TARGET_INDICATOR                          = 45723,
     SPELL_BRAZIERS_HIT                              = 45724
 };
 
 // 45724 - Braziers Hit!
-class spell_midsummer_braziers_hit : public AuraScript
+class spell_midsummer_braziers_hit : public SpellScriptLoader
 {
-    PrepareAuraScript(spell_midsummer_braziers_hit);
+    public:
+        spell_midsummer_braziers_hit() : SpellScriptLoader("spell_midsummer_braziers_hit") { }
 
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo(
+        class spell_midsummer_braziers_hit_AuraScript : public AuraScript
         {
-            SPELL_TORCH_TOSSING_TRAINING,
-            SPELL_TORCH_TOSSING_PRACTICE,
-            SPELL_TORCH_TOSSING_TRAINING_SUCCESS_ALLIANCE,
-            SPELL_TORCH_TOSSING_TRAINING_SUCCESS_HORDE
-        });
-    }
+            PrepareAuraScript(spell_midsummer_braziers_hit_AuraScript);
 
-    void HandleEffectApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        Player* player = GetTarget()->ToPlayer();
-        if (!player)
-            return;
+            bool Validate(SpellInfo const* /*spellInfo*/) override
+            {
+                return ValidateSpellInfo(
+                {
+                    SPELL_TORCH_TOSSING_TRAINING,
+                    SPELL_TORCH_TOSSING_PRACTICE,
+                    SPELL_TORCH_TOSSING_TRAINING_SUCCESS_ALLIANCE,
+                    SPELL_TORCH_TOSSING_TRAINING_SUCCESS_HORDE
+                });
+            }
 
-        if ((player->HasAura(SPELL_TORCH_TOSSING_TRAINING) && GetStackAmount() == 8) || (player->HasAura(SPELL_TORCH_TOSSING_PRACTICE) && GetStackAmount() == 20))
+            void HandleEffectApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                Player* player = GetTarget()->ToPlayer();
+                if (!player)
+                    return;
+
+                if ((player->HasAura(SPELL_TORCH_TOSSING_TRAINING) && GetStackAmount() == 8) || (player->HasAura(SPELL_TORCH_TOSSING_PRACTICE) && GetStackAmount() == 20))
+                {
+                    if (player->GetTeam() == ALLIANCE)
+                        player->CastSpell(player, SPELL_TORCH_TOSSING_TRAINING_SUCCESS_ALLIANCE, true);
+                    else if (player->GetTeam() == HORDE)
+                        player->CastSpell(player, SPELL_TORCH_TOSSING_TRAINING_SUCCESS_HORDE, true);
+                    Remove();
+                }
+            }
+
+            void Register() override
+            {
+                AfterEffectApply += AuraEffectApplyFn(spell_midsummer_braziers_hit_AuraScript::HandleEffectApply, EFFECT_0, SPELL_AURA_DUMMY, AuraEffectHandleModes(AURA_EFFECT_HANDLE_REAPPLY));
+            }
+        };
+
+        AuraScript* GetAuraScript() const override
         {
-            if (player->GetTeam() == ALLIANCE)
-                player->CastSpell(player, SPELL_TORCH_TOSSING_TRAINING_SUCCESS_ALLIANCE, true);
-            else if (player->GetTeam() == HORDE)
-                player->CastSpell(player, SPELL_TORCH_TOSSING_TRAINING_SUCCESS_HORDE, true);
-            Remove();
+           return new spell_midsummer_braziers_hit_AuraScript();
         }
-    }
-
-    void Register() override
-    {
-        AfterEffectApply += AuraEffectApplyFn(spell_midsummer_braziers_hit::HandleEffectApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAPPLY);
-    }
-};
-
-// 45907 - Torch Target Picker
-class spell_midsummer_torch_target_picker : public SpellScript
-{
-    PrepareSpellScript(spell_midsummer_torch_target_picker);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_TARGET_INDICATOR_COSMETIC, SPELL_TARGET_INDICATOR });
-    }
-
-    void HandleScript(SpellEffIndex /*effIndex*/)
-    {
-        Unit* target = GetHitUnit();
-        target->CastSpell(target, SPELL_TARGET_INDICATOR_COSMETIC, true);
-        target->CastSpell(target, SPELL_TARGET_INDICATOR, true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_midsummer_torch_target_picker::HandleScript, EFFECT_0, SPELL_EFFECT_DUMMY);
-    }
-};
-
-// 46054 - Torch Toss (land)
-class spell_midsummer_torch_toss_land : public SpellScript
-{
-    PrepareSpellScript(spell_midsummer_torch_toss_land);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_BRAZIERS_HIT });
-    }
-
-    void HandleScript(SpellEffIndex /*effIndex*/)
-    {
-        GetHitUnit()->CastSpell(GetCaster(), SPELL_BRAZIERS_HIT, true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_midsummer_torch_toss_land::HandleScript, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-    }
 };
 
 enum RibbonPoleData
 {
-    SPELL_HAS_FULL_MIDSUMMER_SET      = 58933,
-    SPELL_BURNING_HOT_POLE_DANCE      = 58934,
-    SPELL_RIBBON_POLE_PERIODIC_VISUAL = 45406,
-    SPELL_RIBBON_DANCE                = 29175,
-    SPELL_TEST_RIBBON_POLE_1          = 29705,
-    SPELL_TEST_RIBBON_POLE_2          = 29726,
-    SPELL_TEST_RIBBON_POLE_3          = 29727
+    SPELL_HAS_FULL_MIDSUMMER_SET        = 58933,
+    SPELL_BURNING_HOT_POLE_DANCE        = 58934,
+    SPELL_RIBBON_DANCE_COSMETIC         = 29726,
+    SPELL_RIBBON_DANCE                  = 29175,
+    GO_RIBBON_POLE                      = 181605,
 };
 
-// 29705, 29726, 29727 - Test Ribbon Pole Channel
-class spell_midsummer_test_ribbon_pole_channel : public AuraScript
+class spell_gen_ribbon_pole_dancer_check : public SpellScriptLoader
 {
-    PrepareAuraScript(spell_midsummer_test_ribbon_pole_channel);
+    public:
+        spell_gen_ribbon_pole_dancer_check() : SpellScriptLoader("spell_gen_ribbon_pole_dancer_check") { }
 
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo(
+        class spell_gen_ribbon_pole_dancer_check_AuraScript : public AuraScript
         {
-            SPELL_RIBBON_POLE_PERIODIC_VISUAL,
-            SPELL_BURNING_HOT_POLE_DANCE,
-            SPELL_HAS_FULL_MIDSUMMER_SET,
-            SPELL_RIBBON_DANCE
-        });
-    }
+            PrepareAuraScript(spell_gen_ribbon_pole_dancer_check_AuraScript);
 
-    void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-    {
-        GetTarget()->RemoveAurasDueToSpell(SPELL_RIBBON_POLE_PERIODIC_VISUAL);
-    }
+            bool Validate(SpellInfo const* /*spellInfo*/) override
+            {
+                return ValidateSpellInfo(
+                {
+                    SPELL_RIBBON_DANCE_COSMETIC,
+                    SPELL_BURNING_HOT_POLE_DANCE,
+                    SPELL_HAS_FULL_MIDSUMMER_SET,
+                    SPELL_RIBBON_DANCE
+                });
+            }
 
-    void PeriodicTick(AuraEffect const* /*aurEff*/)
-    {
-        Unit* target = GetTarget();
-        target->CastSpell(target, SPELL_RIBBON_POLE_PERIODIC_VISUAL, true);
+            void PeriodicTick(AuraEffect const* /*aurEff*/)
+            {
+                Unit* target = GetTarget();
 
-        if (Aura* aur = target->GetAura(SPELL_RIBBON_DANCE))
+                // check if aura needs to be removed
+                if (!target->FindNearestGameObject(GO_RIBBON_POLE, 8.0f) || !target->HasUnitState(UNIT_STATE_CASTING))
+                {
+                    target->InterruptNonMeleeSpells(false);
+                    target->RemoveAurasDueToSpell(GetId());
+                    target->RemoveAura(SPELL_RIBBON_DANCE_COSMETIC);
+                    return;
+                }
+
+                // set xp buff duration
+                if (Aura* aur = target->GetAura(SPELL_RIBBON_DANCE))
+                {
+                    aur->SetMaxDuration(std::min(3600000, aur->GetMaxDuration() + 180000));
+                    aur->RefreshDuration();
+
+                    // reward achievement criteria
+                    if (aur->GetMaxDuration() == 3600000 && target->HasAura(SPELL_HAS_FULL_MIDSUMMER_SET))
+                        target->CastSpell(target, SPELL_BURNING_HOT_POLE_DANCE, true);
+                }
+                else
+                    target->AddAura(SPELL_RIBBON_DANCE, target);
+            }
+
+            void Register() override
+            {
+                OnEffectPeriodic += AuraEffectPeriodicFn(spell_gen_ribbon_pole_dancer_check_AuraScript::PeriodicTick, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
+            }
+        };
+
+        AuraScript* GetAuraScript() const override
         {
-            aur->SetMaxDuration(std::min(3600000, aur->GetMaxDuration() + 180000));
-            aur->RefreshDuration();
-
-            if (aur->GetMaxDuration() == 3600000 && target->HasAura(SPELL_HAS_FULL_MIDSUMMER_SET))
-                target->CastSpell(target, SPELL_BURNING_HOT_POLE_DANCE, true);
+            return new spell_gen_ribbon_pole_dancer_check_AuraScript();
         }
-        else
-            target->CastSpell(target, SPELL_RIBBON_DANCE, true);
-    }
-
-    void Register() override
-    {
-        AfterEffectRemove += AuraEffectRemoveFn(spell_midsummer_test_ribbon_pole_channel::HandleRemove, EFFECT_1, SPELL_AURA_PERIODIC_TRIGGER_SPELL, AURA_EFFECT_HANDLE_REAL);
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_midsummer_test_ribbon_pole_channel::PeriodicTick, EFFECT_1, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
-    }
-};
-
-// 45406 - Holiday - Midsummer, Ribbon Pole Periodic Visual
-class spell_midsummer_ribbon_pole_periodic_visual : public AuraScript
-{
-    PrepareAuraScript(spell_midsummer_ribbon_pole_periodic_visual);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo(
-        {
-            SPELL_TEST_RIBBON_POLE_1,
-            SPELL_TEST_RIBBON_POLE_2,
-            SPELL_TEST_RIBBON_POLE_3
-        });
-    }
-
-    void PeriodicTick(AuraEffect const* /*aurEff*/)
-    {
-        Unit* target = GetTarget();
-        if (!target->HasAura(SPELL_TEST_RIBBON_POLE_1) && !target->HasAura(SPELL_TEST_RIBBON_POLE_2) && !target->HasAura(SPELL_TEST_RIBBON_POLE_3))
-            Remove();
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_midsummer_ribbon_pole_periodic_visual::PeriodicTick, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
-    }
 };
 
 void AddSC_holiday_spell_scripts()
@@ -1716,9 +1662,6 @@ void AddSC_holiday_spell_scripts()
     new spell_brewfest_dismount_ram();
     new spell_brewfest_barker_bunny();
     // Midsummer Fire Festival
-    RegisterAuraScript(spell_midsummer_braziers_hit);
-    RegisterSpellScript(spell_midsummer_torch_target_picker);
-    RegisterSpellScript(spell_midsummer_torch_toss_land);
-    RegisterAuraScript(spell_midsummer_test_ribbon_pole_channel);
-    RegisterAuraScript(spell_midsummer_ribbon_pole_periodic_visual);
+    new spell_midsummer_braziers_hit();
+    new spell_gen_ribbon_pole_dancer_check();
 }

@@ -76,27 +76,19 @@ public:
             return false;
 
         uint32 channelId = 0;
-        for (uint32 i = 0; i < sChatChannelsStore.GetNumRows(); ++i)
+        for (ChatChannelsEntry const* entry : sChatChannelsStore)
         {
-            ChatChannelsEntry const* entry = sChatChannelsStore.LookupEntry(i);
-            if (!entry)
-                continue;
-
-            if (strstr(entry->pattern[handler->GetSessionDbcLocale()], channelStr))
+            if (strstr(entry->pattern, channelStr))
             {
-                channelId = i;
+                channelId = entry->ChannelID;
                 break;
             }
         }
 
         AreaTableEntry const* zoneEntry = nullptr;
-        for (uint32 i = 0; i < sAreaTableStore.GetNumRows(); ++i)
+        for (AreaTableEntry const* entry : sAreaTableStore)
         {
-            AreaTableEntry const* entry = sAreaTableStore.LookupEntry(i);
-            if (!entry)
-                continue;
-
-            if (strstr(entry->area_name[handler->GetSessionDbcLocale()], channelStr))
+            if (strstr(entry->area_name, channelStr))
             {
                 zoneEntry = entry;
                 break;

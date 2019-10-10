@@ -30,6 +30,7 @@ class MapReference : public Reference<Map, Player>
         void targetObjectBuildLink() override;
         void targetObjectDestroyLink() override;
         void sourceObjectDestroyLink() override;
+
     public:
         MapReference() : Reference<Map, Player>() { }
         ~MapReference() { unlink(); }

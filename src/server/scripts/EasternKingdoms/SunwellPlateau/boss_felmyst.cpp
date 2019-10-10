@@ -158,7 +158,7 @@ public:
 
         void JustEngagedWith(Unit* /*who*/) override
         {
-            events.ScheduleEvent(EVENT_BERSERK, 10min);
+            events.ScheduleEvent(EVENT_BERSERK, 600000);
 
             me->setActive(true);
             DoZoneInCombat();
@@ -217,7 +217,7 @@ public:
                     summon->CastSpell(summon, SPELL_FOG_CHARM, true);
                     summon->CastSpell(summon, SPELL_FOG_CHARM2, true);
                 }
-                Unit::DealDamage(me, caster, caster->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+                me->DealDamage(caster, caster->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
             }
         }
 
@@ -253,15 +253,15 @@ public:
                     me->StopMoving();
                     me->SetSpeedRate(MOVE_RUN, 2.0f);
 
-                    events.ScheduleEvent(EVENT_CLEAVE, 5s, 10s);
-                    events.ScheduleEvent(EVENT_CORROSION, 10s, 20s);
-                    events.ScheduleEvent(EVENT_GAS_NOVA, 15s, 20s);
-                    events.ScheduleEvent(EVENT_ENCAPSULATE, 20s, 25s);
-                    events.ScheduleEvent(EVENT_FLIGHT, 1min);
+                    events.ScheduleEvent(EVENT_CLEAVE, urand(5000, 10000));
+                    events.ScheduleEvent(EVENT_CORROSION, urand(10000, 20000));
+                    events.ScheduleEvent(EVENT_GAS_NOVA, urand(15000, 20000));
+                    events.ScheduleEvent(EVENT_ENCAPSULATE, urand(20000, 25000));
+                    events.ScheduleEvent(EVENT_FLIGHT, 60000);
                     break;
                 case PHASE_FLIGHT:
                     me->SetDisableGravity(true);
-                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 1s);
+                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 1000);
                     uiFlightCount = 0;
                     uiBreathCount = 0;
                     break;
@@ -277,11 +277,11 @@ public:
             {
                 case 0:
                     //me->AttackStop();
-                    me->GetMotionMaster()->Clear();
+                    me->GetMotionMaster()->Clear(false);
                     me->HandleEmoteCommand(EMOTE_ONESHOT_LIFTOFF);
                     me->StopMoving();
                     Talk(YELL_TAKEOFF);
-                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 2s);
+                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 2000);
                     break;
                 case 1:
                     me->GetMotionMaster()->MovePoint(0, me->GetPositionX()+1, me->GetPositionY(), me->GetPositionZ()+10);
@@ -306,7 +306,7 @@ public:
                         Vapor->CastSpell(Vapor, SPELL_VAPOR_TRIGGER, true);
                     }
 
-                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 10s);
+                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 10000);
                     break;
                 }
                 case 3:
@@ -334,7 +334,7 @@ public:
                         pVapor->CastSpell(pVapor, SPELL_VAPOR_TRIGGER, true);
                     }
 
-                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 10s);
+                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 10000);
                     break;
                 }
                 case 4:
@@ -361,9 +361,9 @@ public:
                     break;
                 }
                 case 6:
-                    me->SetFacingTo(me->GetAbsoluteAngle(breathX, breathY));
+                    me->SetFacingTo(me->GetAngle(breathX, breathY));
                     //DoTextEmote("takes a deep breath.", nullptr);
-                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 10s);
+                    events.ScheduleEvent(EVENT_FLIGHT_SEQUENCE, 10000);
                     break;
                 case 7:
                 {
@@ -385,7 +385,7 @@ public:
                         uiFlightCount = 4;
                     break;
                 case 9:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_MAXTHREAT))
+                    if (Unit* target = SelectTarget(SELECT_TARGET_TOPAGGRO))
                         DoStartMovement(target);
                     else
                     {
@@ -397,7 +397,7 @@ public:
                     me->SetDisableGravity(false);
                     me->HandleEmoteCommand(EMOTE_ONESHOT_LAND);
                     EnterPhase(PHASE_GROUND);
-                    AttackStart(SelectTarget(SELECT_TARGET_MAXTHREAT));
+                    AttackStart(SelectTarget(SELECT_TARGET_TOPAGGRO));
                     break;
             }
             ++uiFlightCount;
@@ -424,24 +424,24 @@ public:
                     case EVENT_BERSERK:
                         Talk(YELL_BERSERK);
                         DoCast(me, SPELL_BERSERK, true);
-                        events.ScheduleEvent(EVENT_BERSERK, 10s);
+                        events.ScheduleEvent(EVENT_BERSERK, 10000);
                         break;
                     case EVENT_CLEAVE:
                         DoCastVictim(SPELL_CLEAVE, false);
-                        events.ScheduleEvent(EVENT_CLEAVE, 5s, 10s);
+                        events.ScheduleEvent(EVENT_CLEAVE, urand(5000, 10000));
                         break;
                     case EVENT_CORROSION:
                         DoCastVictim(SPELL_CORROSION, false);
-                        events.ScheduleEvent(EVENT_CORROSION, 20s, 30s);
+                        events.ScheduleEvent(EVENT_CORROSION, urand(20000, 30000));
                         break;
                     case EVENT_GAS_NOVA:
                         DoCast(me, SPELL_GAS_NOVA, false);
-                        events.ScheduleEvent(EVENT_GAS_NOVA, 20s, 25s);
+                        events.ScheduleEvent(EVENT_GAS_NOVA, urand(20000, 25000));
                         break;
                     case EVENT_ENCAPSULATE:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 150, true))
                             DoCast(target, SPELL_ENCAPSULATE_CHANNEL, false);
-                        events.ScheduleEvent(EVENT_ENCAPSULATE, 25s, 30s);
+                        events.ScheduleEvent(EVENT_ENCAPSULATE, urand(25000, 30000));
                         break;
                     case EVENT_FLIGHT:
                         EnterPhase(PHASE_FLIGHT);
@@ -475,7 +475,7 @@ public:
                                 me->CastSpell(Fog, SPELL_FOG_FORCE, true);
                             }
                         }
-                        events.ScheduleEvent(EVENT_SUMMON_FOG, 1s);
+                        events.ScheduleEvent(EVENT_SUMMON_FOG, 1000);
                         break;
                 }
             }
@@ -499,7 +499,9 @@ public:
                     me->SummonCreature(NPC_DEAD, x, y, z, 0, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 5000);
                 }
                 (*i)->SetVisible(false);
-                (*i)->DespawnOrUnsummon();
+                (*i)->setDeathState(JUST_DIED);
+                if ((*i)->getDeathState() == CORPSE)
+                    (*i)->RemoveCorpse();
             }
         }
     };
@@ -514,11 +516,6 @@ class npc_felmyst_vapor : public CreatureScript
 {
 public:
     npc_felmyst_vapor() : CreatureScript("npc_felmyst_vapor") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetSunwellPlateauAI<npc_felmyst_vaporAI>(creature);
-    }
 
     struct npc_felmyst_vaporAI : public ScriptedAI
     {
@@ -542,17 +539,17 @@ public:
                     AttackStart(target);
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetSunwellPlateauAI<npc_felmyst_vaporAI>(creature);
+    }
 };
 
 class npc_felmyst_trail : public CreatureScript
 {
 public:
     npc_felmyst_trail() : CreatureScript("npc_felmyst_trail") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetSunwellPlateauAI<npc_felmyst_trailAI>(creature);
-    }
 
     struct npc_felmyst_trailAI : public ScriptedAI
     {
@@ -571,6 +568,11 @@ public:
 
         void UpdateAI(uint32 /*diff*/) override { }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetSunwellPlateauAI<npc_felmyst_trailAI>(creature);
+    }
 };
 
 void AddSC_boss_felmyst()

@@ -57,11 +57,6 @@ class boss_silver_hand_bosses : public CreatureScript
 public:
     boss_silver_hand_bosses() : CreatureScript("boss_silver_hand_bosses") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetStratholmeAI<boss_silver_hand_bossesAI>(creature);
-    }
-
     struct boss_silver_hand_bossesAI : public ScriptedAI
     {
         boss_silver_hand_bossesAI(Creature* creature) : ScriptedAI(creature)
@@ -164,6 +159,11 @@ public:
             DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetStratholmeAI<boss_silver_hand_bossesAI>(creature);
+    }
 };
 
 void AddSC_boss_order_of_silver_hand()

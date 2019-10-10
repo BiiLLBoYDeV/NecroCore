@@ -20,7 +20,6 @@
 #include "InstanceScript.h"
 #include "Map.h"
 #include "MotionMaster.h"
-#include "ObjectMgr.h"
 #include "razorfen_downs.h"
 #include "TemporarySummon.h"
 
@@ -53,7 +52,7 @@ public:
 
     struct instance_razorfen_downs_InstanceMapScript : public InstanceScript
     {
-        instance_razorfen_downs_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_razorfen_downs_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             SetBossNumber(EncounterCount);

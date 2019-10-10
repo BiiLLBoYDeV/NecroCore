@@ -1,19 +1,19 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+* Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+*
+* This program is free software; you can redistribute it and/or modify it
+* under the terms of the GNU General Public License as published by the
+* Free Software Foundation; either version 2 of the License, or (at your
+* option) any later version.
+*
+* This program is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+* more details.
+*
+* You should have received a copy of the GNU General Public License along
+* with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "DBCStores.h"
 #include "Common.h"
@@ -31,21 +31,21 @@ typedef std::vector<FlyByCamera> FlyByCameraCollection;
 std::unordered_map<uint32, FlyByCameraCollection> sFlyByCameraStore;
 
 // Convert the geomoetry from a spline value, to an actual WoW XYZ
-G3D::Vector3 TranslateLocation(G3D::Vector4 const* DBCPosition, G3D::Vector3 const* basePosition, G3D::Vector3 const* splineVector)
+G3D::Vector3 translateLocation(G3D::Vector4 const* dbcLocation, G3D::Vector3 const* basePosition, G3D::Vector3 const* splineVector)
 {
     G3D::Vector3 work;
     float x = basePosition->x + splineVector->x;
     float y = basePosition->y + splineVector->y;
     float z = basePosition->z + splineVector->z;
     float const distance = sqrt((x * x) + (y * y));
-    float angle = std::atan2(x, y) - DBCPosition->w;
+    float angle = std::atan2(x, y) - dbcLocation->w;
 
     if (angle < 0)
         angle += 2 * float(M_PI);
 
-    work.x = DBCPosition->x + (distance * sin(angle));
-    work.y = DBCPosition->y + (distance * cos(angle));
-    work.z = DBCPosition->z + z;
+    work.x = dbcLocation->x + (distance * sin(angle));
+    work.y = dbcLocation->y + (distance * cos(angle));
+    work.z = dbcLocation->z + z;
     return work;
 }
 
@@ -57,11 +57,11 @@ bool readCamera(M2Camera const* cam, uint32 buffSize, M2Header const* header, Ci
     FlyByCameraCollection cameras;
     FlyByCameraCollection targetcam;
 
-    G3D::Vector4 DBCData;
-    DBCData.x = dbcentry->Origin.X;
-    DBCData.y = dbcentry->Origin.Y;
-    DBCData.z = dbcentry->Origin.Z;
-    DBCData.w = dbcentry->OriginFacing;
+    G3D::Vector4 dbcData;
+    dbcData.x = dbcentry->Origin.X;
+    dbcData.y = dbcentry->Origin.Y;
+    dbcData.z = dbcentry->Origin.Z;
+    dbcData.w = dbcentry->OriginFacing;
 
     // Read target locations, only so that we can calculate orientation
     for (uint32 k = 0; k < cam->target_positions.timestamps.number; ++k)
@@ -86,7 +86,7 @@ bool readCamera(M2Camera const* cam, uint32 buffSize, M2Header const* header, Ci
             if (currPos + sizeof(M2SplineKey<G3D::Vector3>) > buffSize)
                 return false;
             // Translate co-ordinates
-            G3D::Vector3 newPos = TranslateLocation(&DBCData, &cam->target_position_base, &targPositions->p0);
+            G3D::Vector3 newPos = translateLocation(&dbcData, &cam->target_position_base, &targPositions->p0);
 
             // Add to vector
             FlyByCamera thisCam;
@@ -120,7 +120,7 @@ bool readCamera(M2Camera const* cam, uint32 buffSize, M2Header const* header, Ci
             if (currPos + sizeof(M2SplineKey<G3D::Vector3>) > buffSize)
                 return false;
             // Translate co-ordinates
-            G3D::Vector3 newPos = TranslateLocation(&DBCData, &cam->position_base, &positions->p0);
+            G3D::Vector3 newPos = translateLocation(&dbcData, &cam->position_base, &positions->p0);
 
             // Add to vector
             FlyByCamera thisCam;
@@ -251,7 +251,6 @@ void LoadM2Cameras(std::string const& dataPath)
         if (!readCamera(cam, fileSize, header, dbcentry))
             TC_LOG_ERROR("server.loading", "Camera file %s is damaged. Camera references position beyond file end", filename.string().c_str());
     }
-
     TC_LOG_INFO("server.loading", ">> Loaded %u cinematic waypoint sets in %u ms", (uint32)sFlyByCameraStore.size(), GetMSTimeDiffToNow(oldMSTime));
 }
 

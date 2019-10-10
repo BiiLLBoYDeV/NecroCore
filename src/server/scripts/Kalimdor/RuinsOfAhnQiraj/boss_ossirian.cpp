@@ -20,7 +20,6 @@
 #include "GameObjectAI.h"
 #include "InstanceScript.h"
 #include "Map.h"
-#include "MiscPackets.h"
 #include "ObjectAccessor.h"
 #include "Opcodes.h"
 #include "Player.h"
@@ -125,8 +124,7 @@ class boss_ossirian : public CreatureScript
                     if (spell->Id == SpellWeakness[i])
                     {
                         me->RemoveAurasDueToSpell(SPELL_SUPREME);
-                        if (Creature* creatureCaster = caster->ToCreature())
-                            creatureCaster->DespawnOrUnsummon();
+                        caster->ToTempSummon()->UnSummon();
                         SpawnNextCrystal();
                     }
                 }
@@ -144,17 +142,18 @@ class boss_ossirian : public CreatureScript
             {
                 _JustEngagedWith();
                 events.Reset();
-                events.ScheduleEvent(EVENT_SILENCE, 30s);
-                events.ScheduleEvent(EVENT_CYCLONE, 20s);
-                events.ScheduleEvent(EVENT_STOMP, 30s);
+                events.ScheduleEvent(EVENT_SILENCE, 30000);
+                events.ScheduleEvent(EVENT_CYCLONE, 20000);
+                events.ScheduleEvent(EVENT_STOMP, 30000);
 
                 DoCast(me, SPELL_SUPREME);
                 Talk(SAY_AGGRO);
 
                 Map* map = me->GetMap();
 
-                WorldPackets::Misc::Weather weather(WEATHER_STATE_HEAVY_SANDSTORM, 1.0f);
-                map->SendToPlayers(weather.Write());
+                WorldPacket data(SMSG_WEATHER, (4+4+4));
+                data << uint32(WEATHER_STATE_HEAVY_SANDSTORM) << float(1) << uint8(0);
+                map->SendToPlayers(&data);
 
                 for (uint8 i = 0; i < NUM_TORNADOS; ++i)
                 {
@@ -195,7 +194,7 @@ class boss_ossirian : public CreatureScript
                 if (CrystalIterator == NUM_CRYSTALS)
                     CrystalIterator = 0;
 
-                if (Creature* Trigger = me->SummonCreature(NPC_OSSIRIAN_TRIGGER, CrystalCoordinates[CrystalIterator]))
+                if (Creature* Trigger = me->GetMap()->SummonCreature(NPC_OSSIRIAN_TRIGGER, CrystalCoordinates[CrystalIterator]))
                 {
                     TriggerGUID = Trigger->GetGUID();
                     if (GameObject* Crystal = Trigger->SummonGameObject(GO_OSSIRIAN_CRYSTAL, CrystalCoordinates[CrystalIterator], QuaternionData(), uint32(-1)))
@@ -256,15 +255,15 @@ class boss_ossirian : public CreatureScript
                     {
                         case EVENT_SILENCE:
                             DoCast(me, SPELL_SILENCE);
-                            events.ScheduleEvent(EVENT_SILENCE, 20s, 30s);
+                            events.ScheduleEvent(EVENT_SILENCE, urand(20000, 30000));
                             break;
                         case EVENT_CYCLONE:
                             DoCastVictim(SPELL_CYCLONE);
-                            events.ScheduleEvent(EVENT_CYCLONE, 20s);
+                            events.ScheduleEvent(EVENT_CYCLONE, 20000);
                             break;
                         case EVENT_STOMP:
                             DoCast(me, SPELL_STOMP);
-                            events.ScheduleEvent(EVENT_STOMP, 30s);
+                            events.ScheduleEvent(EVENT_STOMP, 30000);
                             break;
                         default:
                             break;
@@ -294,11 +293,11 @@ class go_ossirian_crystal : public GameObjectScript
 
             bool GossipHello(Player* player) override
             {
-                Creature* ossirian = player->FindNearestCreature(NPC_OSSIRIAN, 30.0f);
-                if (!ossirian || instance->GetBossState(DATA_OSSIRIAN) != IN_PROGRESS)
+                Creature* Ossirian = player->FindNearestCreature(NPC_OSSIRIAN, 30.0f);
+                if (!Ossirian || instance->GetBossState(DATA_OSSIRIAN) != IN_PROGRESS)
                     return false;
 
-                ossirian->AI()->DoAction(ACTION_TRIGGER_WEAKNESS);
+                Ossirian->AI()->DoAction(ACTION_TRIGGER_WEAKNESS);
                 return true;
             }
         };

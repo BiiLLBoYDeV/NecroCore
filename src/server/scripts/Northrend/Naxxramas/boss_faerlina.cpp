@@ -22,6 +22,7 @@
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "SpellAuras.h"
+#include "SpellInfo.h"
 
 enum Yells
 {
@@ -130,7 +131,7 @@ class boss_faerlina : public CreatureScript
                 {
                     ++_frenzyDispels;
                     Talk(EMOTE_WIDOW_EMBRACE, caster);
-                    Unit::Kill(me, caster);
+                    me->Kill(caster);
                 }
             }
 
@@ -218,7 +219,7 @@ class npc_faerlina_add : public CreatureScript
             void JustEngagedWith(Unit* /*who*/) override
             {
                 if (Creature* faerlina = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_FAERLINA)))
-                    faerlina->AI()->DoZoneInCombat();
+                    faerlina->AI()->DoZoneInCombat(nullptr, 250.0f);
             }
 
             void JustDied(Unit* /*killer*/) override

@@ -98,7 +98,6 @@ const Point MovementPoint[] =
 void AggroAllPlayers(Creature* temp)
 {
     Map::PlayerList const& PlList = temp->GetMap()->GetPlayers();
-
     if (PlList.isEmpty())
             return;
 
@@ -111,10 +110,11 @@ void AggroAllPlayers(Creature* temp)
 
             if (player->IsAlive())
             {
-                temp->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                temp->SetImmuneToPC(true);
+                temp->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
                 temp->SetReactState(REACT_AGGRESSIVE);
-                temp->EngageWithTarget(player);
+                temp->SetInCombatWith(player);
+                player->SetInCombatWith(temp);
+                temp->AddThreat(player, 0.0f);
             }
         }
     }
@@ -133,9 +133,9 @@ bool GrandChampionsOutVehicle(Creature* me)
 
     if (pGrandChampion1 && pGrandChampion2 && pGrandChampion3)
     {
-        if (!pGrandChampion1->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) &&
-            !pGrandChampion2->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT) &&
-            !pGrandChampion3->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
+        if (!pGrandChampion1->m_movementInfo.transport.guid &&
+            !pGrandChampion2->m_movementInfo.transport.guid &&
+            !pGrandChampion3->m_movementInfo.transport.guid)
             return true;
     }
 
@@ -152,9 +152,9 @@ class generic_vehicleAI_toc5 : public CreatureScript
 public:
     generic_vehicleAI_toc5() : CreatureScript("generic_vehicleAI_toc5") { }
 
-    struct generic_vehicleAI_toc5AI : public EscortAI
+    struct generic_vehicleAI_toc5AI : public npc_escortAI
     {
-        generic_vehicleAI_toc5AI(Creature* creature) : EscortAI(creature)
+        generic_vehicleAI_toc5AI(Creature* creature) : npc_escortAI(creature)
         {
             Initialize();
             SetDespawnAtEnd(false);
@@ -212,7 +212,7 @@ public:
                 Start(false, true);
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             switch (waypointId)
             {
@@ -239,7 +239,7 @@ public:
 
         void UpdateAI(uint32 uiDiff) override
         {
-            EscortAI::UpdateAI(uiDiff);
+            npc_escortAI::UpdateAI(uiDiff);
 
             if (!UpdateVictim())
                 return;
@@ -262,8 +262,8 @@ public:
                         Player* player = itr->GetSource();
                         if (player && !player->IsGameMaster() && me->IsInRange(player, 8.0f, 25.0f, false))
                         {
-                            ResetThreatList();
-                            AddThreat(player, 1.0f);
+                            DoResetThreat();
+                            me->AddThreat(player, 1.0f);
                             DoCast(player, SPELL_CHARGE);
                             break;
                         }
@@ -329,8 +329,7 @@ public:
 
             me->SetReactState(REACT_PASSIVE);
             // THIS IS A HACK, SHOULD BE REMOVED WHEN THE EVENT IS FULL SCRIPTED
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-            me->SetImmuneToPC(true);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
         }
 
         void Initialize()
@@ -396,7 +395,7 @@ public:
                 }
             }else uiPhaseTimer -= uiDiff;
 
-            if (!UpdateVictim() || me->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
+            if (!UpdateVictim() || me->m_movementInfo.transport.guid)
                 return;
 
             if (uiInterceptTimer <= uiDiff)
@@ -409,8 +408,8 @@ public:
                         Player* player = itr->GetSource();
                         if (player && !player->IsGameMaster() && me->IsInRange(player, 8.0f, 25.0f, false))
                         {
-                            ResetThreatList();
-                            AddThreat(player, 5.0f);
+                            DoResetThreat();
+                            me->AddThreat(player, 5.0f);
                             DoCast(player, SPELL_INTERCEPT);
                             break;
                         }
@@ -467,8 +466,7 @@ public:
 
             me->SetReactState(REACT_PASSIVE);
             // THIS IS A HACK, SHOULD BE REMOVED WHEN THE EVENT IS FULL SCRIPTED
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-            me->SetImmuneToPC(true);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
         }
 
         void Initialize()
@@ -545,7 +543,7 @@ public:
                 uiFireBallTimer = 5000;
             } else uiFireBallTimer -= uiDiff;
 
-            if (!UpdateVictim() || me->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
+            if (!UpdateVictim() || me->m_movementInfo.transport.guid)
                 return;
 
             if (uiFireBallTimer <= uiDiff)
@@ -611,8 +609,7 @@ public:
 
             me->SetReactState(REACT_PASSIVE);
             // THIS IS A HACK, SHOULD BE REMOVED WHEN THE EVENT IS FULL SCRIPTED
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-            me->SetImmuneToPC(true);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
         }
 
         void Initialize()
@@ -688,7 +685,7 @@ public:
                 }
             }else uiPhaseTimer -= uiDiff;
 
-            if (!UpdateVictim() || me->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
+            if (!UpdateVictim() || me->m_movementInfo.transport.guid)
                 return;
 
             if (uiChainLightningTimer <= uiDiff)
@@ -763,8 +760,7 @@ public:
 
             me->SetReactState(REACT_PASSIVE);
             // THIS IS A HACK, SHOULD BE REMOVED WHEN THE EVENT IS FULL SCRIPTED
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-            me->SetImmuneToPC(true);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
         }
 
         void Initialize()
@@ -839,7 +835,7 @@ public:
                 }
             }else uiPhaseTimer -= uiDiff;
 
-            if (!UpdateVictim() || me->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
+            if (!UpdateVictim() || me->m_movementInfo.transport.guid)
                 return;
 
             if (uiLightningArrowsTimer <= uiDiff)
@@ -850,7 +846,7 @@ public:
 
             if (uiShootTimer <= uiDiff)
             {
-                if (Unit* target = SelectTarget(SELECT_TARGET_MAXDISTANCE, 0, 30.0f))
+                if (Unit* target = SelectTarget(SELECT_TARGET_FARTHEST, 0, 30.0f))
                 {
                     uiTargetGUID = target->GetGUID();
                     DoCast(target, SPELL_SHOOT);
@@ -924,8 +920,7 @@ public:
 
             me->SetReactState(REACT_PASSIVE);
             // THIS IS A HACK, SHOULD BE REMOVED WHEN THE EVENT IS FULL SCRIPTED
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-            me->SetImmuneToPC(true);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
         }
 
         void Initialize()
@@ -992,7 +987,7 @@ public:
                 }
             } else uiPhaseTimer -= uiDiff;
 
-            if (!UpdateVictim() || me->HasUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT))
+            if (!UpdateVictim() || me->m_movementInfo.transport.guid)
                 return;
 
             if (uiEviscerateTimer <= uiDiff)

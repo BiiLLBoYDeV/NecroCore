@@ -19,21 +19,19 @@
 #include "GameEventMgr.h"
 #include "BattlegroundMgr.h"
 #include "CreatureAI.h"
-#include "DBCStores.h"
 #include "DatabaseEnv.h"
+#include "DBCStores.h"
 #include "GameObjectAI.h"
 #include "GameTime.h"
 #include "Language.h"
 #include "Log.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
-#include "PoolMgr.h"
 #include "Player.h"
+#include "PoolMgr.h"
+#include "UnitAI.h"
 #include "World.h"
-#ifdef ELUNA
-#include "LuaEngine.h"
-#endif
-#include "WorldStatePackets.h"
+#include "WorldPacket.h"
 
 GameEventMgr* GameEventMgr::instance()
 {
@@ -48,7 +46,7 @@ bool GameEventMgr::CheckOneGameEvent(uint16 entry) const
         default:
         case GAMEEVENT_NORMAL:
         {
-            time_t currenttime = GameTime::GetGameTime();
+            time_t currenttime = time(nullptr);
             // Get the event information
             return mGameEvent[entry].start < currenttime
                 && currenttime < mGameEvent[entry].end
@@ -65,7 +63,7 @@ bool GameEventMgr::CheckOneGameEvent(uint16 entry) const
         // if inactive world event, check the prerequisite events
         case GAMEEVENT_WORLD_INACTIVE:
         {
-            time_t currenttime = GameTime::GetGameTime();
+            time_t currenttime = time(nullptr);
             for (std::set<uint16>::const_iterator itr = mGameEvent[entry].prerequisite_events.begin(); itr != mGameEvent[entry].prerequisite_events.end(); ++itr)
             {
                 if ((mGameEvent[*itr].state != GAMEEVENT_WORLD_NEXTPHASE && mGameEvent[*itr].state != GAMEEVENT_WORLD_FINISHED) ||   // if prereq not in nextphase or finished state, then can't start this one
@@ -81,7 +79,7 @@ bool GameEventMgr::CheckOneGameEvent(uint16 entry) const
 
 uint32 GameEventMgr::NextCheck(uint16 entry) const
 {
-    time_t currenttime = GameTime::GetGameTime();
+    time_t currenttime = time(nullptr);
 
     // for NEXTPHASE state world events, return the delay to start the next event, so the followup event will be checked correctly
     if ((mGameEvent[entry].state == GAMEEVENT_WORLD_NEXTPHASE || mGameEvent[entry].state == GAMEEVENT_WORLD_FINISHED) && mGameEvent[entry].nextstart >= currenttime)
@@ -141,17 +139,13 @@ bool GameEventMgr::StartEvent(uint16 event_id, bool overwrite)
         ApplyNewEvent(event_id);
         if (overwrite)
         {
-            mGameEvent[event_id].start = GameTime::GetGameTime();
+            mGameEvent[event_id].start = time(nullptr);
             if (data.end <= data.start)
                 data.end = data.start + data.length;
         }
 
         // When event is started, set its worldstate to current time
-        sWorld->setWorldState(event_id, GameTime::GetGameTime());
-#ifdef ELUNA
-        if (IsActiveEvent(event_id))
-            sEluna->OnGameEventStart(event_id);
-#endif
+        sWorld->setWorldState(event_id, time(nullptr));
         return false;
     }
     else
@@ -175,10 +169,6 @@ bool GameEventMgr::StartEvent(uint16 event_id, bool overwrite)
         if (overwrite && conditions_met)
             sWorld->ForceGameEventUpdate();
 
-#ifdef ELUNA
-        if (IsActiveEvent(event_id))
-            sEluna->OnGameEventStart(event_id);
-#endif
         return conditions_met;
     }
 }
@@ -196,7 +186,7 @@ void GameEventMgr::StopEvent(uint16 event_id, bool overwrite)
 
     if (overwrite && !serverwide_evt)
     {
-        data.start = GameTime::GetGameTime() - data.length * MINUTE;
+        data.start = time(nullptr) - data.length * MINUTE;
         if (data.end <= data.start)
             data.end = data.start + data.length;
     }
@@ -224,11 +214,6 @@ void GameEventMgr::StopEvent(uint16 event_id, bool overwrite)
             CharacterDatabase.CommitTransaction(trans);
         }
     }
-
-#ifdef ELUNA
-    if (!IsActiveEvent(event_id))
-        sEluna->OnGameEventStop(event_id);
-#endif
 }
 
 void GameEventMgr::LoadFromDB()
@@ -240,7 +225,7 @@ void GameEventMgr::LoadFromDB()
         if (!result)
         {
             mGameEvent.clear();
-            TC_LOG_INFO("server.loading", ">> Loaded 0 game events. DB table `game_event` is empty.");
+            TC_LOG_ERROR("server.loading", ">> Loaded 0 game events. DB table `game_event` is empty.");
             return;
         }
 
@@ -500,7 +485,7 @@ void GameEventMgr::LoadFromDB()
 
         //                                                       0           1                       2                                 3                                     4
         QueryResult result = WorldDatabase.Query("SELECT creature.guid, creature.id, game_event_model_equip.eventEntry, game_event_model_equip.modelid, game_event_model_equip.equipment_id "
-                                                 "FROM creature JOIN game_event_model_equip ON creature.guid = game_event_model_equip.guid");
+                                                 "FROM creature JOIN game_event_model_equip ON creature.guid=game_event_model_equip.guid");
 
         if (!result)
             TC_LOG_INFO("server.loading", ">> Loaded 0 model/equipment changes in game events. DB table `game_event_model_equip` is empty.");
@@ -525,7 +510,7 @@ void GameEventMgr::LoadFromDB()
                 ModelEquip newModelEquipSet;
                 newModelEquipSet.modelid = fields[3].GetUInt32();
                 newModelEquipSet.equipment_id = fields[4].GetUInt8();
-                newModelEquipSet.equipement_id_prev = 0;
+                newModelEquipSet.equipment_id_prev = 0;
                 newModelEquipSet.modelid_prev = 0;
 
                 if (newModelEquipSet.equipment_id > 0)
@@ -825,8 +810,8 @@ void GameEventMgr::LoadFromDB()
     {
         uint32 oldMSTime = getMSTime();
 
-        //                                               0           1     2     3         4         5
-        QueryResult result = WorldDatabase.Query("SELECT eventEntry, guid, item, maxcount, incrtime, ExtendedCost FROM game_event_npc_vendor ORDER BY guid, slot ASC");
+        //                                               0           1     2     3         4         5             6
+        QueryResult result = WorldDatabase.Query("SELECT eventEntry, guid, item, maxcount, incrtime, ExtendedCost, type FROM game_event_npc_vendor ORDER BY guid, slot ASC");
 
         if (!result)
             TC_LOG_INFO("server.loading", ">> Loaded 0 vendor additions in game events. DB table `game_event_npc_vendor` is empty.");
@@ -852,6 +837,7 @@ void GameEventMgr::LoadFromDB()
                 newEntry.maxcount = fields[3].GetUInt32();
                 newEntry.incrtime = fields[4].GetUInt32();
                 newEntry.ExtendedCost = fields[5].GetUInt32();
+                newEntry.Type = fields[6].GetUInt8();
                 // get the event npc flag for checking if the npc will be vendor during the event or not
                 uint32 event_npc_flag = 0;
                 NPCFlagList& flist = mGameEventNPCFlags[event_id];
@@ -870,7 +856,7 @@ void GameEventMgr::LoadFromDB()
                     newEntry.entry = data->id;
 
                 // check validity with event's npcflag
-                if (!sObjectMgr->IsVendorItemValid(newEntry.entry, newEntry.item, newEntry.maxcount, newEntry.incrtime, newEntry.ExtendedCost, nullptr, nullptr, event_npc_flag))
+                if (!sObjectMgr->IsVendorItemValid(newEntry.entry, newEntry.item, newEntry.maxcount, newEntry.incrtime, newEntry.ExtendedCost, newEntry.Type, nullptr, nullptr, event_npc_flag))
                     continue;
 
                 vendors.push_back(newEntry);
@@ -1081,7 +1067,7 @@ void GameEventMgr::StartArenaSeason()
 
 uint32 GameEventMgr::Update()                               // return the next event delay in ms
 {
-    time_t currenttime = GameTime::GetGameTime();
+    time_t currenttime = time(nullptr);
     uint32 nextEventDelay = max_ge_check_delay;             // 1 day
     uint32 calcDelay;
     std::set<uint16> activate, deactivate;
@@ -1182,6 +1168,9 @@ void GameEventMgr::ApplyNewEvent(uint16 event_id)
 
     TC_LOG_INFO("gameevent", "GameEvent %u \"%s\" started.", event_id, mGameEvent[event_id].description.c_str());
 
+    //! Run SAI scripts with SMART_EVENT_GAME_EVENT_END
+    RunSmartAIScripts(event_id, true);
+
     // spawn positive event tagget objects
     GameEventSpawn(event_id);
     // un-spawn negative event tagged objects
@@ -1198,10 +1187,6 @@ void GameEventMgr::ApplyNewEvent(uint16 event_id)
     UpdateEventNPCVendor(event_id, true);
     // update bg holiday
     UpdateBattlegroundSettings();
-
-    //! Run SAI scripts with SMART_EVENT_GAME_EVENT_START
-    RunSmartAIScripts(event_id, true);
-
     // If event's worldstate is 0, it means the event hasn't been started yet. In that case, reset seasonal quests.
     // When event ends (if it expires or if it's stopped via commands) worldstate will be set to 0 again, ready for another seasonal quest reset.
     if (sWorld->getWorldState(event_id) == 0)
@@ -1254,9 +1239,9 @@ void GameEventMgr::UpdateEventNPCVendor(uint16 event_id, bool activate)
     for (NPCVendorList::iterator itr = mGameEventVendors[event_id].begin(); itr != mGameEventVendors[event_id].end(); ++itr)
     {
         if (activate)
-            sObjectMgr->AddVendorItem(itr->entry, itr->item, itr->maxcount, itr->incrtime, itr->ExtendedCost, false);
+            sObjectMgr->AddVendorItem(itr->entry, itr->item, itr->maxcount, itr->incrtime, itr->ExtendedCost, itr->Type, false);
         else
-            sObjectMgr->RemoveVendorItem(itr->entry, itr->item, false);
+            sObjectMgr->RemoveVendorItem(itr->entry, itr->item, itr->Type, false);
     }
 }
 
@@ -1292,7 +1277,7 @@ void GameEventMgr::GameEventSpawn(int16 event_id)
         }
     }
 
-    if (internal_event_id >= int32(mGameEventGameobjectGuids.size()))
+    if (internal_event_id >= int32(mGameEventPoolIds.size()))
     {
         TC_LOG_ERROR("gameevent", "GameEventMgr::GameEventSpawn attempted access to out of range mGameEventGameobjectGuids element %i (size: %zu).",
             internal_event_id, mGameEventGameobjectGuids.size());
@@ -1326,7 +1311,7 @@ void GameEventMgr::GameEventSpawn(int16 event_id)
         }
     }
 
-    if (internal_event_id >= int32(mGameEventPoolIds.size()))
+    if (internal_event_id < 0 || internal_event_id >= int32(mGameEventPoolIds.size()))
     {
         TC_LOG_ERROR("gameevent", "GameEventMgr::GameEventSpawn attempted access to out of range mGameEventPoolIds element %u (size: %zu).",
             internal_event_id, mGameEventPoolIds.size());
@@ -1425,15 +1410,14 @@ void GameEventMgr::ChangeEquipOrModel(int16 event_id, bool activate)
 
         // Update if spawned
         sMapMgr->DoForAllMapsWithMapId(data->spawnPoint.GetMapId(), [&itr, activate](Map* map)
-
         {
             auto creatureBounds = map->GetCreatureBySpawnIdStore().equal_range(itr->first);
-            for (auto itr2 = creatureBounds.first; itr2 != creatureBounds.second; ++itr2)
+            for (auto it = creatureBounds.first; it != creatureBounds.second; ++it)
             {
-                Creature* creature = itr2->second;
+                Creature* creature = it->second;
                 if (activate)
                 {
-                    itr->second.equipement_id_prev = creature->GetCurrentEquipmentId();
+                    itr->second.equipment_id_prev = creature->GetCurrentEquipmentId();
                     itr->second.modelid_prev = creature->GetDisplayId();
                     creature->LoadEquipment(itr->second.equipment_id, true);
                     if (itr->second.modelid > 0 && itr->second.modelid_prev != itr->second.modelid &&
@@ -1445,7 +1429,7 @@ void GameEventMgr::ChangeEquipOrModel(int16 event_id, bool activate)
                 }
                 else
                 {
-                    creature->LoadEquipment(itr->second.equipement_id_prev, true);
+                    creature->LoadEquipment(itr->second.equipment_id_prev, true);
                     if (itr->second.modelid_prev > 0 && itr->second.modelid_prev != itr->second.modelid &&
                         sObjectMgr->GetCreatureModelInfo(itr->second.modelid_prev))
                     {
@@ -1455,19 +1439,20 @@ void GameEventMgr::ChangeEquipOrModel(int16 event_id, bool activate)
                 }
             }
         });
+
         // now last step: put in data
         CreatureData& data2 = sObjectMgr->NewOrExistCreatureData(itr->first);
         if (activate)
         {
             itr->second.modelid_prev = data2.displayid;
-            itr->second.equipement_id_prev = data2.equipmentId;
+            itr->second.equipment_id_prev = data2.equipmentId;
             data2.displayid = itr->second.modelid;
             data2.equipmentId = itr->second.equipment_id;
         }
         else
         {
             data2.displayid = itr->second.modelid_prev;
-            data2.equipmentId = itr->second.equipement_id_prev;
+            data2.equipmentId = itr->second.equipment_id_prev;
         }
     }
 }
@@ -1537,7 +1522,7 @@ void GameEventMgr::UpdateEventQuests(uint16 event_id, bool activate)
     QuestRelList::iterator itr;
     for (itr = mGameEventCreatureQuests[event_id].begin(); itr != mGameEventCreatureQuests[event_id].end(); ++itr)
     {
-        QuestRelations* CreatureQuestMap = sObjectMgr->GetCreatureQuestRelationMapHACK();
+        QuestRelations* CreatureQuestMap = sObjectMgr->GetCreatureQuestRelationMap();
         if (activate)                                           // Add the pair(id, quest) to the multimap
             CreatureQuestMap->insert(QuestRelations::value_type(itr->first, itr->second));
         else
@@ -1562,7 +1547,7 @@ void GameEventMgr::UpdateEventQuests(uint16 event_id, bool activate)
     }
     for (itr = mGameEventGameObjectQuests[event_id].begin(); itr != mGameEventGameObjectQuests[event_id].end(); ++itr)
     {
-        QuestRelations* GameObjectQuestMap = sObjectMgr->GetGOQuestRelationMapHACK();
+        QuestRelations* GameObjectQuestMap = sObjectMgr->GetGOQuestRelationMap();
         if (activate)                                           // Add the pair(id, quest) to the multimap
             GameObjectQuestMap->insert(QuestRelations::value_type(itr->first, itr->second));
         else
@@ -1598,10 +1583,9 @@ void GameEventMgr::UpdateWorldStates(uint16 event_id, bool Activate)
             BattlemasterListEntry const* bl = sBattlemasterListStore.LookupEntry(bgTypeId);
             if (bl && bl->HolidayWorldStateId)
             {
-                WorldPackets::WorldState::UpdateWorldState worldstate;
-                worldstate.VariableID = bl->HolidayWorldStateId;
-                worldstate.Value = Activate ? 1 : 0;
-                sWorld->SendGlobalMessage(worldstate.Write());
+                WorldPacket data;
+                sBattlegroundMgr->BuildUpdateWorldStatePacket(&data, bl->HolidayWorldStateId, Activate ? 1 : 0);
+                sWorld->SendGlobalMessage(&data);
             }
         }
     }
@@ -1675,7 +1659,7 @@ bool GameEventMgr::CheckOneGameEventConditions(uint16 event_id)
     // set the followup events' start time
     if (!mGameEvent[event_id].nextstart)
     {
-        time_t currenttime = GameTime::GetGameTime();
+        time_t currenttime = time(nullptr);
         mGameEvent[event_id].nextstart = currenttime + mGameEvent[event_id].length * 60;
     }
     return true;
@@ -1711,29 +1695,29 @@ void GameEventMgr::SendWorldStateUpdate(Player* player, uint16 event_id)
 
 class GameEventAIHookWorker
 {
-public:
-    GameEventAIHookWorker(uint16 eventId, bool activate) : _eventId(eventId), _activate(activate) { }
+    public:
+        GameEventAIHookWorker(uint16 eventId, bool activate) : _eventId(eventId), _activate(activate) { }
 
-    void Visit(std::unordered_map<ObjectGuid, Creature*>& creatureMap)
-    {
-        for (auto const& p : creatureMap)
-            if (p.second->IsInWorld() && p.second->IsAIEnabled())
-                p.second->AI()->OnGameEvent(_activate, _eventId);
-    }
+        void Visit(std::unordered_map<ObjectGuid, Creature*>& creatureMap)
+        {
+            for (auto const& p : creatureMap)
+                if (p.second->IsInWorld() && p.second->IsAIEnabled)
+                    p.second->AI()->OnGameEvent(_activate, _eventId);
+        }
 
-    void Visit(std::unordered_map<ObjectGuid, GameObject*>& gameObjectMap)
-    {
-        for (auto const& p : gameObjectMap)
-            if (p.second->IsInWorld())
-                p.second->AI()->OnGameEvent(_activate, _eventId);
-    }
+        void Visit(std::unordered_map<ObjectGuid, GameObject*>& gameObjectMap)
+        {
+            for (auto const& p : gameObjectMap)
+                if (p.second->IsInWorld())
+                    p.second->AI()->OnGameEvent(_activate, _eventId);
+        }
 
-    template<class T>
-    void Visit(std::unordered_map<ObjectGuid, T*>&) { }
+        template<class T>
+        void Visit(std::unordered_map<ObjectGuid, T*>&) { }
 
-private:
-    uint16 _eventId;
-    bool _activate;
+    private:
+        uint16 _eventId;
+        bool _activate;
 };
 
 void GameEventMgr::RunSmartAIScripts(uint16 event_id, bool activate)

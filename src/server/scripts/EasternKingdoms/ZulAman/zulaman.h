@@ -1,6 +1,5 @@
 /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -21,56 +20,70 @@
 
 #include "CreatureAIImpl.h"
 
-#define ZulamanScriptName "instance_zulaman"
+uint32 const EncounterCount = 6;
+#define ZulAmanScriptName "instance_zulaman"
 #define DataHeader "ZA"
 
 enum ZADataTypes
 {
-    BOSS_NALORAKK                       = 0,
-    BOSS_AKILZON                        = 1,
-    BOSS_JANALAI                        = 2,
-    BOSS_HALAZZI                        = 3,
-    BOSS_HEXLORD                        = 4,
-    BOSS_ZULJIN                         = 5,
-    MAX_ENCOUNTER,
+    // BossState
+    DATA_AKILZONEVENT                = 0,
+    DATA_NALORAKKEVENT               = 1,
+    DATA_JANALAIEVENT                = 2,
+    DATA_HALAZZIEVENT                = 3,
+    DATA_HEXLORDEVENT                = 4,
+    DATA_DAAKARAEVENT                = 5,
 
-    DATA_GONGEVENT,
-    DATA_CHESTLOOTED,
-    TYPE_RAND_VENDOR_1,
-    TYPE_RAND_VENDOR_2
+    // Data64
+    DATA_HEXLORD_TRIGGER,
+
+    DATA_STRANGE_GONG,
+    DATA_MASSIVE_GATE,
+
+    // SetData
+    DATA_ZULAMAN_STATE
 };
 
 enum ZACreatureIds
 {
-    NPC_HARRISON_JONES                  = 24358,
-    NPC_NALORAKK                        = 23576,
-    NPC_AKILZON                         = 23574,
-    NPC_JANALAI                         = 23578,
-    NPC_HALAZZI                         = 23577,
-    NPC_HEXLORD                         = 24239,
-    NPC_ZULJIN                          = 23863
+    NPC_AKILZON                 = 23574,
+    NPC_NALORAKK                = 23576,
+    NPC_JANALAI                 = 23578,
+    NPC_HALAZZI                 = 23577,
+    NPC_HEXLORD                 = 24239,
+    NPC_DAAKARA                 = 23863,
+
+    NPC_VOLJIN                  = 52924,
+    NPC_HEXLORD_TRIGGER         = 24363
 };
 
 enum ZAGameObjectIds
 {
-    GO_LYNX_TEMPLE_EXIT                 = 186303,
-    GO_LYNX_TEMPLE_ENTRANCE             = 186304,
-    GO_HEXLORD_ENTRANCE                 = 186305,
-    GO_WOODEN_DOOR                      = 186306,
-    GO_MASSIVE_GATE                     = 186728,
-    GO_DOOR_AKILZON                     = 186858,
-    GO_DOOR_ZULJIN                      = 186859,
-    GO_HARKORS_SATCHEL                  = 187021,
-    GO_TANZARS_TRUNK                    = 186648,
-    GO_ASHLIS_BAG                       = 186672,
-    GO_KRAZS_PACKAGE                    = 186667,
-    GO_STRANGE_GONG                     = 187359
+    GO_STRANGE_GONG             = 187359,
+    GO_MASSIVE_GATE             = 186728,
+};
+
+enum ZAEvents
+{
+    EVENT_START_ZULAMAN         = 15897,
+    EVENT_UPDATE_ZULAMAN_TIMER  = 1,
+};
+
+enum ZAAction
+{
+    ACTION_START_ZULAMAN        = 1
+};
+
+enum ZAWorldStates
+{
+    WORLD_STATE_ZULAMAN_TIMER_ENABLED   = 3104,
+    WORLD_STATE_ZULAMAN_TIMER           = 3106,
 };
 
 template <class AI, class T>
 inline AI* GetZulAmanAI(T* obj)
 {
-    return GetInstanceAI<AI>(obj, ZulamanScriptName);
+    return GetInstanceAI<AI>(obj, ZulAmanScriptName);
 }
 
 #endif

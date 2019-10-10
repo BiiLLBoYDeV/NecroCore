@@ -53,7 +53,7 @@ enum ANCreatureIds
 };
 
 // These are passed as -action to AI's DoAction to differentiate between them and boss scripts' own actions
-enum InstanceActions
+enum ANInstanceActions
 {
     ACTION_GATEWATCHER_GREET        = 1
 };

@@ -16,7 +16,6 @@
  */
 
 #include "ScriptMgr.h"
-#include "blackrock_depths.h"
 #include "ScriptedCreature.h"
 
 enum Spells
@@ -58,9 +57,9 @@ class boss_general_angerforge : public CreatureScript
             void JustEngagedWith(Unit* /*who*/) override
             {
                 _events.SetPhase(PHASE_ONE);
-                _events.ScheduleEvent(EVENT_MIGHTYBLOW, 8s);
-                _events.ScheduleEvent(EVENT_HAMSTRING, 12s);
-                _events.ScheduleEvent(EVENT_CLEAVE, 16s);
+                _events.ScheduleEvent(EVENT_MIGHTYBLOW, 8000);
+                _events.ScheduleEvent(EVENT_HAMSTRING, 12000);
+                _events.ScheduleEvent(EVENT_CLEAVE, 16000);
             }
 
             void DamageTaken(Unit* /*attacker*/, uint32& damage) override
@@ -98,15 +97,15 @@ class boss_general_angerforge : public CreatureScript
                     {
                         case EVENT_MIGHTYBLOW:
                             DoCastVictim(SPELL_MIGHTYBLOW);
-                            _events.ScheduleEvent(EVENT_MIGHTYBLOW, 18s);
+                            _events.ScheduleEvent(EVENT_MIGHTYBLOW, 18000);
                             break;
                         case EVENT_HAMSTRING:
                             DoCastVictim(SPELL_HAMSTRING);
-                            _events.ScheduleEvent(EVENT_HAMSTRING, 15s);
+                            _events.ScheduleEvent(EVENT_HAMSTRING, 15000);
                             break;
                         case EVENT_CLEAVE:
                             DoCastVictim(SPELL_CLEAVE);
-                            _events.ScheduleEvent(EVENT_CLEAVE, 9s);
+                            _events.ScheduleEvent(EVENT_CLEAVE, 9000);
                             break;
                         case EVENT_MEDIC:
                             for (uint8 i = 0; i < 2; ++i)
@@ -115,7 +114,7 @@ class boss_general_angerforge : public CreatureScript
                         case EVENT_ADDS:
                             for (uint8 i = 0; i < 3; ++i)
                                 SummonAdd(me->GetVictim());
-                            _events.ScheduleEvent(EVENT_ADDS, 25s, 0, PHASE_TWO);
+                            _events.ScheduleEvent(EVENT_ADDS, 25000, 0, PHASE_TWO);
                             break;
                         default:
                             break;
@@ -131,7 +130,7 @@ class boss_general_angerforge : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetBlackrockDepthsAI<boss_general_angerforgeAI>(creature);
+            return new boss_general_angerforgeAI(creature);
         }
 };
 

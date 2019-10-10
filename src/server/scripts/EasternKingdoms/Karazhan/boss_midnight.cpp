@@ -160,7 +160,7 @@ public:
             BossAI::JustSummoned(summon);
         }
 
-        void IsSummonedBy(WorldObject* summoner) override
+        void IsSummonedBy(Unit* summoner) override
         {
             if (summoner->GetEntry() == NPC_MIDNIGHT)
                 _phase = PHASE_ATTUMEN_ENGAGES;
@@ -173,11 +173,12 @@ public:
                 scheduler.Schedule(Seconds(10), Seconds(25), [this](TaskContext task)
                 {
                     Unit* target = nullptr;
+                    ThreatContainer::StorageType const &t_list = me->getThreatManager().getThreatList();
                     std::vector<Unit*> target_list;
 
-                    for (auto* ref : me->GetThreatManager().GetUnsortedThreatList())
+                    for (ThreatContainer::StorageType::const_iterator itr = t_list.begin(); itr != t_list.end(); ++itr)
                     {
-                        target = ref->GetVictim();
+                        target = ObjectAccessor::GetUnit(*me, (*itr)->getUnitGuid());
                         if (target && !target->IsWithinDist(me, 8.00f, false) && target->IsWithinDist(me, 25.0f, false))
                             target_list.push_back(target);
 

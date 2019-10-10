@@ -21,6 +21,7 @@
 #include "Map.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "SpellAuras.h"
@@ -295,7 +296,7 @@ class boss_deathbringer_saurfang : public CreatureScript
 
                 events.Reset();
                 events.SetPhase(PHASE_COMBAT);
-                me->SetImmuneToPC(false);
+                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                 if (!_introDone)
                 {
                     DoCast(me, SPELL_GRIP_OF_AGONY);
@@ -306,11 +307,11 @@ class boss_deathbringer_saurfang : public CreatureScript
                 _introDone = true;
 
                 Talk(SAY_AGGRO);
-                events.ScheduleEvent(EVENT_SUMMON_BLOOD_BEAST, 30s, 0, PHASE_COMBAT);
+                events.ScheduleEvent(EVENT_SUMMON_BLOOD_BEAST, 30000, 0, PHASE_COMBAT);
                 events.ScheduleEvent(EVENT_BERSERK, IsHeroic() ? 360000 : 480000, 0, PHASE_COMBAT);
                 events.ScheduleEvent(EVENT_BOILING_BLOOD, 15500, 0, PHASE_COMBAT);
-                events.ScheduleEvent(EVENT_BLOOD_NOVA, 17s, 0, PHASE_COMBAT);
-                events.ScheduleEvent(EVENT_RUNE_OF_BLOOD, 20s, 0, PHASE_COMBAT);
+                events.ScheduleEvent(EVENT_BLOOD_NOVA, 17000, 0, PHASE_COMBAT);
+                events.ScheduleEvent(EVENT_RUNE_OF_BLOOD, 20000, 0, PHASE_COMBAT);
 
                 _fallenChampionCastCount = 0;
                 instance->DoRemoveAurasDueToSpellOnPlayers(SPELL_MARK_OF_THE_FALLEN_CHAMPION);
@@ -323,7 +324,7 @@ class boss_deathbringer_saurfang : public CreatureScript
 
             void AttackStart(Unit* victim) override
             {
-                if (me->IsImmuneToPC())
+                if (me->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC))
                     return;
 
                 ScriptedAI::AttackStart(victim);
@@ -333,7 +334,7 @@ class boss_deathbringer_saurfang : public CreatureScript
             {
                 ScriptedAI::EnterEvadeMode(why);
                 if (_introDone)
-                    me->SetImmuneToPC(false);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
             }
 
             void JustReachedHome() override
@@ -369,8 +370,7 @@ class boss_deathbringer_saurfang : public CreatureScript
                     _dead = true;
                     _JustDied();
                     _EnterEvadeMode();
-                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                    me->SetImmuneToPC(true);
+                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
 
                     DoCastAOE(SPELL_REMOVE_MARKS_OF_THE_FALLEN_CHAMPION);
                     DoCast(me, SPELL_ACHIEVEMENT, true);
@@ -434,11 +434,7 @@ class boss_deathbringer_saurfang : public CreatureScript
                     case 72445:
                     case 72446:
                         if (me->GetPower(POWER_ENERGY) != me->GetMaxPower(POWER_ENERGY))
-                        {
-                            CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                            args.AddSpellBP0(1);
-                            target->CastSpell(nullptr, SPELL_BLOOD_LINK_DUMMY, args);
-                        }
+                            target->CastCustomSpell(SPELL_BLOOD_LINK_DUMMY, SPELLVALUE_BASE_POINT0, 1, (Unit*)nullptr, true);
                         break;
                     default:
                         break;
@@ -494,7 +490,7 @@ class boss_deathbringer_saurfang : public CreatureScript
                         case EVENT_INTRO_FINISH:
                             events.SetPhase(PHASE_COMBAT);
                             _introDone = true;
-                            me->SetImmuneToPC(false);
+                            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                             break;
                         case EVENT_SUMMON_BLOOD_BEAST:
                             for (uint32 i10 = 0; i10 < 2; ++i10)
@@ -503,9 +499,9 @@ class boss_deathbringer_saurfang : public CreatureScript
                                 for (uint32 i25 = 0; i25 < 3; ++i25)
                                     DoCast(me, SPELL_SUMMON_BLOOD_BEAST_25_MAN+i25);
                             Talk(SAY_BLOOD_BEASTS);
-                            events.ScheduleEvent(EVENT_SUMMON_BLOOD_BEAST, 40s, 0, PHASE_COMBAT);
+                            events.ScheduleEvent(EVENT_SUMMON_BLOOD_BEAST, 40000, 0, PHASE_COMBAT);
                             if (IsHeroic())
-                                events.ScheduleEvent(EVENT_SCENT_OF_BLOOD, 10s, 0, PHASE_COMBAT);
+                                events.ScheduleEvent(EVENT_SCENT_OF_BLOOD, 10000, 0, PHASE_COMBAT);
                             break;
                         case EVENT_BLOOD_NOVA:
                             DoCastAOE(SPELL_BLOOD_NOVA_TRIGGER);
@@ -576,7 +572,7 @@ class boss_deathbringer_saurfang : public CreatureScript
                             return;
 
                         events.ScheduleEvent(EVENT_INTRO_ALLIANCE_6, 6500+500, 0, PHASE_INTRO_A);
-                        events.ScheduleEvent(EVENT_INTRO_FINISH, 8s, 0, PHASE_INTRO_A);
+                        events.ScheduleEvent(EVENT_INTRO_FINISH, 8000, 0, PHASE_INTRO_A);
 
                         events.ScheduleEvent(EVENT_INTRO_HORDE_4, 6500, 0, PHASE_INTRO_H);
                         events.ScheduleEvent(EVENT_INTRO_HORDE_9, 46700+1000+500, 0, PHASE_INTRO_H);
@@ -585,7 +581,7 @@ class boss_deathbringer_saurfang : public CreatureScript
                     }
                     case ACTION_MARK_OF_THE_FALLEN_CHAMPION:
                     {
-                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 0.0f, true, true, -SPELL_MARK_OF_THE_FALLEN_CHAMPION))
+                        if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 0.0f, true, -SPELL_MARK_OF_THE_FALLEN_CHAMPION))
                         {
                             ++_fallenChampionCastCount;
                             DoCast(target, SPELL_MARK_OF_THE_FALLEN_CHAMPION);
@@ -647,7 +643,7 @@ class npc_high_overlord_saurfang_icc : public CreatureScript
             {
                 if (menuId == GOSSIP_MENU_HIGH_OVERLORD_SAURFANG)
                 {
-                    CloseGossipMenuFor(player);
+                    player->PlayerTalkClass->SendCloseGossip();
                     DoAction(ACTION_START_EVENT);
                 }
                 return false;
@@ -811,7 +807,7 @@ class npc_high_overlord_saurfang_icc : public CreatureScript
                             if (Creature* deathbringer = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_DEATHBRINGER_SAURFANG)))
                             {
                                 float x, y, z;
-                                deathbringer->GetClosePoint(x, y, z, deathbringer->GetCombatReach());
+                                deathbringer->GetClosePoint(x, y, z, deathbringer->GetObjectSize());
                                 me->SetWalk(true);
                                 me->GetMotionMaster()->MovePoint(POINT_CORPSE, x, y, z);
                             }
@@ -858,7 +854,7 @@ class npc_muradin_bronzebeard_icc : public CreatureScript
             {
                 if (menuId == GOSSIP_MENU_MURADIN_BRONZEBEARD)
                 {
-                    CloseGossipMenuFor(player);
+                    player->PlayerTalkClass->SendCloseGossip();
                     DoAction(ACTION_START_EVENT);
                 }
                 return false;
@@ -1049,9 +1045,7 @@ class spell_deathbringer_blood_link : public SpellScriptLoader
 
             void HandleDummy(SpellEffIndex /*effIndex*/)
             {
-                CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                args.AddSpellBP0(GetEffectValue());
-                GetHitUnit()->CastSpell(GetHitUnit(), SPELL_BLOOD_LINK_POWER, args);
+                GetHitUnit()->CastCustomSpell(SPELL_BLOOD_LINK_POWER, SPELLVALUE_BASE_POINT0, GetEffectValue(), GetHitUnit(), true);
                 PreventHitDefaultEffect(EFFECT_0);
             }
 
@@ -1084,7 +1078,7 @@ class spell_deathbringer_blood_link_aura : public SpellScriptLoader
             void HandlePeriodicTick(AuraEffect const* /*aurEff*/)
             {
                 PreventDefaultAction();
-                if (GetUnitOwner()->GetPowerType() == POWER_ENERGY && GetUnitOwner()->GetPower(POWER_ENERGY) == GetUnitOwner()->GetMaxPower(POWER_ENERGY))
+                if (GetUnitOwner()->getPowerType() == POWER_ENERGY && GetUnitOwner()->GetPower(POWER_ENERGY) == GetUnitOwner()->GetMaxPower(POWER_ENERGY))
                     if (Creature* saurfang = GetUnitOwner()->ToCreature())
                         saurfang->AI()->DoAction(ACTION_MARK_OF_THE_FALLEN_CHAMPION);
             }
@@ -1167,7 +1161,7 @@ class spell_deathbringer_rune_of_blood : public SpellScriptLoader
             void HandleScript(SpellEffIndex effIndex)
             {
                 PreventHitDefaultEffect(effIndex);  // make this the default handler
-                GetHitUnit()->CastSpell(nullptr, SPELL_BLOOD_LINK_DUMMY, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellBP0(1));
+                GetHitUnit()->CastCustomSpell(SPELL_BLOOD_LINK_DUMMY, SPELLVALUE_BASE_POINT0, 1, (Unit*)nullptr, true);
             }
 
             void Register() override
@@ -1200,7 +1194,7 @@ class spell_deathbringer_blood_beast_blood_link : public SpellScriptLoader
             void HandleProc(AuraEffect const* aurEff, ProcEventInfo& eventInfo)
             {
                 PreventDefaultAction();
-                eventInfo.GetProcTarget()->CastSpell(nullptr, SPELL_BLOOD_LINK_DUMMY, CastSpellExtraArgs(aurEff).AddSpellBP0(3));
+                eventInfo.GetProcTarget()->CastCustomSpell(SPELL_BLOOD_LINK_DUMMY, SPELLVALUE_BASE_POINT0, 3, (Unit*)nullptr, true, nullptr, aurEff);
             }
 
             void Register() override
@@ -1232,7 +1226,7 @@ class spell_deathbringer_blood_nova : public SpellScriptLoader
             void HandleScript(SpellEffIndex effIndex)
             {
                 PreventHitDefaultEffect(effIndex);  // make this the default handler
-                GetHitUnit()->CastSpell(nullptr, SPELL_BLOOD_LINK_DUMMY, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellBP0(2));
+                GetHitUnit()->CastCustomSpell(SPELL_BLOOD_LINK_DUMMY, SPELLVALUE_BASE_POINT0, 2, (Unit*)nullptr, true);
             }
 
             void Register() override
@@ -1256,13 +1250,6 @@ class spell_deathbringer_blood_nova_targeting : public SpellScriptLoader
         {
             PrepareSpellScript(spell_deathbringer_blood_nova_targeting_SpellScript);
 
-        public:
-            spell_deathbringer_blood_nova_targeting_SpellScript()
-            {
-                target = nullptr;
-            }
-
-        private:
             void FilterTargetsInitial(std::list<WorldObject*>& targets)
             {
                 if (targets.empty())
@@ -1311,7 +1298,7 @@ class spell_deathbringer_blood_nova_targeting : public SpellScriptLoader
                 OnEffectHitTarget += SpellEffectFn(spell_deathbringer_blood_nova_targeting_SpellScript::HandleForceCast, EFFECT_0, SPELL_EFFECT_FORCE_CAST);
             }
 
-            WorldObject* target;
+            WorldObject* target = nullptr;
         };
 
         SpellScript* GetSpellScript() const override

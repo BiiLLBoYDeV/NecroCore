@@ -167,7 +167,7 @@ class boss_ichoron : public CreatureScript
             void JustDied(Unit* /*killer*/) override
             {
                 Talk(SAY_DEATH);
-                _JustDied();
+                    _JustDied();
             }
 
             void JustSummoned(Creature* summon) override
@@ -314,18 +314,18 @@ class spell_ichoron_drained : public SpellScriptLoader
 
             void HandleApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
             {
-                GetTarget()->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                GetTarget()->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_UNK_31);
                 GetTarget()->SetFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH);
             }
 
             void HandleRemove(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
             {
-                GetTarget()->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
+                GetTarget()->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_UNK_31);
                 GetTarget()->RemoveFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH);
 
                 if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_EXPIRE)
-                    if (UnitAI* ai = GetTarget()->GetAI())
-                        ai->DoAction(ACTION_DRAINED);
+                    if (GetTarget()->IsAIEnabled)
+                        GetTarget()->GetAI()->DoAction(ACTION_DRAINED);
             }
 
             void Register() override
@@ -398,8 +398,8 @@ class spell_ichoron_protective_bubble : public SpellScriptLoader
             {
                 //if (GetTargetApplication()->GetRemoveMode() == AURA_REMOVE_BY_ENEMY_SPELL)
                 if (GetAura()->GetCharges() <= 1)
-                    if (UnitAI* targetAI = GetTarget()->GetAI())
-                        targetAI->DoAction(ACTION_PROTECTIVE_BUBBLE_SHATTERED);
+                    if (GetTarget()->IsAIEnabled)
+                        GetTarget()->GetAI()->DoAction(ACTION_PROTECTIVE_BUBBLE_SHATTERED);
             }
 
             void Register() override

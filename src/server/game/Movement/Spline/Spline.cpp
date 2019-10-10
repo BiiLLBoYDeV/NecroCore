@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -71,7 +71,7 @@ static const Matrix4 s_Bezier3Coeffs(
     1.f,  0.f,  0.f, 0.f);
 
 /*  classic view:
-inline void C_Evaluate(const Vector3 *vertice, float t, const float (&matrix)[4][4], Vector3 &position)
+inline void C_Evaluate(Vector3 const* vertice, float t, float const (&matrix)[4][4], Vector3 &position)
 {
     Vector3 tvec(t*t*t, t*t, t);
     int i = 0;
@@ -118,7 +118,7 @@ void SplineBase::EvaluateLinear(index_type index, float u, Vector3& result) cons
     result = points[index] + (points[index+1] - points[index]) * u;
 }
 
-void SplineBase::EvaluateCatmullRom( index_type index, float t, Vector3& result) const
+void SplineBase::EvaluateCatmullRom(index_type index, float t, Vector3& result) const
 {
     ASSERT(index >= index_lo && index < index_hi);
     C_Evaluate(&points[index - 1], t, s_catmullRomCoeffs, result);
@@ -161,7 +161,7 @@ float SplineBase::SegLengthCatmullRom(index_type index) const
     ASSERT(index >= index_lo && index < index_hi);
 
     Vector3 curPos, nextPos;
-    const Vector3 * p = &points[index - 1];
+    Vector3 const* p = &points[index - 1];
     curPos = nextPos = p[1];
 
     index_type i = 1;
@@ -182,7 +182,7 @@ float SplineBase::SegLengthBezier3(index_type index) const
     ASSERT(index >= index_lo && index < index_hi);
 
     Vector3 curPos, nextPos;
-    const Vector3 * p = &points[index];
+    Vector3 const* p = &points[index];
 
     C_Evaluate(p, 0.f, s_Bezier3Coeffs, nextPos);
     curPos = nextPos;
@@ -199,20 +199,18 @@ float SplineBase::SegLengthBezier3(index_type index) const
     return length;
 }
 
-void SplineBase::init_spline(const Vector3 * controls, index_type count, EvaluationMode m, float orientation)
+void SplineBase::init_spline(Vector3 const* controls, index_type count, EvaluationMode m)
 {
     m_mode = m;
     cyclic = false;
-    initialOrientation = orientation;
 
     (this->*initializers[m_mode])(controls, count, 0);
 }
 
-void SplineBase::init_cyclic_spline(const Vector3 * controls, index_type count, EvaluationMode m, index_type cyclic_point, float orientation)
+void SplineBase::init_cyclic_spline(Vector3 const* controls, index_type count, EvaluationMode m, index_type cyclic_point)
 {
     m_mode = m;
     cyclic = true;
-    initialOrientation = orientation;
 
     (this->*initializers[m_mode])(controls, count, cyclic_point);
 }
@@ -255,14 +253,14 @@ void SplineBase::InitCatmullRom(Vector3 const* controls, index_type count, index
         if (cyclic_point == 0)
             points[0] = controls[count-1];
         else
-            points[0] = controls[0] - G3D::Vector3{ std::cos(initialOrientation), std::sin(initialOrientation), 0.0f };
+            points[0] = controls[0].lerp(controls[1], -1);
 
         points[high_index+1] = controls[cyclic_point];
         points[high_index+2] = controls[cyclic_point+1];
     }
     else
     {
-        points[0] = controls[0] - G3D::Vector3{ std::cos(initialOrientation), std::sin(initialOrientation), 0.0f };
+        points[0] = controls[0].lerp(controls[1], -1);
         points[high_index+1] = controls[count-1];
     }
 

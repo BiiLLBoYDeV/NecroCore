@@ -81,6 +81,7 @@ class TC_GAME_API Item : public Object
         void SetBinding(bool val) { ApplyModFlag(ITEM_FIELD_FLAGS, ITEM_FIELD_FLAG_SOULBOUND, val); }
         bool IsSoulBound() const { return HasFlag(ITEM_FIELD_FLAGS, ITEM_FIELD_FLAG_SOULBOUND); }
         bool IsBoundAccountWide() const { return (GetTemplate()->Flags & ITEM_FLAG_IS_BOUND_TO_ACCOUNT) != 0; }
+        bool IsBattlenetAccountBound() const { return (GetTemplate()->Flags2 & ITEM_FLAG2_BNET_ACCOUNT_TRADE_OK) != 0; }
         bool IsBindedNotWith(Player const* player) const;
         bool IsBoundByEnchant() const;
         virtual void SaveToDB(SQLTransaction& trans);
@@ -130,7 +131,6 @@ class TC_GAME_API Item : public Object
         bool IsEquipped() const;
 
         uint32 GetSkill();
-        uint32 GetSpell();
 
         // RandomPropertyId (signed but stored as unsigned)
         int32 GetItemRandomPropertyId() const { return GetInt32Value(ITEM_FIELD_RANDOM_PROPERTIES_ID); }
@@ -155,7 +155,7 @@ class TC_GAME_API Item : public Object
 
         // spell charges (signed but stored as unsigned)
         int32 GetSpellCharges(uint8 index/*0..5*/ = 0) const { return GetInt32Value(ITEM_FIELD_SPELL_CHARGES + index); }
-        void SetSpellCharges(uint8 index/*0..5*/, int32 value) { SetInt32Value(ITEM_FIELD_SPELL_CHARGES + index, value); }
+        void  SetSpellCharges(uint8 index/*0..5*/, int32 value) { SetInt32Value(ITEM_FIELD_SPELL_CHARGES + index, value); }
 
         Loot loot;
         bool m_lootGenerated;
@@ -172,10 +172,11 @@ class TC_GAME_API Item : public Object
 
         bool hasQuest(uint32 quest_id) const override { return GetTemplate()->StartQuest == quest_id; }
         bool hasInvolvedQuest(uint32 /*quest_id*/) const override { return false; }
+        bool HasStats() const;
         bool IsPotion() const { return GetTemplate()->IsPotion(); }
-        bool IsWeaponVellum() const { return GetTemplate()->IsWeaponVellum(); }
-        bool IsArmorVellum() const { return GetTemplate()->IsArmorVellum(); }
+        bool IsVellum() const { return GetTemplate()->IsVellum(); }
         bool IsConjuredConsumable() const { return GetTemplate()->IsConjuredConsumable(); }
+        bool IsRangedWeapon() const { return GetTemplate()->IsRangedWeapon(); }
 
         // Item Refund system
         void SetNotRefundable(Player* owner, bool changestate = true, SQLTransaction* trans = nullptr);
@@ -196,14 +197,29 @@ class TC_GAME_API Item : public Object
         void ClearSoulboundTradeable(Player* currentOwner);
         bool CheckSoulboundTradeExpire();
 
-        uint32 transmog = 0;
-
         void BuildUpdate(UpdateDataMapType&) override;
 
         void AddToObjectUpdate() override;
         void RemoveFromObjectUpdate() override;
 
         uint32 GetScriptId() const { return GetTemplate()->ScriptId; }
+
+        bool CanBeTransmogrified() const;
+        bool CanTransmogrify() const;
+        static bool CanTransmogrifyItemWithItem(Item const* transmogrified, Item const* transmogrifier);
+        static uint32 GetSpecialPrice(ItemTemplate const* proto, uint32 minimumPrice = 10000);
+        uint32 GetSpecialPrice(uint32 minimumPrice = 10000) const { return Item::GetSpecialPrice(GetTemplate(), minimumPrice); }
+
+        uint32 GetVisibleEntry() const
+        {
+            if (uint32 transmogrification = GetEnchantmentId(TRANSMOGRIFY_ENCHANTMENT_SLOT))
+                return transmogrification;
+            return GetEntry();
+        }
+
+        static uint32 GetSellPrice(ItemTemplate const* proto, bool& success);
+
+        int32 GetReforgableStat(ItemModType statType) const;
 
         std::string GetDebugInfo() const override;
     private:

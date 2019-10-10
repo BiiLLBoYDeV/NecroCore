@@ -29,7 +29,6 @@ if( WITH_WARNINGS )
       -Winvalid-pch
       -Wfatal-errors
       -Woverloaded-virtual)
-
   message(STATUS "GCC: All warnings enabled")
 endif()
 
@@ -37,6 +36,5 @@ if( WITH_COREDEBUG )
   target_compile_options(trinity-compile-option-interface
     INTERFACE
       -g3)
-
   message(STATUS "GCC: Debug-flags set (-g3)")
 endif()

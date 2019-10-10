@@ -117,7 +117,7 @@ public:
     {
         _owner->SetReactState(REACT_AGGRESSIVE);
         _owner->SetTempSummonType(TEMPSUMMON_CORPSE_DESPAWN);
-        _owner->AI()->DoZoneInCombat();
+        _owner->SetInCombatWithZone();
         return true;
     }
 
@@ -132,7 +132,7 @@ public:
 
     bool Execute(uint64 /*eventTime*/, uint32 /*diff*/) override
     {
-        _owner->CastSpell(_owner, SPELL_AWAKEN_SUBBOSS, { SPELLVALUE_MAX_TARGETS, 1 });
+        _owner->CastCustomSpell(SPELL_AWAKEN_SUBBOSS, SPELLVALUE_MAX_TARGETS, 1, _owner);
         return true;
     }
 
@@ -223,9 +223,9 @@ public:
         {
             _JustEngagedWith();
             Talk(SAY_AGGRO);
-            events.ScheduleEvent(EVENT_ARCING_SMASH, 7s);
-            events.ScheduleEvent(EVENT_IMPALE, 11s);
-            events.ScheduleEvent(EVENT_WITHERING_ROAR, 12s);
+            events.ScheduleEvent(EVENT_ARCING_SMASH, Seconds(7));
+            events.ScheduleEvent(EVENT_IMPALE, Seconds(11));
+            events.ScheduleEvent(EVENT_WITHERING_ROAR, Seconds(12));
             instance->SendEncounterUnit(ENCOUNTER_FRAME_ENGAGE, me);
         }
 
@@ -287,12 +287,12 @@ public:
                     if (_encountersCount == _dungeonMode)
                         orb->CastSpell(orb, SPELL_AWAKEN_GORTOK, true);
                     else
-                        orb->CastSpell(orb, SPELL_AWAKEN_SUBBOSS, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellMod(SPELLVALUE_MAX_TARGETS, 1));
+                        orb->CastCustomSpell(SPELL_AWAKEN_SUBBOSS, SPELLVALUE_MAX_TARGETS, 1, orb, true);
                     break;
                 }
                 case ACTION_START_FIGHT:
                     me->RemoveAurasDueToSpell(SPELL_FREEZE);
-                    me->SetImmuneToPC(false);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                     DoZoneInCombat();
                     if (Creature* orb = ObjectAccessor::GetCreature(*me, _orb))
                         orb->DespawnOrUnsummon(1000);
@@ -345,7 +345,7 @@ struct PalehoofMinionsBossAI : public BossAI
         if (actionId == ACTION_START_FIGHT)
         {
             me->RemoveAurasDueToSpell(SPELL_FREEZE);
-            me->SetImmuneToPC(false);
+            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
             DoZoneInCombat();
         }
     }
@@ -374,9 +374,9 @@ public:
 
         void ScheduleTasks() override
         {
-            events.ScheduleEvent(EVENT_CRAZED, 10s);
-            events.ScheduleEvent(EVENT_CHAIN_LIGHTNING, 12s);
-            events.ScheduleEvent(EVENT_TERRIFYING_ROAR, 22s);
+            events.ScheduleEvent(EVENT_CRAZED, Seconds(10));
+            events.ScheduleEvent(EVENT_CHAIN_LIGHTNING, Seconds(12));
+            events.ScheduleEvent(EVENT_TERRIFYING_ROAR, Seconds(22));
         }
 
         void ExecuteEvent(uint32 eventId) override
@@ -418,8 +418,8 @@ public:
 
         void ScheduleTasks() override
         {
-            events.ScheduleEvent(EVENT_MORTAL_WOUND, 6s);
-            events.ScheduleEvent(EVENT_ENRAGE, 16s);
+            events.ScheduleEvent(EVENT_MORTAL_WOUND, Seconds(6));
+            events.ScheduleEvent(EVENT_ENRAGE, Seconds(16));
             events.ScheduleEvent(EVENT_ENRAGE_2, Minutes(1) + Seconds(30));
         }
 
@@ -461,9 +461,9 @@ public:
 
         void ScheduleTasks() override
         {
-            events.ScheduleEvent(EVENT_GORE, 10s);
-            events.ScheduleEvent(EVENT_GRIEVOUS_WOUND, 12s);
-            events.ScheduleEvent(EVENT_STOMP, 5s);
+            events.ScheduleEvent(EVENT_GORE, Seconds(10));
+            events.ScheduleEvent(EVENT_GRIEVOUS_WOUND, Seconds(12));
+            events.ScheduleEvent(EVENT_STOMP, Seconds(5));
         }
 
         void ExecuteEvent(uint32 eventId) override
@@ -506,9 +506,9 @@ public:
 
         void ScheduleTasks() override
         {
-            events.ScheduleEvent(EVENT_ACID_SPIT, 6s);
-            events.ScheduleEvent(EVENT_ACID_SPLATTER, 16s);
-            events.ScheduleEvent(EVENT_POISON_BREATH, 13s);
+            events.ScheduleEvent(EVENT_ACID_SPIT, Seconds(6));
+            events.ScheduleEvent(EVENT_ACID_SPLATTER, Seconds(16));
+            events.ScheduleEvent(EVENT_POISON_BREATH, Seconds(13));
         }
 
         void JustSummoned(Creature* summon) override

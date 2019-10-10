@@ -31,19 +31,11 @@
 #define OUT_LOAD_INST_DATA_COMPLETE    TC_LOG_DEBUG("scripts", "Instance Data Load for Instance %s (Map %d, Instance Id: %d) is complete.", instance->GetMapName(), instance->GetId(), instance->GetInstanceId())
 #define OUT_LOAD_INST_DATA_FAIL        TC_LOG_ERROR("scripts", "Unable to load Instance Data for Instance %s (Map %d, Instance Id: %d).", instance->GetMapName(), instance->GetId(), instance->GetInstanceId())
 
-namespace WorldPackets
-{
-    namespace WorldState
-    {
-        class InitWorldStates;
-    }
-}
-
 class AreaBoundary;
 class Creature;
 class GameObject;
 struct InstanceSpawnGroupInfo;
-class Map;
+class InstanceMap;
 class ModuleReference;
 class Player;
 class Unit;
@@ -54,14 +46,17 @@ enum EncounterCreditType : uint8;
 
 enum EncounterFrameType
 {
-    ENCOUNTER_FRAME_ENGAGE              = 0,
-    ENCOUNTER_FRAME_DISENGAGE           = 1,
-    ENCOUNTER_FRAME_UPDATE_PRIORITY     = 2,
-    ENCOUNTER_FRAME_ADD_TIMER           = 3,
-    ENCOUNTER_FRAME_ENABLE_OBJECTIVE    = 4,
-    ENCOUNTER_FRAME_UPDATE_OBJECTIVE    = 5,
-    ENCOUNTER_FRAME_DISABLE_OBJECTIVE   = 6,
-    ENCOUNTER_FRAME_UNK7                = 7 // Seems to have something to do with sorting the encounter units
+    ENCOUNTER_FRAME_SET_COMBAT_RES_LIMIT    = 0,
+    ENCOUNTER_FRAME_RESET_COMBAT_RES_LIMIT  = 1,
+    ENCOUNTER_FRAME_ENGAGE                  = 2,
+    ENCOUNTER_FRAME_DISENGAGE               = 3,
+    ENCOUNTER_FRAME_UPDATE_PRIORITY         = 4,
+    ENCOUNTER_FRAME_ADD_TIMER               = 5,
+    ENCOUNTER_FRAME_ENABLE_OBJECTIVE        = 6,
+    ENCOUNTER_FRAME_UPDATE_OBJECTIVE        = 7,
+    ENCOUNTER_FRAME_DISABLE_OBJECTIVE       = 8,
+    ENCOUNTER_FRAME_UNK7                    = 9,    // Seems to have something to do with sorting the encounter units
+    ENCOUNTER_FRAME_ADD_COMBAT_RES_LIMIT    = 10
 };
 
 enum EncounterState
@@ -154,11 +149,11 @@ typedef std::map<uint32 /*entry*/, uint32 /*type*/> ObjectInfoMap;
 class TC_GAME_API InstanceScript : public ZoneScript
 {
     public:
-        explicit InstanceScript(Map* map);
+        explicit InstanceScript(InstanceMap* map);
 
         virtual ~InstanceScript() { }
 
-        Map* instance;
+        InstanceMap* instance;
 
         // On creation, NOT load.
         // PLEASE INITIALIZE FIELDS IN THE CONSTRUCTOR INSTEAD !!!
@@ -239,7 +234,7 @@ class TC_GAME_API InstanceScript : public ZoneScript
 
         virtual bool SetBossState(uint32 id, EncounterState state);
         EncounterState GetBossState(uint32 id) const { return id < bosses.size() ? bosses[id].state : TO_BE_DECIDED; }
-        static char const* GetBossStateName(uint8 state);
+        static std::string GetBossStateName(uint8 state);
         CreatureBoundary const* GetBossBoundary(uint32 id) const { return id < bosses.size() ? &bosses[id].boundary : nullptr; }
 
         // Achievement criteria additional requirements check
@@ -261,7 +256,10 @@ class TC_GAME_API InstanceScript : public ZoneScript
 
         void SendEncounterUnit(uint32 type, Unit* unit = nullptr, uint8 param1 = 0, uint8 param2 = 0);
 
-        virtual void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& /*packet*/) { }
+        virtual void FillInitialWorldStates(WorldPacket& /*data*/) { }
+
+        // ReCheck PhaseTemplate related conditions
+        void UpdatePhasing();
 
         uint32 GetEncounterCount() const { return bosses.size(); }
 
@@ -269,6 +267,10 @@ class TC_GAME_API InstanceScript : public ZoneScript
         void MarkAreaTriggerDone(uint32 id) { _activatedAreaTriggers.insert(id); }
         void ResetAreaTriggerDone(uint32 id) { _activatedAreaTriggers.erase(id); }
         bool IsAreaTriggerDone(uint32 id) const { return _activatedAreaTriggers.find(id) != _activatedAreaTriggers.end(); }
+
+        void InitializeCombatResurrections();
+        void UseCombatResurrection();
+        uint8 GetCombatResurrectionCharges() const { return _combatResurrectionCharges; }
 
     protected:
         void SetHeaders(std::string const& dataHeaders);
@@ -316,15 +318,14 @@ class TC_GAME_API InstanceScript : public ZoneScript
         ObjectInfoMap _gameObjectInfo;
         ObjectGuidMap _objectGuids;
         uint32 completedEncounters; // completed encounter mask, bit indexes are DungeonEncounter.dbc boss numbers, used for packets
-        std::vector<InstanceSpawnGroupInfo> const* const _instanceSpawnGroups;
+        uint8 _combatResurrectionCharges; // the counter for available combat resurrections
         std::unordered_set<uint32> _activatedAreaTriggers;
+        std::vector<InstanceSpawnGroupInfo> const* const _instanceSpawnGroups;
 
     #ifdef TRINITY_API_USE_DYNAMIC_LINKING
         // Strong reference to the associated script module
         std::shared_ptr<ModuleReference> module_reference;
     #endif // #ifndef TRINITY_API_USE_DYNAMIC_LINKING
-
-        friend class debug_commandscript;
 };
 
 #endif // TRINITY_INSTANCE_DATA_H

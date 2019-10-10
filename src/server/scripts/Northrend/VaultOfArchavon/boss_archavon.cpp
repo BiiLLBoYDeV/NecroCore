@@ -78,10 +78,10 @@ class boss_archavon : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                events.ScheduleEvent(EVENT_ROCK_SHARDS, 15s);
-                events.ScheduleEvent(EVENT_CHOKING_CLOUD, 30s);
-                events.ScheduleEvent(EVENT_STOMP, 45s);
-                events.ScheduleEvent(EVENT_BERSERK, 5min);
+                events.ScheduleEvent(EVENT_ROCK_SHARDS, 15000);
+                events.ScheduleEvent(EVENT_CHOKING_CLOUD, 30000);
+                events.ScheduleEvent(EVENT_STOMP, 45000);
+                events.ScheduleEvent(EVENT_BERSERK, 300000);
 
                 _JustEngagedWith();
             }
@@ -104,7 +104,7 @@ class boss_archavon : public CreatureScript
                         case EVENT_ROCK_SHARDS:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
                                 DoCast(target, SPELL_ROCK_SHARDS);
-                            events.ScheduleEvent(EVENT_ROCK_SHARDS, 15s);
+                            events.ScheduleEvent(EVENT_ROCK_SHARDS, 15000);
                             break;
                         case EVENT_CHOKING_CLOUD:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, -10.0f, true))
@@ -112,12 +112,12 @@ class boss_archavon : public CreatureScript
                                 DoCast(target, SPELL_CRUSHING_LEAP, true); //10y~80y, ignore range
                                 Talk(EMOTE_LEAP, target);
                             }
-                            events.ScheduleEvent(EVENT_CHOKING_CLOUD, 30s);
+                            events.ScheduleEvent(EVENT_CHOKING_CLOUD, 30000);
                             break;
                         case EVENT_STOMP:
                             DoCastVictim(SPELL_STOMP);
-                            events.ScheduleEvent(EVENT_IMPALE, 3s);
-                            events.ScheduleEvent(EVENT_STOMP, 45s);
+                            events.ScheduleEvent(EVENT_IMPALE, 3000);
+                            events.ScheduleEvent(EVENT_STOMP, 45000);
                             break;
                         case EVENT_IMPALE:
                             DoCastVictim(SPELL_IMPALE);
@@ -163,9 +163,9 @@ class npc_archavon_warder : public CreatureScript
             void Reset() override
             {
                 events.Reset();
-                events.ScheduleEvent(EVENT_ROCK_SHOWER, 2s);
-                events.ScheduleEvent(EVENT_SHIELD_CRUSH, 20s);
-                events.ScheduleEvent(EVENT_WHIRL, 7s);
+                events.ScheduleEvent(EVENT_ROCK_SHOWER, 2000);
+                events.ScheduleEvent(EVENT_SHIELD_CRUSH, 20000);
+                events.ScheduleEvent(EVENT_WHIRL, 7500);
             }
 
             void JustEngagedWith(Unit* /*who*/) override
@@ -190,15 +190,15 @@ class npc_archavon_warder : public CreatureScript
                         case EVENT_ROCK_SHOWER:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
                                 DoCast(target, SPELL_ROCK_SHOWER);
-                            events.ScheduleEvent(EVENT_ROCK_SHARDS, 6s);
+                            events.ScheduleEvent(EVENT_ROCK_SHARDS, 6000);
                             break;
                         case EVENT_SHIELD_CRUSH:
                             DoCastVictim(SPELL_SHIELD_CRUSH);
-                            events.ScheduleEvent(EVENT_SHIELD_CRUSH, 20s);
+                            events.ScheduleEvent(EVENT_SHIELD_CRUSH, 20000);
                             break;
                         case EVENT_WHIRL:
                             DoCastVictim(SPELL_WHIRL);
-                            events.ScheduleEvent(EVENT_WHIRL, 8s);
+                            events.ScheduleEvent(EVENT_WHIRL, 8000);
                             break;
                         default:
                             break;
@@ -245,12 +245,12 @@ class spell_archavon_rock_shards : public SpellScriptLoader
 
                 for (uint8 i = 0; i < 3; ++i)
                 {
-                    caster->CastSpell(nullptr, SPELL_ROCK_SHARDS_VISUAL_L, true);
-                    caster->CastSpell(nullptr, SPELL_ROCK_SHARDS_VISUAL_R, true);
+                    caster->CastSpell((Unit*)nullptr, SPELL_ROCK_SHARDS_VISUAL_L, true);
+                    caster->CastSpell((Unit*)nullptr, SPELL_ROCK_SHARDS_VISUAL_R, true);
                 }
 
-                caster->CastSpell(nullptr, SPELL_ROCK_SHARDS_DAMAGE_L, true);
-                caster->CastSpell(nullptr, SPELL_ROCK_SHARDS_DAMAGE_R, true);
+                caster->CastSpell((Unit*)nullptr, SPELL_ROCK_SHARDS_DAMAGE_L, true);
+                caster->CastSpell((Unit*)nullptr, SPELL_ROCK_SHARDS_DAMAGE_R, true);
             }
 
             void Register() override

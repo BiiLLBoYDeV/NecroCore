@@ -111,12 +111,14 @@ class spell_moragg_ray : public SpellScriptLoader
             {
                 PreventDefaultAction();
 
-                if (UnitAI* AI = GetTarget()->GetAI())
-                    if (Unit* target = AI->SelectTarget(SELECT_TARGET_RANDOM, 0, 45.0f, true))
-                    {
-                        uint32 triggerSpell = GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell;
-                        GetTarget()->CastSpell(target, triggerSpell, aurEff);
-                    }
+                if (!GetTarget()->IsAIEnabled)
+                    return;
+
+                if (Unit* target = GetTarget()->GetAI()->SelectTarget(SELECT_TARGET_RANDOM, 0, 45.0f, true))
+                {
+                    uint32 triggerSpell = GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell;
+                    GetTarget()->CastSpell(target, triggerSpell, TRIGGERED_FULL_MASK, nullptr, aurEff);
+                }
             }
 
             void Register() override
@@ -145,12 +147,12 @@ public:
             if (Unit* caster = GetCaster())
             {
                 if (aurEff->GetTickNumber() >= 8)
-                    caster->CastSpell(GetTarget(), SPELL_OPTIC_LINK_LEVEL_3, aurEff);
+                    caster->CastSpell(GetTarget(), SPELL_OPTIC_LINK_LEVEL_3, TRIGGERED_FULL_MASK, nullptr, aurEff);
 
                 if (aurEff->GetTickNumber() >= 4)
-                    caster->CastSpell(GetTarget(), SPELL_OPTIC_LINK_LEVEL_2, aurEff);
+                    caster->CastSpell(GetTarget(), SPELL_OPTIC_LINK_LEVEL_2, TRIGGERED_FULL_MASK, nullptr, aurEff);
 
-                caster->CastSpell(GetTarget(), SPELL_OPTIC_LINK_LEVEL_1, aurEff);
+                caster->CastSpell(GetTarget(), SPELL_OPTIC_LINK_LEVEL_1, TRIGGERED_FULL_MASK, nullptr, aurEff);
             }
         }
 

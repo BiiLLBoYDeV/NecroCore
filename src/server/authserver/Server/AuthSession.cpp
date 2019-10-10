@@ -1,32 +1,31 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+* Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+* Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+*
+* This program is free software; you can redistribute it and/or modify it
+* under the terms of the GNU General Public License as published by the
+* Free Software Foundation; either version 2 of the License, or (at your
+* option) any later version.
+*
+* This program is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+* more details.
+*
+* You should have received a copy of the GNU General Public License along
+* with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #include "AuthSession.h"
-#include "AES.h"
 #include "AuthCodes.h"
+#include "ByteBuffer.h"
 #include "Config.h"
-#include "CryptoGenerics.h"
 #include "DatabaseEnv.h"
 #include "Errors.h"
 #include "IPLocation.h"
+#include "GruntRealmList.h"
 #include "Log.h"
-#include "RealmList.h"
-#include "SecretMgr.h"
+#include "Realm.h"
 #include "SHA1.h"
 #include "TOTP.h"
 #include "Util.h"
@@ -142,7 +141,7 @@ void AccountInfo::LoadResult(Field* fields)
     //          0           1         2               3          4                5                                                             6
     //SELECT a.id, a.username, a.locked, a.lock_country, a.last_ip, a.failed_logins, ab.unbandate > UNIX_TIMESTAMP() OR ab.unbandate = ab.bandate,
     //                               7           8            9               10   11   12
-    //       ab.unbandate = ab.bandate, aa.gmlevel, a.totp_secret, a.sha_pass_hash, a.v, a.s
+    //       ab.unbandate = ab.bandate, aa.gmlevel, a.token_key, a.sha_pass_hash, a.v, a.s
     //FROM account a LEFT JOIN account_access aa ON a.id = aa.id LEFT JOIN account_banned ab ON ab.id = a.id AND ab.active = 1 WHERE a.username = ?
 
     Id = fields[0].GetUInt32();
@@ -383,25 +382,6 @@ void AuthSession::LogonChallengeCallback(PreparedQueryResult result)
         }
     }
 
-    uint8 securityFlags = 0;
-    // Check if a TOTP token is needed
-    if (!fields[9].IsNull())
-    {
-        securityFlags = 4;
-        _totpSecret = fields[9].GetBinary();
-        if (auto const& secret = sSecretMgr->GetSecret(SECRET_TOTP_MASTER_KEY))
-        {
-            bool success = Trinity::Crypto::AEDecrypt<Trinity::Crypto::AES>(*_totpSecret, *secret);
-            if (!success)
-            {
-                pkt << uint8(WOW_FAIL_DB_BUSY);
-                TC_LOG_ERROR("server.authserver", "[AuthChallenge] Account '%s' has invalid ciphertext for TOTP token key stored", _accountInfo.Login.c_str());
-                SendPacket(pkt);
-                return;
-            }
-        }
-    }
-
     // Get the password from the account table, upper it, and make the SRP6 calculation
     std::string rI = fields[10].GetString();
 
@@ -427,7 +407,9 @@ void AuthSession::LogonChallengeCallback(PreparedQueryResult result)
     ASSERT(gmod.GetNumBytes() <= 32);
 
     // Fill the response packet with the result
-    if (AuthHelper::IsAcceptedClientBuild(_build))
+    if (fields[13].GetUInt32() && AuthHelper::IsBuildSupportingBattlenet(_build))
+        pkt << uint8(WOW_FAIL_USE_BATTLENET);
+    else if (AuthHelper::IsAcceptedClientBuild(_build))
     {
         pkt << uint8(WOW_SUCCESS);
         _status = STATUS_LOGON_PROOF;
@@ -443,6 +425,13 @@ void AuthSession::LogonChallengeCallback(PreparedQueryResult result)
     pkt.append(N.AsByteArray(32).get(), 32);
     pkt.append(s.AsByteArray(int32(BufferSizes::SRP_6_S)).get(), size_t(BufferSizes::SRP_6_S));   // 32 bytes
     pkt.append(VersionChallenge.data(), VersionChallenge.size());
+    uint8 securityFlags = 0;
+
+    // Check if token is used
+    _tokenKey = fields[9].GetString();
+    if (!_tokenKey.empty())
+        securityFlags = 4;
+
     pkt << uint8(securityFlags);            // security flags (0x0...0x04)
 
     if (securityFlags & 0x01)               // PIN input
@@ -563,29 +552,23 @@ bool AuthSession::HandleLogonProof()
     if (!memcmp(M.AsByteArray(sha.GetLength()).get(), logonProof->M1, 20))
     {
         // Check auth token
-        bool tokenSuccess = false;
-        bool sentToken = (logonProof->securityFlags & 0x04);
-        if (sentToken && _totpSecret)
+        if ((logonProof->securityFlags & 0x04) || !_tokenKey.empty())
         {
             uint8 size = *(GetReadBuffer().GetReadPointer() + sizeof(sAuthLogonProof_C));
             std::string token(reinterpret_cast<char*>(GetReadBuffer().GetReadPointer() + sizeof(sAuthLogonProof_C) + sizeof(size)), size);
             GetReadBuffer().ReadCompleted(sizeof(size) + size);
-
+            uint32 validToken = TOTP::GenerateToken(_tokenKey.c_str());
+            _tokenKey.clear();
             uint32 incomingToken = atoi(token.c_str());
-            tokenSuccess = Trinity::Crypto::TOTP::ValidateToken(*_totpSecret, incomingToken);
-            memset(_totpSecret->data(), 0, _totpSecret->size());
-        }
-        else if (!sentToken && !_totpSecret)
-            tokenSuccess = true;
-
-        if (!tokenSuccess)
-        {
-            ByteBuffer packet;
-            packet << uint8(AUTH_LOGON_PROOF);
-            packet << uint8(WOW_FAIL_UNKNOWN_ACCOUNT);
-            packet << uint16(0);    // LoginFlags, 1 has account message
-            SendPacket(packet);
-            return true;
+            if (validToken != incomingToken)
+            {
+                ByteBuffer packet;
+                packet << uint8(AUTH_LOGON_PROOF);
+                packet << uint8(WOW_FAIL_UNKNOWN_ACCOUNT);
+                packet << uint16(0);    // LoginFlags, 1 has account message
+                SendPacket(packet);
+                return true;
+            }
         }
 
         if (!VerifyVersion(logonProof->A, sizeof(logonProof->A), logonProof->crc_hash, false))
@@ -622,7 +605,7 @@ bool AuthSession::HandleLogonProof()
             memcpy(proof.M2, sha.GetDigest(), 20);
             proof.cmd = AUTH_LOGON_PROOF;
             proof.error = 0;
-            proof.AccountFlags = 0x00800000;    // 0x01 = GM, 0x08 = Trial, 0x00800000 = Pro pass (arena tournament)
+            proof.AccountFlags = GAMEACCOUNT_FLAG_PROPASS_LOCK;
             proof.SurveyId = 0;
             proof.LoginFlags = 0;               // 0x1 = has account message
 
@@ -841,7 +824,7 @@ void AuthSession::RealmListCallback(PreparedQueryResult result)
     ByteBuffer pkt;
 
     size_t RealmListSize = 0;
-    for (RealmList::RealmMap::value_type const& i : sRealmList->GetRealms())
+    for (auto const& i : sGruntRealmList->GetRealms())
     {
         Realm const& realm = i.second;
         // don't work with realms which not compatible with the client

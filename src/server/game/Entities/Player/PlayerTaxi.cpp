@@ -34,34 +34,41 @@ void PlayerTaxi::InitTaxiNodesForLevel(uint32 race, uint32 chrClass, uint8 level
         }
     }
 
-    // race specific initial known nodes: capital and taxi hub masks
-    switch (race)
+    uint32 team = Player::TeamForRace(race);
+
+    // Patch 4.2: players will now unlock all taxi nodes within the recommended level range of the player
+    for (TaxiNodesEntry const* itr : sTaxiNodesStore)
     {
-        case RACE_HUMAN:    SetTaximaskNode(2);  break;     // Human
-        case RACE_ORC:      SetTaximaskNode(23); break;     // Orc
-        case RACE_DWARF:    SetTaximaskNode(6);  break;     // Dwarf
-        case RACE_NIGHTELF: SetTaximaskNode(26);
-            SetTaximaskNode(27); break;     // Night Elf
-        case RACE_UNDEAD_PLAYER: SetTaximaskNode(11); break;// Undead
-        case RACE_TAUREN:   SetTaximaskNode(22); break;     // Tauren
-        case RACE_GNOME:    SetTaximaskNode(6);  break;     // Gnome
-        case RACE_TROLL:    SetTaximaskNode(23); break;     // Troll
-        case RACE_BLOODELF: SetTaximaskNode(82); break;     // Blood Elf
-        case RACE_DRAENEI:  SetTaximaskNode(94); break;     // Draenei
+        // Skip scripted and debug nodes
+        if (itr->Flags == TAXI_NODE_FLAG_SCRIPT)
+            continue;
+
+        // Skip nodes that are restricted the player's opposite faction
+        if ((!(itr->Flags & TAXI_NODE_FLAG_ALLIANCE_RESTRICTED) && team == ALLIANCE)
+            || (!(itr->Flags & TAXI_NODE_FLAG_HORDE_RESTRICTED) && team == HORDE))
+            continue;
+
+        if (sObjectMgr->IsTaxiNodeUnlockedFor(itr->ID, level))
+            SetTaximaskNode(itr->ID);
     }
 
-    // new continent starting masks (It will be accessible only at new map)
-    switch (Player::TeamForRace(race))
+    // New continent starting masks (It will be accessible only at new map)
+    switch (team)
     {
-        case ALLIANCE: SetTaximaskNode(100); break;
-        case HORDE:    SetTaximaskNode(99);  break;
+        case ALLIANCE:
+            SetTaximaskNode(100); // Honor Hold
+            SetTaximaskNode(245); // Valiance Keep
+            break;
+        case HORDE:
+            SetTaximaskNode(99); // Thrallmar
+            SetTaximaskNode(257); // Warsong Hold
+            break;
+        default:
+            break;
     }
-    // level dependent taxi hubs
-    if (level >= 68)
-        SetTaximaskNode(213);                               //Shattered Sun Staging Area
 }
 
-void PlayerTaxi::LoadTaxiMask(std::string const& data)
+void PlayerTaxi::LoadTaxiMask(std::string const &data)
 {
     Tokenizer tokens(data, ' ');
 
@@ -75,29 +82,26 @@ void PlayerTaxi::LoadTaxiMask(std::string const& data)
 
 void PlayerTaxi::AppendTaximaskTo(ByteBuffer& data, bool all)
 {
+    data << uint32(TaxiMaskSize);
     if (all)
     {
         for (uint8 i = 0; i < TaxiMaskSize; ++i)
-            data << uint32(sTaxiNodesMask[i]);              // all existing nodes
+            data << uint8(sTaxiNodesMask[i]);              // all existing nodes
     }
     else
     {
         for (uint8 i = 0; i < TaxiMaskSize; ++i)
-            data << uint32(m_taximask[i]);                  // known nodes
+            data << uint8(m_taximask[i]);                  // known nodes
     }
 }
 
-bool PlayerTaxi::LoadTaxiDestinationsFromString(const std::string& values, uint32 team)
+bool PlayerTaxi::LoadTaxiDestinationsFromString(std::string const& values, uint32 team)
 {
     ClearTaxiDestinations();
 
-    Tokenizer tokens(values, ' ');
-    auto iter = tokens.begin();
-    if (iter != tokens.end())
-        m_flightMasterFactionId = atoul(*iter);
+    Tokenizer Tokenizer(values, ' ');
 
-    ++iter;
-    for (; iter != tokens.end(); ++iter)
+    for (Tokenizer::const_iterator iter = Tokenizer.begin(); iter != Tokenizer.end(); ++iter)
     {
         uint32 node = atoul(*iter);
         AddTaxiDestination(node);
@@ -131,10 +135,7 @@ std::string PlayerTaxi::SaveTaxiDestinationsToString()
     if (m_TaxiDestinations.empty())
         return "";
 
-    ASSERT(m_TaxiDestinations.size() >= 2);
-
     std::ostringstream ss;
-    ss << m_flightMasterFactionId << ' ';
 
     for (size_t i = 0; i < m_TaxiDestinations.size(); ++i)
         ss << m_TaxiDestinations[i] << ' ';
@@ -158,11 +159,6 @@ uint32 PlayerTaxi::GetCurrentTaxiPath() const
 std::ostringstream& operator<<(std::ostringstream& ss, PlayerTaxi const& taxi)
 {
     for (uint8 i = 0; i < TaxiMaskSize; ++i)
-        ss << taxi.m_taximask[i] << ' ';
+        ss << uint32(taxi.m_taximask[i]) << ' ';
     return ss;
-}
-
-FactionTemplateEntry const* PlayerTaxi::GetFlightMasterFactionTemplate() const
-{
-    return sFactionTemplateStore.LookupEntry(m_flightMasterFactionId);
 }

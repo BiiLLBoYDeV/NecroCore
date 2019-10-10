@@ -56,11 +56,6 @@ class npc_anubisath_sentinel : public CreatureScript
 public:
     npc_anubisath_sentinel() : CreatureScript("npc_anubisath_sentinel") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<aqsentinelAI>(creature);
-    }
-
     struct aqsentinelAI : public ScriptedAI
     {
         uint32 ability;
@@ -258,6 +253,11 @@ public:
             }
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<aqsentinelAI>(creature);
+    }
 };
 
 void AddSC_npc_anubisath_sentinel()

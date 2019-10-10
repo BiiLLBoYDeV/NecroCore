@@ -24,9 +24,9 @@ SDCategory: Scarlet Monastery
 EndScriptData */
 
 #include "ScriptMgr.h"
-#include "scarlet_monastery.h"
 #include "ScriptedCreature.h"
 #include "ScriptedEscortAI.h"
+#include "scarlet_monastery.h"
 
 enum Says
 {
@@ -83,8 +83,8 @@ class boss_herod : public CreatureScript
                 DoCast(me, SPELL_RUSHINGCHARGE);
                 _JustEngagedWith();
 
-                events.ScheduleEvent(EVENT_CLEAVE, 12s);
-                events.ScheduleEvent(EVENT_WHIRLWIND, 1min);
+                events.ScheduleEvent(EVENT_CLEAVE, 12000);
+                events.ScheduleEvent(EVENT_WHIRLWIND, 60000);
             }
 
             void KilledUnit(Unit* /*victim*/) override
@@ -117,12 +117,12 @@ class boss_herod : public CreatureScript
                 {
                     case EVENT_CLEAVE:
                         DoCastVictim(SPELL_CLEAVE);
-                        events.ScheduleEvent(EVENT_CLEAVE, 12s);
+                        events.ScheduleEvent(EVENT_CLEAVE, 12000);
                         break;
                     case EVENT_WHIRLWIND:
                         Talk(SAY_WHIRLWIND);
                         DoCastVictim(SPELL_WHIRLWIND);
-                        events.ScheduleEvent(EVENT_WHIRLWIND, 30s);
+                        events.ScheduleEvent(EVENT_WHIRLWIND, 30000);
                         break;
                     default:
                         break;
@@ -146,12 +146,12 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetScarletMonasteryAI<npc_scarlet_traineeAI>(creature);
+        return new npc_scarlet_traineeAI(creature);
     }
 
-    struct npc_scarlet_traineeAI : public EscortAI
+    struct npc_scarlet_traineeAI : public npc_escortAI
     {
-        npc_scarlet_traineeAI(Creature* creature) : EscortAI(creature)
+        npc_scarlet_traineeAI(Creature* creature) : npc_escortAI(creature)
         {
             Start_Timer = urand(1000, 6000);
         }
@@ -159,6 +159,7 @@ public:
         uint32 Start_Timer;
 
         void Reset() override { }
+        void WaypointReached(uint32 /*waypointId*/) override { }
         void JustEngagedWith(Unit* /*who*/) override { }
 
         void UpdateAI(uint32 diff) override
@@ -172,7 +173,7 @@ public:
                 } else Start_Timer -= diff;
             }
 
-            EscortAI::UpdateAI(diff);
+            npc_escortAI::UpdateAI(diff);
         }
     };
 };

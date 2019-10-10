@@ -21,10 +21,10 @@
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
-#include "ScriptedCreature.h"
+#include "ScriptedEscortAI.h"
 #include "ScriptedGossip.h"
-#include "SpellAuraEffects.h"
 #include "SpellAuras.h"
+#include "SpellAuraEffects.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
 #include "TemporarySummon.h"
@@ -59,7 +59,7 @@ public:
             me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
 
             float x, y, z;
-            me->GetClosePoint(x, y, z, me->GetCombatReach() / 3, 0.1f);
+            me->GetClosePoint(x, y, z, me->GetObjectSize() / 3, 0.1f);
 
             if (Creature* summon = me->SummonCreature(NPC_RAGECLAW, x, y, z, 0, TEMPSUMMON_DEAD_DESPAWN, 1000))
             {
@@ -71,8 +71,8 @@ public:
         void LockRageclaw(Creature* rageclaw)
         {
             // pointer check not needed
-            me->SetFacingToObject(rageclaw);
-            rageclaw->SetFacingToObject(me);
+            me->SetInFront(rageclaw);
+            rageclaw->SetInFront(me);
 
             DoCast(rageclaw, SPELL_LEFT_CHAIN, true);
             DoCast(rageclaw, SPELL_RIGHT_CHAIN, true);
@@ -184,7 +184,7 @@ public:
         void Reset() override
         {
             float x, y, z;
-            me->GetClosePoint(x, y, z, me->GetCombatReach() / 3, 25.0f);
+            me->GetClosePoint(x, y, z, me->GetObjectSize() / 3, 25.0f);
             me->GetMotionMaster()->MovePoint(0, x, y, z);
         }
 
@@ -305,34 +305,35 @@ enum ScourgeEnclosure
 
 class go_scourge_enclosure : public GameObjectScript
 {
-public:
-    go_scourge_enclosure() : GameObjectScript("go_scourge_enclosure") { }
+    public:
+        go_scourge_enclosure() : GameObjectScript("go_scourge_enclosure") { }
 
-    struct go_scourge_enclosureAI : public GameObjectAI
-    {
-        go_scourge_enclosureAI(GameObject* go) : GameObjectAI(go) { }
-
-        bool GossipHello(Player* player) override
+        struct go_scourge_enclosureAI : public GameObjectAI
         {
-            me->UseDoorOrButton();
-            if (player->GetQuestStatus(QUEST_OUR_ONLY_HOPE) == QUEST_STATUS_INCOMPLETE)
+            go_scourge_enclosureAI(GameObject* go) : GameObjectAI(go) { }
+
+            bool GossipHello(Player* player) override
             {
-                if (Creature* gymerDummy = me->FindNearestCreature(NPC_GYMER_DUMMY, 20.0f))
+                me->UseDoorOrButton();
+                if (player->GetQuestStatus(QUEST_OUR_ONLY_HOPE) == QUEST_STATUS_INCOMPLETE)
                 {
-                    player->KilledMonsterCredit(gymerDummy->GetEntry(), gymerDummy->GetGUID());
-                    gymerDummy->CastSpell(gymerDummy, SPELL_GYMER_LOCK_EXPLOSION, true);
-                    gymerDummy->DespawnOrUnsummon(4 * IN_MILLISECONDS);
+                    Creature* gymerDummy = me->FindNearestCreature(NPC_GYMER_DUMMY, 20.0f);
+                    if (gymerDummy)
+                    {
+                        player->KilledMonsterCredit(gymerDummy->GetEntry(), gymerDummy->GetGUID());
+                        gymerDummy->CastSpell(gymerDummy, SPELL_GYMER_LOCK_EXPLOSION, true);
+                        gymerDummy->DespawnOrUnsummon(4 * IN_MILLISECONDS);
+                    }
                 }
+                return true;
             }
-            return true;
+        };
+
+        GameObjectAI* GetAI(GameObject* go) const override
+        {
+            return new go_scourge_enclosureAI(go);
         }
     };
-
-    GameObjectAI* GetAI(GameObject* go) const override
-    {
-        return new go_scourge_enclosureAI(go);
-    }
-};
 
 /*######
 ## Quest: Troll Patrol: The Alchemist's Apprentice
@@ -484,7 +485,7 @@ public:
             {
                 _playerGUID.Clear();
                 _getingredienttry = 0;
-                _events.ScheduleEvent(EVENT_TURN_TO_POT, 15s, 26s);
+                _events.ScheduleEvent(EVENT_TURN_TO_POT, urand(15000, 26000));
             }
 
             void SetData(uint32 type, uint32 data) override
@@ -521,12 +522,12 @@ public:
                         case EVENT_TURN_TO_POT:
                             me->SetFacingTo(6.230825f);
                             me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_USE_STANDING_NO_SHEATHE);
-                            _events.ScheduleEvent(EVENT_TURN_BACK, 11s);
+                            _events.ScheduleEvent(EVENT_TURN_BACK, 11000);
                             break;
                         case EVENT_TURN_BACK:
                             me->SetFacingTo(4.886922f);
                             me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_STATE_NONE);
-                            _events.ScheduleEvent(EVENT_TURN_TO_POT, 25s, 41s);
+                            _events.ScheduleEvent(EVENT_TURN_TO_POT, urand(25000, 41000));
                             break;
                         case EVENT_EASY_123:
                             if (Player* player = ObjectAccessor::GetPlayer(*me, _playerGUID))
@@ -590,24 +591,24 @@ public:
 
 class go_finklesteins_cauldron : public GameObjectScript
 {
-public:
-    go_finklesteins_cauldron() : GameObjectScript("go_finklesteins_cauldron") { }
+    public:
+        go_finklesteins_cauldron() : GameObjectScript("go_finklesteins_cauldron") { }
 
-    struct go_finklesteins_cauldronAI : public GameObjectAI
-    {
-        go_finklesteins_cauldronAI(GameObject* go) : GameObjectAI(go) { }
-
-        bool GossipHello(Player* player) override
+        struct go_finklesteins_cauldronAI : public GameObjectAI
         {
-            player->CastSpell(player, SPELL_POT_CHECK);
-            return true;
-        }
-    };
+            go_finklesteins_cauldronAI(GameObject* go) : GameObjectAI(go) { }
 
-    GameObjectAI* GetAI(GameObject* go) const override
-    {
-        return new go_finklesteins_cauldronAI(go);
-    }
+            bool GossipHello(Player* player) override
+            {
+                player->CastSpell(player, SPELL_POT_CHECK);
+                return true;
+            }
+        };
+
+        GameObjectAI* GetAI(GameObject* go) const override
+        {
+            return new go_finklesteins_cauldronAI(go);
+        }
 };
 
 uint32 const FetchIngredients[21][4] =
@@ -691,7 +692,8 @@ class spell_random_ingredient_aura : public SpellScriptLoader
 
 class spell_random_ingredient : public SpellScriptLoader
 {
-    public: spell_random_ingredient() : SpellScriptLoader("spell_random_ingredient") { }
+    public:
+        spell_random_ingredient() : SpellScriptLoader("spell_random_ingredient") { }
 
         class spell_random_ingredient_SpellScript : public SpellScript
         {
@@ -746,7 +748,7 @@ class spell_random_ingredient : public SpellScriptLoader
 
                     if (Creature* finklestein = GetClosestCreatureWithEntry(player, NPC_FINKLESTEIN, 25.0f))
                     {
-                        finklestein->CastSpell(player, FetchIngredients[ingredient][0], true);
+                        finklestein->CastSpell(player, FetchIngredients[ingredient][0], true, nullptr);
                         finklestein->AI()->Talk(FetchIngredients[ingredient][3], player);
                     }
                 }
@@ -756,7 +758,7 @@ class spell_random_ingredient : public SpellScriptLoader
             {
                 OnEffectHitTarget += SpellEffectFn(spell_random_ingredient_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
             }
-    };
+        };
 
         SpellScript* GetSpellScript() const override
         {
@@ -770,7 +772,8 @@ class spell_random_ingredient : public SpellScriptLoader
 
 class spell_pot_check : public SpellScriptLoader
 {
-    public: spell_pot_check() : SpellScriptLoader("spell_pot_check") { }
+    public:
+        spell_pot_check() : SpellScriptLoader("spell_pot_check") { }
 
         class spell_pot_check_SpellScript : public SpellScript
         {
@@ -804,60 +807,60 @@ class spell_pot_check : public SpellScriptLoader
                 });
             }
 
-        void HandleScriptEffect(SpellEffIndex /* effIndex */)
-        {
-            if (Player* player = GetHitPlayer())
+            void HandleScriptEffect(SpellEffIndex /* effIndex */)
             {
-                for (uint8 i = 0; i < 21; ++i)
+                if (Player* player = GetHitPlayer())
                 {
-                    if (player->HasAura(FetchIngredients[i][0]))
+                    for (uint8 i = 0; i < 21; ++i)
                     {
-                        player->CastSpell(player, SPELL_THROW_INGREDIENT);
-                        player->RemoveAura(FetchIngredients[i][0]);
-                        if (player->HasAura(FetchIngredients[i][1]))
+                        if (player->HasAura(FetchIngredients[i][0]))
                         {
-                            player->RemoveAura(FetchIngredients[i][1]);
-                            player->DestroyItemCount(FetchIngredients[i][2], 1, true);
-                            if (i < 15)
+                            player->CastSpell(player, SPELL_THROW_INGREDIENT);
+                            player->RemoveAura(FetchIngredients[i][0]);
+                            if (player->HasAura(FetchIngredients[i][1]))
                             {
-                                if (Creature* finklestein = GetClosestCreatureWithEntry(player, NPC_FINKLESTEIN, 25.0f))
-                                    finklestein->AI()->SetData(1, 1);
-                                return;
+                                player->RemoveAura(FetchIngredients[i][1]);
+                                player->DestroyItemCount(FetchIngredients[i][2], 1, true);
+                                if (i < 15)
+                                {
+                                    if (Creature* finklestein = GetClosestCreatureWithEntry(player, NPC_FINKLESTEIN, 25.0f))
+                                        finklestein->AI()->SetData(1, 1);
+                                    return;
+                                }
+                                else
+                                {
+                                    if (player->GetQuestStatus(QUEST_THE_ALCHEMIST_APPRENTICE_DAILY) == QUEST_STATUS_INCOMPLETE)
+                                    {
+                                        player->RemoveAura(SPELL_ALCHEMIST_APPRENTICE_INVISBUFF);
+                                        player->CastSpell(player, SPELL_KILL_CREDIT);
+                                    }
+                                }
                             }
                             else
                             {
-                                if (player->GetQuestStatus(QUEST_THE_ALCHEMIST_APPRENTICE_DAILY) == QUEST_STATUS_INCOMPLETE)
-                                {
-                                    player->RemoveAura(SPELL_ALCHEMIST_APPRENTICE_INVISBUFF);
-                                    player->CastSpell(player, SPELL_KILL_CREDIT);
-                                }
+                                RemoveItems(player);
+                                player->RemoveAura(SPELL_ALCHEMIST_APPRENTICE_INVISBUFF);
+                                if (Creature* finklestein = GetClosestCreatureWithEntry(player, NPC_FINKLESTEIN, 25.0f))
+                                    finklestein->AI()->Talk(SAY_RUINED, player);
+                                return;
                             }
                         }
-                        else
-                        {
-                            RemoveItems(player);
-                            player->RemoveAura(SPELL_ALCHEMIST_APPRENTICE_INVISBUFF);
-                            if (Creature* finklestein = GetClosestCreatureWithEntry(player, NPC_FINKLESTEIN, 25.0f))
-                                finklestein->AI()->Talk(SAY_RUINED, player);
-                            return;
-                        }
                     }
-                 }
-             }
-         }
+                }
+            }
 
-        void RemoveItems(Player* player)
-        {
-            for (uint8 i = 0; i < 21; ++i)
-                if (player->HasItemCount(FetchIngredients[i][2], 1, true))
-                    player->DestroyItemCount(FetchIngredients[i][2], 1, true);
-        }
+            void RemoveItems(Player* player)
+            {
+                for (uint8 i = 0; i < 21; ++i)
+                    if (player->HasItemCount(FetchIngredients[i][2], 1, true))
+                        player->DestroyItemCount(FetchIngredients[i][2], 1, true);
+            }
 
-        void Register() override
-        {
-            OnEffectHitTarget += SpellEffectFn(spell_pot_check_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-        }
-    };
+            void Register() override
+            {
+                OnEffectHitTarget += SpellEffectFn(spell_pot_check_SpellScript::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
+            }
+        };
 
         SpellScript* GetSpellScript() const override
         {

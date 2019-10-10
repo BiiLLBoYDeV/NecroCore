@@ -21,7 +21,6 @@
 #include "Chat.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
-#include "GameTime.h"
 #include "Language.h"
 #include "Log.h"
 #include "ObjectAccessor.h"
@@ -31,7 +30,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 
-inline float GetAge(uint64 t) { return float(GameTime::GetGameTime() - t) / DAY; }
+inline float GetAge(uint64 t) { return float(time(nullptr) - t) / DAY; }
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // GM ticket
@@ -39,7 +38,7 @@ GmTicket::GmTicket() : _id(0), _type(TICKET_TYPE_OPEN), _posX(0), _posY(0), _pos
                        _completed(false), _escalatedStatus(TICKET_UNASSIGNED), _viewed(false),
                        _needResponse(false), _needMoreHelp(false) { }
 
-GmTicket::GmTicket(Player* player) : _type(TICKET_TYPE_OPEN), _posX(0), _posY(0), _posZ(0), _mapId(0), _createTime(GameTime::GetGameTime()), _lastModifiedTime(GameTime::GetGameTime()),
+GmTicket::GmTicket(Player* player) : _type(TICKET_TYPE_OPEN), _posX(0), _posY(0), _posZ(0), _mapId(0), _createTime(time(nullptr)), _lastModifiedTime(time(nullptr)),
                        _completed(false), _escalatedStatus(TICKET_UNASSIGNED), _viewed(false),
                        _needResponse(false), _needMoreHelp(false)
 {
@@ -143,6 +142,11 @@ void GmTicket::WritePacket(WorldPacket& data) const
 
     data << uint8(std::min(_escalatedStatus, TICKET_IN_ESCALATION_QUEUE));                              // escalated data
     data << uint8(_viewed ? GMTICKET_OPENEDBYGM_STATUS_OPENED : GMTICKET_OPENEDBYGM_STATUS_NOT_OPENED); // whether or not it has been viewed
+
+    // TODO: implement these
+    std::string waitTimeOverrideMessage = "";
+    data << waitTimeOverrideMessage;
+    data << uint32(0); // waitTimeOverrideMinutes
 }
 
 void GmTicket::SendResponse(WorldSession* session) const
@@ -174,7 +178,7 @@ void GmTicket::SendResponse(WorldSession* session) const
 
 std::string GmTicket::FormatMessageString(ChatHandler& handler, bool detailed) const
 {
-    time_t curTime = GameTime::GetGameTime();
+    time_t curTime = time(nullptr);
 
     std::stringstream ss;
     ss << handler.PGetParseString(LANG_COMMAND_TICKETLISTGUID, _id);
@@ -213,12 +217,6 @@ std::string GmTicket::FormatMessageString(ChatHandler& handler, char const* szCl
     if (szCompletedName)
         ss << handler.PGetParseString(LANG_COMMAND_TICKETCOMPLETED, szCompletedName);
     return ss.str();
-}
-
-void GmTicket::SetMessage(std::string const& message)
-{
-    _message = message;
-    _lastModifiedTime = uint64(GameTime::GetGameTime());
 }
 
 void GmTicket::SetUnassigned()
@@ -271,7 +269,7 @@ void GmTicket::SetChatLog(std::list<uint32> time, std::string const& log)
 ///////////////////////////////////////////////////////////////////////////////////////////////////
 // Ticket manager
 TicketMgr::TicketMgr() : _status(true), _lastTicketId(0), _lastSurveyId(0), _openTicketCount(0),
-    _lastChange(GameTime::GetGameTime()) { }
+    _lastChange(time(nullptr)) { }
 
 TicketMgr::~TicketMgr()
 {
@@ -414,11 +412,6 @@ void TicketMgr::RemoveTicket(uint32 ticketId)
     }
 }
 
-void TicketMgr::UpdateLastChange()
-{
-    _lastChange = uint64(GameTime::GetGameTime());
-}
-
 void TicketMgr::ShowList(ChatHandler& handler, bool onlineOnly) const
 {
     handler.SendSysMessage(onlineOnly ? LANG_COMMAND_TICKETSHOWONLINELIST : LANG_COMMAND_TICKETSHOWLIST);
@@ -446,7 +439,7 @@ void TicketMgr::ShowEscalatedList(ChatHandler& handler) const
 
 void TicketMgr::SendTicket(WorldSession* session, GmTicket* ticket) const
 {
-    WorldPacket data(SMSG_GMTICKET_GETTICKET, (4 + 4 + 1 + 4 + 4 + 4 + 1 + 1));
+    WorldPacket data(SMSG_GMTICKET_GETTICKET, (ticket ? (4 + 4 + 1 + 4 + 4 + 4 + 1 + 1) : 4));
 
     if (ticket)
         ticket->WritePacket(data);

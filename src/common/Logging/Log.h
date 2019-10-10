@@ -23,7 +23,6 @@
 #include "AsioHacksFwd.h"
 #include "LogCommon.h"
 #include "StringFormat.h"
-
 #include <memory>
 #include <unordered_map>
 #include <vector>
@@ -91,7 +90,7 @@ class TC_COMMON_API Log
 
         void SetRealmId(uint32 id);
 
-        template<class AppenderImpl>
+        template <class AppenderImpl>
         void RegisterAppender()
         {
             using Index = typename AppenderImpl::TypeIndex;
@@ -113,7 +112,7 @@ class TC_COMMON_API Log
         void ReadAppendersFromConfig();
         void ReadLoggersFromConfig();
         void RegisterAppender(uint8 index, AppenderCreatorFn appenderCreateFn);
-        void outMessage(std::string const& filter, LogLevel level, std::string&& message);
+        void outMessage(std::string const& filter, LogLevel const level, std::string&& message);
         void outCommand(std::string&& message, std::string&& param1);
 
         std::unordered_map<uint8, AppenderCreatorFn> appenderFactory;

@@ -263,9 +263,15 @@ class npc_ranshalla : public CreatureScript
 public:
     npc_ranshalla() : CreatureScript("npc_ranshalla") { }
 
-    struct npc_ranshallaAI : public EscortAI, private DialogueHelper
+    CreatureAI* GetAI(Creature* creature) const override
     {
-        npc_ranshallaAI(Creature* creature) : EscortAI(creature), DialogueHelper(introDialogue)
+        return new npc_ranshallaAI(creature);
+    }
+
+    struct npc_ranshallaAI : public npc_escortAI, private DialogueHelper
+    {
+        npc_ranshallaAI(Creature* creature) : npc_escortAI(creature),
+            DialogueHelper(introDialogue)
         {
             Initialize();
         }
@@ -282,6 +288,16 @@ public:
         ObjectGuid _guardEluneGUID;
         ObjectGuid _voiceEluneGUID;
         ObjectGuid _altarGUID;
+
+        void QuestAccept(Player* player, Quest const* quest) override
+        {
+            if (quest->GetQuestId() == QUEST_GUARDIANS_ALTAR)
+            {
+                Talk(SAY_QUEST_START);
+                me->SetFaction(FACTION_ESCORTEE_A_NEUTRAL_PASSIVE);
+                Start(false, false, player->GetGUID(), quest);
+            }
+        }
 
         void Reset() override
         {
@@ -349,7 +365,7 @@ public:
             StartNextDialogueText(SAY_PRIESTESS_ALTAR_3);
         }
 
-        void WaypointReached(uint32 pointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 pointId) override
         {
             switch (pointId)
             {
@@ -370,15 +386,15 @@ public:
                 case 41:
                 {
                     // Search for all nearest lights and respawn them
-                    std::list<GameObject*> eluneLights;
+                    std::vector<GameObject*> eluneLights;
                     GetGameObjectListWithEntryInGrid(eluneLights, me, GO_ELUNE_LIGHT, 20.0f);
-                    for (std::list<GameObject*>::const_iterator itr = eluneLights.begin(); itr != eluneLights.end(); ++itr)
+                    for (GameObject* go : eluneLights)
                     {
-                        if ((*itr)->isSpawned())
+                        if (go->isSpawned())
                             continue;
 
-                        (*itr)->SetRespawnTime(115);
-                        (*itr)->Refresh();
+                        go->SetRespawnTime(115);
+                        go->Refresh();
                     }
 
                     if (GameObject* altar = ObjectAccessor::GetGameObject(*me, _altarGUID))
@@ -390,7 +406,7 @@ public:
                     SetEscortPaused(true);
                     DoSummonPriestess();
                     Talk(SAY_RANSHALLA_ALTAR_2);
-                    events.ScheduleEvent(EVENT_RESUME, 2s);
+                    events.ScheduleEvent(EVENT_RESUME, 2000);
                     break;
                 case 44:
                     // Stop the escort and turn towards the altar
@@ -536,28 +552,11 @@ public:
             if (events.ExecuteEvent() == EVENT_RESUME)
                 StartNextDialogueText(SAY_PRIESTESS_ALTAR_3);
 
-            EscortAI::UpdateEscortAI(diff);
+            npc_escortAI::UpdateEscortAI(diff);
         }
-
-        void QuestAccept(Player* player, Quest const* quest) override
-        {
-            if (quest->GetQuestId() == QUEST_GUARDIANS_ALTAR)
-            {
-                Talk(SAY_QUEST_START);
-                me->SetFaction(FACTION_ESCORTEE_A_NEUTRAL_PASSIVE);
-
-                Start(false, false, player->GetGUID(), quest);
-            }
-        }
-
     private:
         EventMap events;
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_ranshallaAI(creature);
-    }
 };
 
 /*#####
@@ -566,35 +565,35 @@ public:
 
 class go_elune_fire : public GameObjectScript
 {
-public:
-    go_elune_fire() : GameObjectScript("go_elune_fire") { }
+    public:
+        go_elune_fire() : GameObjectScript("go_elune_fire") { }
 
-    struct go_elune_fireAI : public GameObjectAI
-    {
-        go_elune_fireAI(GameObject* go) : GameObjectAI(go) { }
-
-        bool GossipHello(Player* /*player*/) override
+        struct go_elune_fireAI : public GameObjectAI
         {
-            // Check if we are using the torches or the altar
-            bool isAltar = false;
+            go_elune_fireAI(GameObject* go) : GameObjectAI(go) { }
 
-            if (me->GetEntry() == GO_ELUNE_ALTAR)
-                isAltar = true;
-
-            if (Creature* ranshalla = GetClosestCreatureWithEntry(me, NPC_RANSHALLA, 10.0f))
+            bool GossipHello(Player* /*player*/) override
             {
-                if (npc_ranshalla::npc_ranshallaAI* escortAI = dynamic_cast<npc_ranshalla::npc_ranshallaAI*>(ranshalla->AI()))
-                    escortAI->DoContinueEscort(isAltar);
-            }
-            me->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
-            return false;
-        }
-    };
+                // Check if we are using the torches or the altar
+                bool isAltar = false;
 
-    GameObjectAI* GetAI(GameObject* go) const override
-    {
-        return new go_elune_fireAI(go);
-    }
+                if (me->GetEntry() == GO_ELUNE_ALTAR)
+                    isAltar = true;
+
+                if (Creature* ranshalla = GetClosestCreatureWithEntry(me, NPC_RANSHALLA, 10.0f))
+                {
+                    if (npc_ranshalla::npc_ranshallaAI* escortAI = dynamic_cast<npc_ranshalla::npc_ranshallaAI*>(ranshalla->AI()))
+                        escortAI->DoContinueEscort(isAltar);
+                }
+                me->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
+                return false;
+            }
+        };
+
+        GameObjectAI* GetAI(GameObject* go) const override
+        {
+            return new go_elune_fireAI(go);
+        }
 };
 
 void AddSC_winterspring()

@@ -384,7 +384,9 @@ public:
                         temp->SetHomePosition(me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetOrientation());
                         temp->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
                         temp->SetReactState(REACT_AGGRESSIVE);
-                        AddThreat(player, 0.0f, temp);
+                        temp->SetInCombatWith(player);
+                        player->SetInCombatWith(temp);
+                        temp->AddThreat(player, 0.0f);
                     }
                 }
             }
@@ -452,13 +454,17 @@ public:
 
         bool GossipHello(Player* player) override
         {
-            if (((instance->GetData(BOSS_GRAND_CHAMPIONS) == DONE &&
+            InstanceScript* instance = me->GetInstanceScript();
+
+            if (instance &&
+                ((instance->GetData(BOSS_GRAND_CHAMPIONS) == DONE &&
                     instance->GetData(BOSS_BLACK_KNIGHT) == DONE &&
                     instance->GetData(BOSS_ARGENT_CHALLENGE_E) == DONE) ||
                     instance->GetData(BOSS_ARGENT_CHALLENGE_P) == DONE))
                 return false;
 
-            if (instance->GetData(BOSS_GRAND_CHAMPIONS) == NOT_STARTED &&
+            if (instance &&
+                instance->GetData(BOSS_GRAND_CHAMPIONS) == NOT_STARTED &&
                 instance->GetData(BOSS_ARGENT_CHALLENGE_E) == NOT_STARTED &&
                 instance->GetData(BOSS_ARGENT_CHALLENGE_P) == NOT_STARTED &&
                 instance->GetData(BOSS_BLACK_KNIGHT) == NOT_STARTED)
@@ -467,6 +473,7 @@ public:
                 AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_START_EVENT2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
 
             SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
+
             return true;
         }
 

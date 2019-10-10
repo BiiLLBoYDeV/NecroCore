@@ -25,14 +25,11 @@ void MapReference::targetObjectBuildLink()
     getTarget()->m_mapRefManager.insertFirst(this);
     getTarget()->m_mapRefManager.incSize();
 }
-
 void MapReference::targetObjectDestroyLink()
 {
     // called from unlink()
-    if (isValid())
-        getTarget()->m_mapRefManager.decSize();
+    if (isValid()) getTarget()->m_mapRefManager.decSize();
 }
-
 void MapReference::sourceObjectDestroyLink()
 {
     // called from invalidate()

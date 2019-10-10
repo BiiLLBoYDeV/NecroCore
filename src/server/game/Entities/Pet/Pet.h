@@ -22,6 +22,7 @@
 #include "PetDefines.h"
 #include "TemporarySummon.h"
 
+#define PET_FOCUS_REGEN_INTERVAL 4 * IN_MILLISECONDS
 #define HAPPINESS_LEVEL_SIZE        333000
 
 struct PetSpell
@@ -55,10 +56,10 @@ class TC_GAME_API Pet : public Guardian
 
         bool IsPermanentPetFor(Player* owner) const;        // pet have tab in character windows and set UNIT_FIELD_PETNUMBER
 
-        bool Create(ObjectGuid::LowType guidlow, Map* map, uint32 phaseMask, uint32 Entry, uint32 pet_number);
+        bool Create(ObjectGuid::LowType guidlow, Map* map, uint32 Entry, uint32 pet_number);
         bool CreateBaseAtCreature(Creature* creature);
         bool CreateBaseAtCreatureInfo(CreatureTemplate const* cinfo, Unit* owner);
-        bool CreateBaseAtTamed(CreatureTemplate const* cinfo, Map* map, uint32 phaseMask);
+        bool CreateBaseAtTamed(CreatureTemplate const* cinfo, Map* map);
         bool LoadPetFromDB(Player* owner, uint32 petentry = 0, uint32 petnumber = 0, bool current = false);
         bool IsLoading() const override { return m_loading;}
         void SavePetToDB(PetSaveMode mode);
@@ -77,8 +78,6 @@ class TC_GAME_API Pet : public Guardian
                 return m_autospells[pos];
         }
 
-        void LoseHappiness();
-        HappinessState GetHappinessState();
         void GivePetXP(uint32 xp);
         void GivePetLevel(uint8 level);
         void SynchronizeLevelWithOwner();
@@ -120,7 +119,6 @@ class TC_GAME_API Pet : public Guardian
         bool unlearnSpell(uint32 spell_id, bool learn_prev, bool clear_ab = true);
         bool removeSpell(uint32 spell_id, bool learn_prev, bool clear_ab = true);
         void CleanupActionBar();
-        std::string GenerateActionBarData() const;
 
         PetSpellMap     m_spells;
         AutoSpellList   m_autospells;
@@ -150,7 +148,6 @@ class TC_GAME_API Pet : public Guardian
         std::string GetDebugInfo() const override;
 
     protected:
-        uint32  m_happinessTimer;
         PetType m_petType;
         int32   m_duration;                                 // time until unsummon (used mostly for summoned guardians and not used for controlled pets)
         uint64  m_auraRaidUpdateMask;
@@ -161,6 +158,10 @@ class TC_GAME_API Pet : public Guardian
 
     private:
         void SaveToDB(uint32, uint8, uint32) override                // override of Creature::SaveToDB     - must not be called
+        {
+            ABORT();
+        }
+        void DeleteFromDB() override                                 // override of Creature::DeleteFromDB - must not be called
         {
             ABORT();
         }

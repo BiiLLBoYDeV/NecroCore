@@ -366,7 +366,7 @@ struct advisorbase_ai : public ScriptedAI
             _hasRessurrected = true;
             me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_STUNNED);
             me->SetStandState(UNIT_STAND_STATE_STAND);
-            events.ScheduleEvent(EVENT_DELAYED_RESSURECTION, 2s);
+            events.ScheduleEvent(EVENT_DELAYED_RESSURECTION, 2000);
         }
     }
 
@@ -413,11 +413,11 @@ struct advisorbase_ai : public ScriptedAI
                 if (!Target)
                     Target = me->GetVictim();
 
-                ResetThreatList();
+                DoResetThreat();
                 AttackStart(Target);
                 me->GetMotionMaster()->Clear();
                 me->GetMotionMaster()->MoveChase(Target);
-                AddThreat(Target, 0.0f);
+                me->AddThreat(Target, 0.0f);
             }
         }
     }
@@ -494,7 +494,7 @@ class boss_kaelthas : public CreatureScript
 
                         _phase = PHASE_INTRO;
                         instance->SetBossState(DATA_KAELTHAS, IN_PROGRESS);
-                        events.ScheduleEvent(EVENT_START_ENCOUNTER, 23s);
+                        events.ScheduleEvent(EVENT_START_ENCOUNTER, 23000);
                         break;
                     case ACTION_PREPARE_ADVISORS:
                         for (uint8 i = 0; i < MAX_ADVISORS; ++i)
@@ -516,7 +516,7 @@ class boss_kaelthas : public CreatureScript
                         {
                             case ADVISOR_THALADRED:
                                 Talk(SAY_INTRO_THALADRED);
-                                events.ScheduleEvent(EVENT_ACTIVE_ADVISOR, 7s);
+                                events.ScheduleEvent(EVENT_ACTIVE_ADVISOR, 7000);
                                 break;
                             case ADVISOR_SANGUINAR:
                                 Talk(SAY_INTRO_SANGUINAR);
@@ -524,20 +524,20 @@ class boss_kaelthas : public CreatureScript
                                 break;
                             case ADVISOR_CAPERNIAN:
                                 Talk(SAY_INTRO_CAPERNIAN);
-                                events.ScheduleEvent(EVENT_ACTIVE_ADVISOR, 7s);
+                                events.ScheduleEvent(EVENT_ACTIVE_ADVISOR, 7000);
                                 break;
                             case ADVISOR_TELONICUS:
                                 Talk(SAY_INTRO_TELONICUS);
-                                events.ScheduleEvent(EVENT_ACTIVE_ADVISOR, 8400ms);
+                                events.ScheduleEvent(EVENT_ACTIVE_ADVISOR, 8400);
                                 break;
                             case MAX_DEFEATED_ADVISORS:
                                 // Every advisor defeated - Phase 2 starts.
                                 Talk(SAY_PHASE2_WEAPON);
-                                events.ScheduleEvent(EVENT_SUMMON_WEAPONS, 3500ms);
+                                events.ScheduleEvent(EVENT_SUMMON_WEAPONS, 3500);
                                 break;
                             case MAX_KILLED_ADVISORS:
                                 // Every advisor killed - Phase 3 starts.
-                                events.ScheduleEvent(EVENT_ENGAGE_COMBAT, 5s);
+                                events.ScheduleEvent(EVENT_ENGAGE_COMBAT, 5000);
                                 break;
                             default:
                                 break;
@@ -563,7 +563,7 @@ class boss_kaelthas : public CreatureScript
                 {
                     DoAction(ACTION_START_ENCOUNTER);
                     who->SetInCombatWith(me);
-                    AddThreat(who, 0.0f);
+                    me->AddThreat(who, 0.0f);
                     me->SetTarget(who->GetGUID());
                 }
             }
@@ -573,9 +573,7 @@ class boss_kaelthas : public CreatureScript
                 if (_phase == PHASE_NONE)
                 {
                     DoAction(ACTION_START_ENCOUNTER);
-
-                    if (attacker)
-                        me->SetTarget(attacker->GetGUID());
+                    me->SetTarget(attacker->GetGUID());
                 }
 
                 if (!_hasFullPower && me->HealthBelowPctDamaged(50, damage))
@@ -608,14 +606,14 @@ class boss_kaelthas : public CreatureScript
                         me->SetDisableGravity(true);
                         //me->SetHover(true); -- Set in sniffs, but breaks his visual.
                         events.ScheduleEvent(EVENT_TRANSITION_2, 2000);
-                        events.ScheduleEvent(EVENT_SIZE_INCREASE, 5s);
+                        events.ScheduleEvent(EVENT_SIZE_INCREASE, 5000);
                         break;
                     case POINT_TRANSITION_HALFWAY_ASCENDING:
                         DoCast(me, SPELL_NETHER_BEAM_VISUAL3, true);
                         events.ScheduleEvent(EVENT_TRANSITION_3, 1000);
                         break;
                     case POINT_TRANSITION_TOP:
-                        events.ScheduleEvent(EVENT_EXPLODE, 10s);
+                        events.ScheduleEvent(EVENT_EXPLODE, 10000);
                         break;
                     case POINT_TRANSITION_HALFWAY_DESCENDING:
                         events.ScheduleEvent(EVENT_TRANSITION_5, 2000);
@@ -626,7 +624,7 @@ class boss_kaelthas : public CreatureScript
                         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                         me->RemoveAurasDueToSpell(SPELL_FULLPOWER);
 
-                        if (Unit* target = SelectTarget(SELECT_TARGET_MAXTHREAT, 0))
+                        if (Unit* target = SelectTarget(SELECT_TARGET_TOPAGGRO, 0))
                             AttackStart(target);
 
                         DoAction(ACTION_SCHEDULE_COMBAT_EVENTS);
@@ -711,7 +709,7 @@ class boss_kaelthas : public CreatureScript
                             Talk(SAY_PHASE4_INTRO2);
 
                             // Sometimes people can collect Aggro in Phase 1-3. Reset threat before releasing Kael.
-                            ResetThreatList();
+                            DoResetThreat();
 
                             me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_PACIFIED);
 
@@ -737,7 +735,7 @@ class boss_kaelthas : public CreatureScript
                             break;
                         case EVENT_MIND_CONTROL:
                             Talk(SAY_MIND_CONTROL);
-                            DoCastAOE(SPELL_MIND_CONTROL, { SPELLVALUE_MAX_TARGETS, 3 });
+                            DoCastAOE(SPELL_MIND_CONTROL, true);
                             events.ScheduleEvent(EVENT_MIND_CONTROL, 60000, EVENT_GROUP_COMBAT, PHASE_COMBAT);
                             break;
                         case EVENT_SUMMON_PHOENIX:
@@ -761,7 +759,7 @@ class boss_kaelthas : public CreatureScript
                             if (_pyrosCast < 3)
                             {
                                 DoCastVictim(SPELL_PYROBLAST);
-                                events.ScheduleEvent(EVENT_PYROBLAST_CAST, 3s);
+                                events.ScheduleEvent(EVENT_PYROBLAST_CAST, 3000);
                                 _pyrosCast++;
                             }
                             else
@@ -783,7 +781,7 @@ class boss_kaelthas : public CreatureScript
                                     DoCast(unit, SPELL_NETHER_BEAM);
 
                                 _netherbeamsCast++;
-                                events.ScheduleEvent(EVENT_NETHER_BEAM, 3s);
+                                events.ScheduleEvent(EVENT_NETHER_BEAM, 3000);
                             }
                             else
                                 _netherbeamsCast = 0;
@@ -823,22 +821,22 @@ class boss_kaelthas : public CreatureScript
                             if (GameObject* window = instance->GetGameObject(DATA_TEMPEST_BRIDGE_WINDOW))
                                 window->UseDoorOrButton();
 
-                            events.ScheduleEvent(EVENT_END_TRANSITION, 10s);
+                            events.ScheduleEvent(EVENT_END_TRANSITION, 10000);
                             break;
                         case EVENT_SIZE_INCREASE:
                             switch (_scaleStage)
                             {
                                 case 0:
                                     me->SetObjectScale(1.4f);
-                                    events.ScheduleEvent(EVENT_SIZE_INCREASE, 5s);
+                                    events.ScheduleEvent(EVENT_SIZE_INCREASE, 5000);
                                     break;
                                 case 1:
                                     me->SetObjectScale(1.8f);
-                                    events.ScheduleEvent(EVENT_SIZE_INCREASE, 3s);
+                                    events.ScheduleEvent(EVENT_SIZE_INCREASE, 3000);
                                     break;
                                 case 2:
                                     me->SetObjectScale(2.0f);
-                                    events.ScheduleEvent(EVENT_SIZE_INCREASE, 1s);
+                                    events.ScheduleEvent(EVENT_SIZE_INCREASE, 1000);
                                     break;
                                 case 3:
                                     me->SetObjectScale(2.2f);
@@ -911,7 +909,7 @@ class boss_thaladred_the_darkener : public CreatureScript
             void JustEngagedWith(Unit* who) override
             {
                 Talk(SAY_THALADRED_AGGRO);
-                AddThreat(who, 5000000.0f);
+                me->AddThreat(who, 5000000.0f);
             }
 
             void JustDied(Unit* killer) override
@@ -934,8 +932,8 @@ class boss_thaladred_the_darkener : public CreatureScript
                 {
                     if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
                     {
-                        ResetThreatList();
-                        AddThreat(target, 5000000.0f);
+                        DoResetThreat();
+                        me->AddThreat(target, 5000000.0f);
                         Talk(EMOTE_THALADRED_GAZE, target);
                         Gaze_Timer = 8500;
                     }
@@ -1094,7 +1092,7 @@ class boss_grand_astromancer_capernian : public CreatureScript
 
                 if (me->Attack(who, true))
                 {
-                    AddThreat(who, 0.0f);
+                    me->AddThreat(who, 0.0f);
                     me->SetInCombatWith(who);
                     who->SetInCombatWith(me);
 
@@ -1143,10 +1141,12 @@ class boss_grand_astromancer_capernian : public CreatureScript
                 {
                     bool InMeleeRange = false;
                     Unit* target = nullptr;
-                    for (auto* ref : me->GetThreatManager().GetUnsortedThreatList())
+                    ThreatContainer::StorageType const &threatlist = me->getThreatManager().getThreatList();
+                    for (ThreatContainer::StorageType::const_iterator i = threatlist.begin(); i!= threatlist.end(); ++i)
                     {
-                        Unit* unit = ref->GetVictim();
-                        if (unit->IsWithinMeleeRange(me))
+                        Unit* unit = ObjectAccessor::GetUnit(*me, (*i)->getUnitGuid());
+                                                                    //if in melee range
+                        if (unit && unit->IsWithinDistInMap(me, 5))
                         {
                             InMeleeRange = true;
                             target = unit;
@@ -1421,7 +1421,7 @@ class npc_phoenix_egg_tk : public CreatureScript
 
             void JustSummoned(Creature* summoned) override
             {
-                AddThreat(me->GetVictim(), 0.0f, summoned);
+                summoned->AddThreat(me->GetVictim(), 0.0f);
                 summoned->CastSpell(summoned, SPELL_REBIRTH, false);
             }
 

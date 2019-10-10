@@ -25,6 +25,15 @@
 
 class Guild;
 
+struct GuildReward
+{
+    uint32 Entry;
+    int32 Racemask;
+    uint64 Price;
+    uint32 AchievementId;
+    uint8 Standing;
+};
+
 class TC_GAME_API GuildMgr
 {
 private:
@@ -38,21 +47,32 @@ public:
 
     Guild* GetGuildByLeader(ObjectGuid guid) const;
     Guild* GetGuildById(ObjectGuid::LowType guildId) const;
+    Guild* GetGuildByGuid(ObjectGuid guid) const;
     Guild* GetGuildByName(std::string const& guildName) const;
     std::string GetGuildNameById(ObjectGuid::LowType guildId) const;
+
+    void LoadGuildXpForLevel();
+    void LoadGuildRewards();
 
     void LoadGuilds();
     void AddGuild(Guild* guild);
     void RemoveGuild(ObjectGuid::LowType guildId);
 
+    void SaveGuilds();
+
     ObjectGuid::LowType GenerateGuildId();
     void SetNextGuildId(ObjectGuid::LowType Id) { NextGuildId = Id; }
 
-    void ResetTimes();
+    uint32 GetXPForGuildLevel(uint8 level) const;
+    std::vector<GuildReward> const& GetGuildRewards() const { return GuildRewards; }
+
+    void ResetTimes(bool week);
 protected:
     typedef std::unordered_map<ObjectGuid::LowType, Guild*> GuildContainer;
     ObjectGuid::LowType NextGuildId;
     GuildContainer GuildStore;
+    std::vector<uint64> GuildXPperLevel;
+    std::vector<GuildReward> GuildRewards;
 };
 
 #define sGuildMgr GuildMgr::instance()

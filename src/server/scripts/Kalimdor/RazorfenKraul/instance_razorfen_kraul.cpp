@@ -36,16 +36,11 @@ EndScriptData */
 class instance_razorfen_kraul : public InstanceMapScript
 {
 public:
-    instance_razorfen_kraul() : InstanceMapScript(RFKScriptName, 47) { }
-
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_razorfen_kraul_InstanceMapScript(map);
-    }
+    instance_razorfen_kraul() : InstanceMapScript("instance_razorfen_kraul", 47) { }
 
     struct instance_razorfen_kraul_InstanceMapScript : public InstanceScript
     {
-        instance_razorfen_kraul_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_razorfen_kraul_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             WardKeeperDeath = 0;
@@ -92,9 +87,12 @@ public:
                 case EVENT_WARD_KEEPER: WardKeeperDeath++; break;
             }
         }
-
     };
 
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_razorfen_kraul_InstanceMapScript(map);
+    }
 };
 
 void AddSC_instance_razorfen_kraul()

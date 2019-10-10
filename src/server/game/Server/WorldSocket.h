@@ -1,26 +1,26 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+* Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+* Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+*
+* This program is free software; you can redistribute it and/or modify it
+* under the terms of the GNU General Public License as published by the
+* Free Software Foundation; either version 2 of the License, or (at your
+* option) any later version.
+*
+* This program is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+* more details.
+*
+* You should have received a copy of the GNU General Public License along
+* with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #ifndef __WORLDSOCKET_H__
 #define __WORLDSOCKET_H__
 
 #include "Common.h"
-#include "AuthCrypt.h"
+#include "WorldPacketCrypt.h"
 #include "ServerPktHeader.h"
 #include "Socket.h"
 #include "Util.h"
@@ -37,6 +37,7 @@ namespace WorldPackets
 {
     class ServerPacket;
 }
+
 #pragma pack(push, 1)
 
 struct ClientPktHeader
@@ -54,6 +55,10 @@ struct AuthSession;
 
 class TC_GAME_API WorldSocket : public Socket<WorldSocket>
 {
+    static std::string const ServerConnectionInitialize;
+
+    static std::string const ClientConnectionInitialize;
+
     typedef Socket<WorldSocket> BaseSocket;
 
 public:
@@ -90,7 +95,7 @@ private:
     /// accessing WorldSession is not threadsafe, only do it when holding _worldSessionLock
     void LogOpcodeText(OpcodeClient opcode, std::unique_lock<std::mutex> const& guard) const;
     /// sends and logs network.opcode without accessing WorldSession
-    void SendPacketAndLogOpcode(WorldPacket const& packet);
+    void SendPacketAndLogOpcode(WorldPacket& packet);
     void HandleSendAuthSession();
     void HandleAuthSession(WorldPacket& recvPacket);
     void HandleAuthSessionCallback(std::shared_ptr<AuthSession> authSession, PreparedQueryResult result);
@@ -100,19 +105,20 @@ private:
     bool HandlePing(WorldPacket& recvPacket);
 
     uint32 _authSeed;
-    AuthCrypt _authCrypt;
+    WorldPacketCrypt _authCrypt;
 
     std::chrono::steady_clock::time_point _LastPingTime;
     uint32 _OverSpeedPings;
 
     std::mutex _worldSessionLock;
     WorldSession* _worldSession;
-    bool _authed;
 
     MessageBuffer _headerBuffer;
     MessageBuffer _packetBuffer;
     MPSCQueue<EncryptablePacket> _bufferQueue;
     std::size_t _sendBufferSize;
+
+    bool _initialized;
 
     QueryCallbackProcessor _queryProcessor;
     std::string _ipCountry;

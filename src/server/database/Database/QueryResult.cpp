@@ -64,11 +64,11 @@ static uint32 SizeForType(MYSQL_FIELD* field)
             return 64;
 
         case MYSQL_TYPE_GEOMETRY:
-            /*
-            Following types are not sent over the wire:
-            MYSQL_TYPE_ENUM:
-            MYSQL_TYPE_SET:
-            */
+        /*
+        Following types are not sent over the wire:
+        MYSQL_TYPE_ENUM:
+        MYSQL_TYPE_SET:
+        */
         default:
             TC_LOG_WARN("sql.sql", "SQL::SizeForType(): invalid field type %u", uint32(field->type));
             return 0;
@@ -126,7 +126,7 @@ _result(result),
 _fields(fields)
 {
     _currentRow = new Field[_fieldCount];
-#ifdef TRINITY_STRICT_DATABASE_TYPE_CHECKS
+#ifdef TRINITY_DEBUG
     for (uint32 i = 0; i < _fieldCount; i++)
         _currentRow[i].SetMetadata(&_fields[i], i);
 #endif
@@ -253,7 +253,7 @@ m_metadataResult(result)
                     *m_rBind[fIndex].length);
             }
 
-#ifdef TRINITY_STRICT_DATABASE_TYPE_CHECKS
+#ifdef TRINITY_DEBUG
             m_rows[uint32(m_rowPosition) * m_fieldCount + fIndex].SetMetadata(&field[fIndex], fIndex);
 #endif
         }
@@ -298,7 +298,7 @@ bool ResultSet::NextRow()
     }
 
     for (uint32 i = 0; i < _fieldCount; i++)
-        _currentRow[i].SetStructuredValue(row[i], MysqlTypeToFieldType(_fields[i].type), lengths[i]);
+        _currentRow[i].SetStructuredValue(row[i], MysqlTypeToFieldType( _fields[i].type), lengths[i]);
 
     return true;
 }
@@ -322,12 +322,6 @@ bool PreparedResultSet::_NextRow()
 
     int retval = mysql_stmt_fetch(m_stmt);
     return retval == 0 || retval == MYSQL_DATA_TRUNCATED;
-}
-
-char* ResultSet::GetFieldName(uint32 index) const
-{
-    ASSERT(index < _fieldCount);
-    return _fields[index].name;
 }
 
 void ResultSet::CleanUp()

@@ -17,9 +17,10 @@
 
 #include "ScriptMgr.h"
 #include "InstanceScript.h"
+#include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
-#include "SpellInfo.h"
 #include "sunwell_plateau.h"
+#include "SpellInfo.h"
 
 enum Quotes
 {
@@ -115,12 +116,12 @@ public:
         {
             Enraged = false;
 
-            if (Creature* temp = instance->GetCreature(DATA_ALYTHESS))
+            if (Creature* temp =  ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_ALYTHESS)))
             {
                 if (temp->isDead())
                     temp->Respawn();
                 else if (temp->GetVictim())
-                    AddThreat(temp->GetVictim(), 0.0f);
+                    me->getThreatManager().addThreat(temp->GetVictim(), 0.0f);
             }
 
             if (!me->IsInCombat())
@@ -135,7 +136,7 @@ public:
         {
             DoZoneInCombat();
 
-            Creature* temp = instance->GetCreature(DATA_ALYTHESS);
+            Creature* temp = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_ALYTHESS));
             if (temp && temp->IsAlive() && !temp->GetVictim())
                 temp->AI()->AttackStart(who);
 
@@ -208,7 +209,7 @@ public:
         {
             if (!SisterDeath)
             {
-                Unit* Temp = instance->GetCreature(DATA_ALYTHESS);
+                Unit* Temp = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_ALYTHESS));
                 if (Temp && Temp->isDead())
                 {
                     Talk(YELL_SISTER_ALYTHESS_DEAD);
@@ -275,7 +276,7 @@ public:
                     temp = DoSpawnCreature(NPC_SHADOW_IMAGE, 0, 0, 0, 0, TEMPSUMMON_CORPSE_DESPAWN, 10000);
                     if (temp && target)
                     {
-                        AddThreat(target, 1000000.0f, temp); //don't change target(healers)
+                        temp->AddThreat(target, 1000000); //don't change target(healers)
                         temp->AI()->AttackStart(target);
                     }
                 }
@@ -367,12 +368,12 @@ public:
         {
             Enraged = false;
 
-            if (Creature* temp = instance->GetCreature(DATA_SACROLASH))
+            if (Creature* temp = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_SACROLASH)))
             {
                 if (temp->isDead())
                     temp->Respawn();
                 else if (temp->GetVictim())
-                    AddThreat(temp->GetVictim(), 0.0f);
+                    me->getThreatManager().addThreat(temp->GetVictim(), 0.0f);
             }
 
             if (!me->IsInCombat())
@@ -387,7 +388,7 @@ public:
         {
             DoZoneInCombat();
 
-            Creature* temp = instance->GetCreature(DATA_SACROLASH);
+            Creature* temp = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_SACROLASH));
             if (temp && temp->IsAlive() && !temp->GetVictim())
                 temp->AI()->AttackStart(who);
 
@@ -487,7 +488,7 @@ public:
 
         uint32 IntroStep(uint32 step)
         {
-            Creature* Sacrolash = instance->GetCreature(DATA_SACROLASH);
+            Creature* Sacrolash = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_SACROLASH));
             switch (step)
             {
                 case 0:
@@ -536,7 +537,7 @@ public:
 
             if (!SisterDeath)
             {
-                Unit* Temp = instance->GetCreature(DATA_SACROLASH);
+                Unit* Temp = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_SACROLASH));
                 if (Temp && Temp->isDead())
                 {
                     Talk(YELL_SISTER_SACROLASH_DEAD);
@@ -547,10 +548,10 @@ public:
             }
             if (!me->GetVictim())
             {
-                Creature* sisiter = instance->GetCreature(DATA_SACROLASH);
+                Creature* sisiter = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_SACROLASH));
                 if (sisiter && !sisiter->isDead() && sisiter->GetVictim())
                 {
-                    AddThreat(sisiter->GetVictim(), 0.0f);
+                    me->AddThreat(sisiter->GetVictim(), 0.0f);
                     DoStartNoMovement(sisiter->GetVictim());
                     me->Attack(sisiter->GetVictim(), false);
                 }
@@ -645,7 +646,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetSunwellPlateauAI<npc_shadow_imageAI>(creature);
+        return new npc_shadow_imageAI(creature);
     };
 
     struct npc_shadow_imageAI : public ScriptedAI

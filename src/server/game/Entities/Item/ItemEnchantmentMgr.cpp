@@ -76,7 +76,7 @@ void LoadRandomEnchantmentsTable()
         TC_LOG_INFO("server.loading", ">> Loaded %u Item Enchantment definitions in %u ms", count, GetMSTimeDiffToNow(oldMSTime));
     }
     else
-        TC_LOG_INFO("server.loading", ">> Loaded 0 Item Enchantment definitions. DB table `item_enchantment_template` is empty.");
+        TC_LOG_ERROR("server.loading", ">> Loaded 0 Item Enchantment definitions. DB table `item_enchantment_template` is empty.");
 }
 
 uint32 GetItemEnchantMod(int32 entry)
@@ -123,7 +123,6 @@ uint32 GetItemEnchantMod(int32 entry)
 int32 GenerateItemRandomPropertyId(uint32 item_id)
 {
     ItemTemplate const* itemProto = sObjectMgr->GetItemTemplate(item_id);
-
     if (!itemProto)
         return 0;
 

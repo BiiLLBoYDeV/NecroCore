@@ -67,9 +67,9 @@ enum Adds
     N_CHAMPION_SPELLS = 6,
     N_GUARDIAN_SPELLS = 3
 };
-const uint32 SummonWarriorSpells[N_WARRIOR_SPELLS] = { 29247, 29248, 29249 };
-const uint32 SummonChampionSpells[N_CHAMPION_SPELLS] = { 29238, 29255, 29257, 29258, 29262, 29267 };
-const uint32 SummonGuardianSpells[N_GUARDIAN_SPELLS] = { 29239, 29256, 29268 };
+uint32 const SummonWarriorSpells[N_WARRIOR_SPELLS] = { 29247, 29248, 29249 };
+uint32 const SummonChampionSpells[N_CHAMPION_SPELLS] = { 29238, 29255, 29257, 29258, 29262, 29267 };
+uint32 const SummonGuardianSpells[N_GUARDIAN_SPELLS] = { 29239, 29256, 29268 };
 
 #define SPELL_BLINK                 RAND(29208, 29209, 29210, 29211)
 
@@ -105,8 +105,7 @@ public:
             {
                 DoCastAOE(SPELL_TELEPORT_BACK);
                 me->SetReactState(REACT_AGGRESSIVE);
-                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                me->SetImmuneToPC(false);
+                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
             }
 
             balconyCount = 0;
@@ -129,7 +128,7 @@ public:
 
             DoZoneInCombat();
 
-            if (!me->IsThreatened())
+            if (me->getThreatManager().isThreatListEmpty())
                 Reset();
             else
             {
@@ -166,7 +165,7 @@ public:
             summons.Summon(summon);
             summon->setActive(true);
             summon->SetFarVisible(true);
-            summon->AI()->DoZoneInCombat();
+            summon->AI()->DoZoneInCombat(nullptr, 250.0f); // specify range to cover entire room - default 50yd is not enough
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -237,7 +236,7 @@ public:
                     case EVENT_BLINK:
                         DoCastAOE(SPELL_CRIPPLE, true);
                         DoCastAOE(SPELL_BLINK);
-                        ResetThreatList();
+                        DoResetThreat();
                         justBlinked = true;
 
                         events.Repeat(Seconds(40));
@@ -245,8 +244,7 @@ public:
                     case EVENT_BALCONY:
                         events.SetPhase(PHASE_BALCONY);
                         me->SetReactState(REACT_PASSIVE);
-                        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                        me->SetImmuneToPC(true);
+                        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
                         me->AttackStop();
                         me->StopMoving();
                         me->RemoveAllAuras();
@@ -302,8 +300,7 @@ public:
                         EnterPhaseGround();
                         break;
                     case EVENT_GROUND_ATTACKABLE:
-                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                        me->SetImmuneToPC(false);
+                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
                         me->SetReactState(REACT_AGGRESSIVE);
                         break;
                 }

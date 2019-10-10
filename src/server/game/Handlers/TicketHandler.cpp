@@ -19,7 +19,6 @@
 #include "WorldSession.h"
 #include "Common.h"
 #include "DatabaseEnv.h"
-#include "GameTime.h"
 #include "Language.h"
 #include "Log.h"
 #include "ObjectMgr.h"
@@ -67,9 +66,6 @@ void WorldSession::HandleGMTicketCreateOpcode(WorldPacket& recvData)
         recvData >> x >> y >> z;
         recvData >> message;
 
-        if (!ValidateHyperlinksAndMaybeKick(message))
-            return;
-
         recvData >> needResponse;
         recvData >> needMoreHelp;
 
@@ -105,13 +101,11 @@ void WorldSession::HandleGMTicketCreateOpcode(WorldPacket& recvData)
             recvData.rfinish(); // Will still have compressed data in buffer.
         }
 
-        if (!chatLog.empty() && !ValidateHyperlinksAndMaybeKick(chatLog))
-            return;
-
         ticket = new GmTicket(GetPlayer());
         ticket->SetPosition(mapId, x, y, z);
         ticket->SetMessage(message);
         ticket->SetGmAction(needResponse, needMoreHelp);
+
         if (!chatLog.empty())
             ticket->SetChatLog(times, chatLog);
 
@@ -132,9 +126,6 @@ void WorldSession::HandleGMTicketUpdateOpcode(WorldPacket& recvData)
 {
     std::string message;
     recvData >> message;
-
-    if (!ValidateHyperlinksAndMaybeKick(message))
-        return;
 
     GMTicketResponse response = GMTICKET_RESPONSE_UPDATE_ERROR;
     if (GmTicket* ticket = sTicketMgr->GetTicketByPlayer(GetPlayer()->GetGUID()))
@@ -202,7 +193,7 @@ void WorldSession::HandleGMSurveySubmit(WorldPacket& recvData)
     std::unordered_set<uint32> surveyIds;
     SQLTransaction trans = CharacterDatabase.BeginTransaction();
     // sub_survey1, r1, comment1, sub_survey2, r2, comment2, sub_survey3, r3, comment3, sub_survey4, r4, comment4, sub_survey5, r5, comment5, sub_survey6, r6, comment6, sub_survey7, r7, comment7, sub_survey8, r8, comment8, sub_survey9, r9, comment9, sub_survey10, r10, comment10,
-    for (uint8 i = 0; i < 10; i++)
+    for (uint8 i = 0; i < 15; i++)
     {
         uint32 subSurveyId; // ref to i'th GMSurveySurveys.dbc field (all fields in that dbc point to fields in GMSurveyQuestions.dbc)
         recvData >> subSurveyId;
@@ -218,9 +209,6 @@ void WorldSession::HandleGMSurveySubmit(WorldPacket& recvData)
         if (!surveyIds.insert(subSurveyId).second)
             continue;
 
-        if (!ValidateHyperlinksAndMaybeKick(comment))
-            return;
-
         PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GM_SUBSURVEY);
         stmt->setUInt32(0, nextSurveyID);
         stmt->setUInt32(1, subSurveyId);
@@ -231,9 +219,6 @@ void WorldSession::HandleGMSurveySubmit(WorldPacket& recvData)
 
     std::string comment; // just a guess
     recvData >> comment;
-
-    if (!ValidateHyperlinksAndMaybeKick(comment))
-        return;
 
     PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GM_SURVEY);
     stmt->setUInt32(0, GetPlayer()->GetGUID().GetCounter());
@@ -266,7 +251,7 @@ void WorldSession::HandleReportLag(WorldPacket& recvData)
     stmt->setFloat (4, y);
     stmt->setFloat (5, z);
     stmt->setUInt32(6, GetLatency());
-    stmt->setUInt32(7, GameTime::GetGameTime());
+    stmt->setUInt32(7, time(nullptr));
     CharacterDatabase.Execute(stmt);
 }
 
@@ -276,7 +261,7 @@ void WorldSession::HandleGMResponseResolve(WorldPacket& /*recvPacket*/)
     if (GmTicket* ticket = sTicketMgr->GetTicketByPlayer(GetPlayer()->GetGUID()))
     {
         uint8 getSurvey = 0;
-        if (roll_chance_f(sWorld->getFloatConfig(CONFIG_CHANCE_OF_GM_SURVEY)))
+        if (float(rand_chance()) < sWorld->getFloatConfig(CONFIG_CHANCE_OF_GM_SURVEY))
             getSurvey = 1;
 
         WorldPacket data(SMSG_GMRESPONSE_STATUS_UPDATE, 4);

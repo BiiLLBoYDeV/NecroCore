@@ -29,9 +29,8 @@ EndScriptData */
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
-#include "Random.h"
 
-Position const LorgusPosition[4] =
+const Position LorgusPosition[4] =
 {
     { -458.500610f, -38.343079f, -33.474445f, 0.0f },
     { -469.423615f, -88.400513f, -39.265102f, 0.0f },
@@ -39,7 +38,7 @@ Position const LorgusPosition[4] =
     { -759.640564f,  16.658913f, -29.159529f, 0.0f }
 };
 
-Position const SpawnsLocation[] =
+const Position SpawnsLocation[] =
 {
     {-775.431f, -153.853f, -25.871f, 3.207f},
     {-775.404f, -174.132f, -25.871f, 3.185f},
@@ -53,14 +52,9 @@ class instance_blackfathom_deeps : public InstanceMapScript
 public:
     instance_blackfathom_deeps() : InstanceMapScript(BFDScriptName, 48) { }
 
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_blackfathom_deeps_InstanceMapScript(map);
-    }
-
     struct instance_blackfathom_deeps_InstanceMapScript : public InstanceScript
     {
-        instance_blackfathom_deeps_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_blackfathom_deeps_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             SetBossNumber(EncounterCount);
@@ -242,6 +236,11 @@ public:
         uint8 countFires;
         uint8 deathTimes;
     };
+
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_blackfathom_deeps_InstanceMapScript(map);
+    }
 };
 
 void AddSC_instance_blackfathom_deeps()

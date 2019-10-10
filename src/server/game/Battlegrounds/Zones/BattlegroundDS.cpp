@@ -22,7 +22,6 @@
 #include "Player.h"
 #include "Random.h"
 #include "WorldPacket.h"
-#include "WorldStatePackets.h"
 
 BattlegroundDS::BattlegroundDS()
 {
@@ -147,11 +146,10 @@ void BattlegroundDS::HandleAreaTrigger(Player* player, uint32 trigger)
     }
 }
 
-void BattlegroundDS::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
+void BattlegroundDS::FillInitialWorldStates(WorldPacket& data)
 {
-    packet.Worldstates.emplace_back(3610, 1); // ARENA_WORLD_STATE_ALIVE_PLAYERS_SHOW
-
-    Arena::FillInitialWorldStates(packet);
+    data << uint32(3610) << uint32(1);      // 9 show
+    Arena::FillInitialWorldStates(data);
 }
 
 bool BattlegroundDS::SetupBattleground()

@@ -24,7 +24,10 @@
 #include "Language.h"
 #include "LFG.h"
 #include "Map.h"
+#include "MotionMaster.h"
 #include "ObjectAccessor.h"
+#include "ObjectMgr.h"
+#include "PhasingHandler.h"
 #include "Player.h"
 #include "RBAC.h"
 #include "WorldSession.h"
@@ -141,13 +144,17 @@ public:
 
             // stop flight if need
             if (player->IsInFlight())
-                player->FinishTaxiFlight();
+            {
+                player->GetMotionMaster()->MovementExpired();
+                player->CleanupAfterTaxiFlight();
+            }
+            // save only in non-flight case
             else
-                player->SaveRecallPosition(); // save only in non-flight case
+                player->SaveRecallPosition();
 
             // before GM
             float x, y, z;
-            gmPlayer->GetClosePoint(x, y, z, player->GetCombatReach());
+            gmPlayer->GetClosePoint(x, y, z, player->GetObjectSize());
             player->TeleportTo(gmPlayer->GetMapId(), x, y, z, player->GetOrientation());
         }
 
@@ -332,7 +339,6 @@ public:
     {
         // Get ALL the variables!
         Player* playerTarget;
-        uint32 phase = 0;
         ObjectGuid guidTarget;
         std::string nameTarget;
         std::string zoneName;
@@ -413,19 +419,20 @@ public:
 
             // Check if iterator is online. If is...
             Player* p = ObjectAccessor::FindPlayer((*itr).guid);
+            std::string phases;
             if (p)
             {
                 // ... than, it prints information like "is online", where he is, etc...
                 onlineState = "online";
-                phase = (!p->IsGameMaster() ? p->GetPhaseMask() : -1);
-                uint32 locale = handler->GetSessionDbcLocale();
+                phases = PhasingHandler::FormatPhases(p->GetPhaseShift());
+                LocaleConstant localeConstant = handler->GetSessionDbcLocale();
 
                 AreaTableEntry const* area = sAreaTableStore.LookupEntry(p->GetAreaId());
                 if (area)
                 {
                     AreaTableEntry const* zone = sAreaTableStore.LookupEntry(area->zone);
                     if (zone)
-                        zoneName = zone->area_name[locale];
+                        zoneName = zone->area_name[localeConstant];
                 }
             }
             else
@@ -433,12 +440,11 @@ public:
                 // ... else, everything is set to offline or neutral values.
                 zoneName    = "<ERROR>";
                 onlineState = "Offline";
-                phase       = 0;
             }
 
             // Now we can print those informations for every single member of each group!
             handler->PSendSysMessage(LANG_GROUP_PLAYER_NAME_GUID, slot.name.c_str(), onlineState,
-                zoneName.c_str(), phase, slot.guid.GetCounter(), flags.c_str(),
+                zoneName.c_str(), phases.c_str(), slot.guid.GetCounter(), flags.c_str(),
                 lfg::GetRolesString(slot.roles).c_str());
         }
 

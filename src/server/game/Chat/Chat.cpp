@@ -20,6 +20,7 @@
 #include "AccountMgr.h"
 #include "CellImpl.h"
 #include "CharacterCache.h"
+#include "ChatLink.h"
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
 #include "GridNotifiersImpl.h"
@@ -31,9 +32,6 @@
 #include "Player.h"
 #include "Realm.h"
 #include "ScriptMgr.h"
-#ifdef ELUNA
-#include "LuaEngine.h"
-#endif
 #include "World.h"
 #include <boost/algorithm/string/replace.hpp>
 
@@ -101,7 +99,7 @@ bool ChatHandler::HasLowerSecurity(Player* target, ObjectGuid guid, bool strong)
 
     if (target)
         target_session = target->GetSession();
-    else if (guid)
+    else if (!guid.IsEmpty())
         target_account = sCharacterCache->GetCharacterAccountIdByGuid(guid);
 
     if (!target_session && !target_account)
@@ -259,10 +257,6 @@ bool ChatHandler::ExecuteCommandInTable(std::vector<ChatCommand> const& table, c
         {
             if (!ExecuteCommandInTable(table[i].ChildCommands, text, fullcmd))
             {
-#ifdef ELUNA
-                if (!sEluna->OnCommand(GetSession() ? GetSession()->GetPlayer() : NULL, oldtext))
-                    return true;
-#endif
                 if (m_session && !m_session->HasPermission(rbac::RBAC_PERM_COMMANDS_NOTIFY_COMMAND_NOT_FOUND_ERROR))
                     return false;
 
@@ -297,10 +291,9 @@ bool ChatHandler::ExecuteCommandInTable(std::vector<ChatCommand> const& table, c
                 std::string zoneName = "Unknown";
                 if (AreaTableEntry const* area = sAreaTableStore.LookupEntry(areaId))
                 {
-                    int locale = GetSessionDbcLocale();
-                    areaName = area->area_name[locale];
+                    areaName = area->area_name;
                     if (AreaTableEntry const* zone = sAreaTableStore.LookupEntry(area->zone))
-                        zoneName = zone->area_name[locale];
+                        zoneName = zone->area_name;
                 }
 
                 sLog->outCommand(m_session->GetAccountId(), "Command: %s [Player: %s (%s) (Account: %u) X: %f Y: %f Z: %f Map: %u (%s) Area: %u (%s) Zone: %s Selected: %s (%s)]",
@@ -389,11 +382,6 @@ bool ChatHandler::_ParseCommands(char const* text)
     if (ExecuteCommandInTable(getCommandTable(), text, text))
         return true;
 
-#ifdef ELUNA
-    if (!sEluna->OnCommand(GetSession() ? GetSession()->GetPlayer() : NULL, text))
-        return true;
-#endif
-
     // Pretend commands don't exist for regular players
     if (m_session && !m_session->HasPermission(rbac::RBAC_PERM_COMMANDS_NOTIFY_COMMAND_NOT_FOUND_ERROR))
         return false;
@@ -420,8 +408,67 @@ bool ChatHandler::ParseCommands(char const* text)
     /// ignore messages staring from many dots.
     if (text[1] == '!' || text[1] == '.')
         return false;
-
     return _ParseCommands(text+1);
+}
+
+bool ChatHandler::isValidChatMessage(char const* message)
+{
+/*
+Valid examples:
+|cffa335ee|Hitem:812:0:0:0:0:0:0:0:70|h[Glowing Brightwood Staff]|h|r
+|cff808080|Hquest:2278:47|h[The Platinum Discs]|h|r
+|cffffd000|Htrade:4037:1:150:1:6AAAAAAAAAAAAAAAAAAAAAAOAADAAAAAAAAAAAAAAAAIAAAAAAAAA|h[Engineering]|h|r
+|cff4e96f7|Htalent:2232:-1|h[Taste for Blood]|h|r
+|cff71d5ff|Hspell:21563|h[Command]|h|r
+|cffffd000|Henchant:3919|h[Engineering: Rough Dynamite]|h|r
+|cffffff00|Hachievement:546:0000000000000001:0:0:0:-1:0:0:0:0|h[Safe Deposit]|h|r
+|cff66bbff|Hglyph:21:762|h[Glyph of Bladestorm]|h|r
+
+| will be escaped to ||
+*/
+
+    if (strlen(message) > 255)
+        return false;
+
+    // more simple checks
+    if (sWorld->getIntConfig(CONFIG_CHAT_STRICT_LINK_CHECKING_SEVERITY) < 3)
+    {
+        const char validSequence[6] = "cHhhr";
+        char const* validSequenceIterator = validSequence;
+        const std::string validCommands = "cHhr|";
+
+        while (*message)
+        {
+            // find next pipe command
+            message = strchr(message, '|');
+
+            if (!message)
+                return true;
+
+            ++message;
+            char commandChar = *message;
+            if (validCommands.find(commandChar) == std::string::npos)
+                return false;
+
+            ++message;
+            // validate sequence
+            if (sWorld->getIntConfig(CONFIG_CHAT_STRICT_LINK_CHECKING_SEVERITY) == 2)
+            {
+                if (commandChar == *validSequenceIterator)
+                {
+                    if (validSequenceIterator == validSequence + 4)
+                        validSequenceIterator = validSequence;
+                    else
+                        ++validSequenceIterator;
+                }
+                else
+                    return false;
+            }
+        }
+        return true;
+    }
+
+    return LinkExtractor(message).IsValidMessage();
 }
 
 bool ChatHandler::ShowHelpForSubCommands(std::vector<ChatCommand> const& table, char const* cmd, char const* subcmd)
@@ -521,7 +568,8 @@ bool ChatHandler::ShowHelpForCommand(std::vector<ChatCommand> const& table, char
 
 size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Language language, ObjectGuid senderGUID, ObjectGuid receiverGUID, std::string const& message, uint8 chatTag,
                                   std::string const& senderName /*= ""*/, std::string const& receiverName /*= ""*/,
-                                  uint32 achievementId /*= 0*/, bool gmMessage /*= false*/, std::string const& channelName /*= ""*/)
+                                  uint32 achievementId /*= 0*/, bool gmMessage /*= false*/, std::string const& channelName /*= ""*/,
+                                  std::string const& addonPrefix /*= ""*/)
 {
     size_t receiverGUIDPos = 0;
     data.Initialize(!gmMessage ? SMSG_MESSAGECHAT : SMSG_GM_MESSAGECHAT);
@@ -548,12 +596,17 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
                 data << uint32(receiverName.length() + 1);
                 data << receiverName;
             }
+
+            if (language == LANG_ADDON)
+                data << addonPrefix;
             break;
         case CHAT_MSG_WHISPER_FOREIGN:
             data << uint32(senderName.length() + 1);
             data << senderName;
             receiverGUIDPos = data.wpos();
             data << uint64(receiverGUID);
+            if (language == LANG_ADDON)
+                data << addonPrefix;
             break;
         case CHAT_MSG_BG_SYSTEM_NEUTRAL:
         case CHAT_MSG_BG_SYSTEM_ALLIANCE:
@@ -565,11 +618,16 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
                 data << uint32(receiverName.length() + 1);
                 data << receiverName;
             }
+
+            if (language == LANG_ADDON)
+                data << addonPrefix;
             break;
         case CHAT_MSG_ACHIEVEMENT:
         case CHAT_MSG_GUILD_ACHIEVEMENT:
             receiverGUIDPos = data.wpos();
             data << uint64(receiverGUID);
+            if (language == LANG_ADDON)
+                data << addonPrefix;
             break;
         default:
             if (gmMessage)
@@ -586,6 +644,9 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
 
             receiverGUIDPos = data.wpos();
             data << uint64(receiverGUID);
+
+            if (language == LANG_ADDON)
+                data << addonPrefix;
             break;
     }
 
@@ -595,12 +656,17 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
 
     if (chatType == CHAT_MSG_ACHIEVEMENT || chatType == CHAT_MSG_GUILD_ACHIEVEMENT)
         data << uint32(achievementId);
+    else if (chatType == CHAT_MSG_RAID_BOSS_WHISPER || chatType == CHAT_MSG_RAID_BOSS_EMOTE)
+    {
+        data << float(0.0f);                        // Display time in middle of the screen (in seconds), defaults to 10 if not set (cannot be below 1)
+        data << uint8(0);                           // Hide in chat frame (only shows in middle of the screen)
+    }
 
     return receiverGUIDPos;
 }
 
 size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Language language, WorldObject const* sender, WorldObject const* receiver, std::string const& message,
-                                  uint32 achievementId /*= 0*/, std::string const& channelName /*= ""*/, LocaleConstant locale /*= DEFAULT_LOCALE*/)
+                                  uint32 achievementId /*= 0*/, std::string const& channelName /*= ""*/, LocaleConstant locale /*= DEFAULT_LOCALE*/, std::string const& addonPrefix /*= ""*/)
 {
     ObjectGuid senderGUID;
     std::string senderName = "";
@@ -625,7 +691,7 @@ size_t ChatHandler::BuildChatPacket(WorldPacket& data, ChatMsg chatType, Languag
         receiverName = receiver->GetNameForLocaleIdx(locale);
     }
 
-    return BuildChatPacket(data, chatType, language, senderGUID, receiverGUID, message, chatTag, senderName, receiverName, achievementId, gmMessage, channelName);
+    return BuildChatPacket(data, chatType, language, senderGUID, receiverGUID, message, chatTag, senderName, receiverName, achievementId, gmMessage, channelName, addonPrefix);
 }
 
 Player* ChatHandler::getSelectedPlayer()
@@ -838,6 +904,7 @@ Creature* ChatHandler::GetCreatureFromPlayerMapByDbGuid(ObjectGuid::LowType lowg
         if (it->second->IsAlive())
             break;
     }
+
     return creature;
 }
 
@@ -1122,7 +1189,7 @@ LocaleConstant ChatHandler::GetSessionDbcLocale() const
     return m_session->GetSessionDbcLocale();
 }
 
-int ChatHandler::GetSessionDbLocaleIndex() const
+LocaleConstant ChatHandler::GetSessionDbLocaleIndex() const
 {
     return m_session->GetSessionDbLocaleIndex();
 }
@@ -1218,7 +1285,7 @@ LocaleConstant CliHandler::GetSessionDbcLocale() const
     return sWorld->GetDefaultDbcLocale();
 }
 
-int CliHandler::GetSessionDbLocaleIndex() const
+LocaleConstant CliHandler::GetSessionDbLocaleIndex() const
 {
     return sObjectMgr->GetDBCLocaleIndex();
 }

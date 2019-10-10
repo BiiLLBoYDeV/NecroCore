@@ -48,3 +48,13 @@ boost::asio::ip::tcp_endpoint Realm::GetAddressForClient(boost::asio::ip::addres
     // Return external IP
     return boost::asio::ip::tcp_endpoint(realmIp, Port);
 }
+
+uint32 Realm::GetConfigId() const
+{
+    return ConfigIdByType[Type];
+}
+
+uint32 const Realm::ConfigIdByType[MAX_CLIENT_REALM_TYPE] =
+{
+    1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14
+};

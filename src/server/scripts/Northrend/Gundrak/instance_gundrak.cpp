@@ -15,15 +15,14 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "InstanceScript.h"
+#include "ScriptMgr.h"
 #include "Creature.h"
 #include "EventMap.h"
 #include "GameObject.h"
 #include "GameObjectAI.h"
 #include "gundrak.h"
+#include "InstanceScript.h"
 #include "Map.h"
-#include "Player.h"
-#include "ScriptMgr.h"
 
 DoorData const doorData[] =
 {
@@ -64,7 +63,7 @@ class instance_gundrak : public InstanceMapScript
 
         struct instance_gundrak_InstanceMapScript : public InstanceScript
         {
-            instance_gundrak_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_gundrak_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -356,23 +355,26 @@ class go_gundrak_altar : public GameObjectScript
 
         struct go_gundrak_altarAI : public GameObjectAI
         {
-            go_gundrak_altarAI(GameObject* go) : GameObjectAI(go), instance(go->GetInstanceScript()) { }
-
-            InstanceScript* instance;
+            go_gundrak_altarAI(GameObject* go) : GameObjectAI(go) { }
 
             bool GossipHello(Player* /*player*/) override
             {
                 me->SetFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
                 me->SetGoState(GO_STATE_ACTIVE);
 
-                instance->SetData(DATA_STATUE_ACTIVATE, me->GetEntry());
-                return true;
+                if (InstanceScript* instance = me->GetInstanceScript())
+                {
+                    instance->SetData(DATA_STATUE_ACTIVATE, me->GetEntry());
+                    return true;
+                }
+
+                return false;
             }
         };
 
         GameObjectAI* GetAI(GameObject* go) const override
         {
-            return GetGundrakAI<go_gundrak_altarAI>(go);
+            return new go_gundrak_altarAI(go);
         }
 };
 

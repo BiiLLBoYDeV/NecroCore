@@ -26,6 +26,7 @@ EndScriptData */
 #include "Chat.h"
 #include "DBCStores.h"
 #include "Language.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "RBAC.h"
 
@@ -94,8 +95,7 @@ public:
         target->SetTitle(titleInfo);                            // to be sure that title now known
         target->SetUInt32Value(PLAYER_CHOSEN_TITLE, titleInfo->bit_index);
 
-        handler->PSendSysMessage(LANG_TITLE_CURRENT_RES, id, target->GetNativeGender() == GENDER_MALE ? titleInfo->nameMale[handler->GetSessionDbcLocale()] : titleInfo->nameFemale[handler->GetSessionDbcLocale()], tNameLink.c_str());
-
+        handler->PSendSysMessage(LANG_TITLE_CURRENT_RES, id, target->GetNativeGender() == GENDER_MALE ? titleInfo->nameMale : titleInfo->nameFemale, tNameLink.c_str());
         return true;
     }
 
@@ -135,12 +135,10 @@ public:
         }
 
         std::string tNameLink = handler->GetNameLink(target);
-
-        char titleNameStr[80];
-        snprintf(titleNameStr, 80, target->GetNativeGender() == GENDER_MALE ? titleInfo->nameMale[handler->GetSessionDbcLocale()] : titleInfo->nameFemale[handler->GetSessionDbcLocale()], target->GetName().c_str());
+        std::string titleNameStr = Trinity::StringFormat(target->GetNativeGender() == GENDER_MALE ? titleInfo->nameMale : titleInfo->nameFemale, target->GetName().c_str());
 
         target->SetTitle(titleInfo);
-        handler->PSendSysMessage(LANG_TITLE_ADD_RES, id, titleNameStr, tNameLink.c_str());
+        handler->PSendSysMessage(LANG_TITLE_ADD_RES, id, titleNameStr.c_str(), tNameLink.c_str());
 
         return true;
     }
@@ -185,7 +183,7 @@ public:
         std::string tNameLink = handler->GetNameLink(target);
 
         char titleNameStr[80];
-        snprintf(titleNameStr, 80, target->GetNativeGender() == GENDER_MALE ? titleInfo->nameMale[handler->GetSessionDbcLocale()] : titleInfo->nameFemale[handler->GetSessionDbcLocale()], target->GetName().c_str());
+        snprintf(titleNameStr, 80, target->GetNativeGender() == GENDER_MALE ? titleInfo->nameMale : titleInfo->nameFemale, target->GetName().c_str());
 
         handler->PSendSysMessage(LANG_TITLE_REMOVE_RES, id, titleNameStr, tNameLink.c_str());
 
@@ -204,9 +202,7 @@ public:
         if (!*args)
             return false;
 
-        uint64 titles = 0;
-
-        sscanf((char*)args, UI64FMTD, &titles);
+        uint64 titles = atoull(args);
 
         Player* target = handler->getSelectedPlayer();
         if (!target)
@@ -220,13 +216,11 @@ public:
         if (handler->HasLowerSecurity(target, ObjectGuid::Empty))
             return false;
 
-        uint64 titles2 = titles;
+        uint64 allValidTitleMask = 0;
+        for (CharTitlesEntry const* tEntry : sCharTitlesStore)
+            allValidTitleMask |= (uint64(1) << tEntry->bit_index);
 
-        for (uint32 i = 1; i < sCharTitlesStore.GetNumRows(); ++i)
-            if (CharTitlesEntry const* tEntry = sCharTitlesStore.LookupEntry(i))
-                titles2 &= ~(uint64(1) << tEntry->bit_index);
-
-        titles &= ~titles2;                                     // remove non-existing titles
+        titles &= allValidTitleMask;                // remove non-existing titles
 
         target->SetUInt64Value(PLAYER__FIELD_KNOWN_TITLES, titles);
         handler->SendSysMessage(LANG_DONE);

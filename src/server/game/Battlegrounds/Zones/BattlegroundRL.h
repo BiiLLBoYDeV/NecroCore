@@ -19,7 +19,6 @@
 #define __BATTLEGROUNDRL_H
 
 #include "Arena.h"
-#include "EventMap.h"
 
 enum BattlegroundRLObjectTypes
 {
@@ -38,32 +37,17 @@ enum BattlegroundRLGameObjects
     BG_RL_OBJECT_TYPE_BUFF_2    = 184664
 };
 
-enum BattlegroundRLData
-{
-    BG_RL_REMOVE_DOORS_TIMER    = 5000
-};
-
-enum BattlegroundRLEvents
-{
-    BG_RL_EVENT_REMOVE_DOORS    = 1
-};
-
 class BattlegroundRL : public Arena
 {
     public:
         BattlegroundRL();
 
         /* inherited from BattlegroundClass */
-        void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override;
+        void FillInitialWorldStates(WorldPacket &d) override;
         void StartingEventCloseDoors() override;
         void StartingEventOpenDoors() override;
 
         void HandleAreaTrigger(Player* Source, uint32 Trigger) override;
         bool SetupBattleground() override;
-
-    private:
-        void PostUpdateImpl(uint32 diff) override;
-
-        EventMap _events;
 };
 #endif

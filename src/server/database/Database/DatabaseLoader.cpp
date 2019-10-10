@@ -20,7 +20,6 @@
 #include "DatabaseEnv.h"
 #include "DBUpdater.h"
 #include "Log.h"
-
 #include <mysqld_error.h>
 
 DatabaseLoader::DatabaseLoader(std::string const& logger, uint32 const defaultUpdateMask)

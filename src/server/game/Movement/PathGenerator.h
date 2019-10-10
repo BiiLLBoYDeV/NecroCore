@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -27,7 +27,7 @@
 
 class Unit;
 
-// 74*4.0f=296y number_of_points*interval = max_path_len
+// 74*4.0f=296y  number_of_points*interval = max_path_len
 // this is way more than actual evade range
 // I think we can safely cut those down even more
 #define MAX_PATH_LENGTH         74
@@ -74,8 +74,7 @@ class TC_GAME_API PathGenerator
 
         PathType GetPathType() const { return _type; }
 
-        // shortens the path until the destination is the specified distance from the target point
-        void ShortenPathUntilDist(G3D::Vector3 const& point, float dist);
+        void ReducePathLenghtByDist(float dist); // path must be already built
 
     private:
 
@@ -123,7 +122,7 @@ class TC_GAME_API PathGenerator
         void BuildPointPath(float const* startPoint, float const* endPoint);
         void BuildShortcut();
 
-        NavTerrainFlag GetNavTerrain(float x, float y, float z);
+        NavTerrain GetNavTerrain(float x, float y, float z);
         void CreateFilter();
         void UpdateFilter();
 

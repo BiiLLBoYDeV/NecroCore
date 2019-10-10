@@ -107,7 +107,7 @@ class boss_zuramat : public CreatureScript
             void JustDied(Unit* /*killer*/) override
             {
                 Talk(SAY_DEATH);
-                _JustDied();
+                    _JustDied();
             }
 
             void KilledUnit(Unit* victim) override
@@ -169,7 +169,7 @@ class npc_void_sentry : public CreatureScript
                 me->SetReactState(REACT_PASSIVE);
             }
 
-            void IsSummonedBy(WorldObject* /*summoner*/) override
+            void IsSummonedBy(Unit* /*summoner*/) override
             {
                 me->CastSpell(me, SPELL_SUMMON_VOID_SENTRY_BALL, true);
             }

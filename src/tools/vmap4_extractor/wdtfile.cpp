@@ -20,38 +20,44 @@
 #include "wdtfile.h"
 #include "adtfile.h"
 
-#include "StringFormat.h"
 #include <cstdio>
 
 char * wdtGetPlainName(char * FileName)
 {
     char * szTemp;
 
-    if((szTemp = strrchr(FileName, '\\')) != nullptr)
+    if ((szTemp = strrchr(FileName, '\\')) != nullptr)
         FileName = szTemp + 1;
     return FileName;
 }
 
-WDTFile::WDTFile(char* file_name, char* file_name1) : _file(file_name)
+extern HANDLE WorldMpq;
+
+WDTFile::WDTFile(char const* filePath, std::string mapName, bool cache)
+    : _file(WorldMpq, filePath), _mapName(std::move(mapName))
 {
-    filename.append(file_name1,strlen(file_name1));
+    if (cache)
+    {
+        _adtCache = std::make_unique<ADTCache>();
+        memset(_adtCache->file, 0, sizeof(_adtCache->file));
+    }
+    else
+        _adtCache = nullptr;
 }
+
+WDTFile::~WDTFile() = default;
 
 bool WDTFile::init(uint32 mapId)
 {
     if (_file.isEof())
-    {
-        //printf("Can't find WDT file.\n");
         return false;
-    }
 
     char fourcc[5];
     uint32 size;
 
     std::string dirname = std::string(szWorkDirWmo) + "/dir_bin";
-    FILE *dirfile;
-    dirfile = fopen(dirname.c_str(), "ab");
-    if(!dirfile)
+    FILE* dirfile = fopen(dirname.c_str(), "ab");
+    if (!dirfile)
     {
         printf("Can't open dirfile!'%s'\n", dirname.c_str());
         return false;
@@ -59,7 +65,7 @@ bool WDTFile::init(uint32 mapId)
 
     while (!_file.isEof())
     {
-        _file.read(fourcc,4);
+        _file.read(fourcc, 4);
         _file.read(&size, 4);
 
         flipcc(fourcc);
@@ -67,10 +73,10 @@ bool WDTFile::init(uint32 mapId)
 
         size_t nextpos = _file.getPos() + size;
 
-        if (!strcmp(fourcc,"MAIN"))
+        if (!strcmp(fourcc, "MAIN"))
         {
         }
-        if (!strcmp(fourcc,"MWMO"))
+        if (!strcmp(fourcc, "MWMO"))
         {
             // global map objects
             if (size)
@@ -83,8 +89,8 @@ bool WDTFile::init(uint32 mapId)
                     std::string path(p);
 
                     char* s = wdtGetPlainName(p);
-                    fixnamen(s, strlen(s));
-                    fixname2(s, strlen(s));
+                    FixNameCase(s, strlen(s));
+                    FixNameSpaces(s, strlen(s));
                     p = p + strlen(p) + 1;
                     _wmoNames.push_back(s);
 
@@ -98,13 +104,13 @@ bool WDTFile::init(uint32 mapId)
             // global wmo instance data
             if (size)
             {
-                uint32 mapObjectCount = size / sizeof(ADT::MODF);
-                for (uint32 i = 0; i < mapObjectCount; ++i)
+                int32 gnWMO = (int)size / 64;
+
+                for (int i = 0; i < gnWMO; ++i)
                 {
-                    ADT::MODF mapObjDef;
-                    _file.read(&mapObjDef, sizeof(ADT::MODF));
-                    MapObject::Extract(mapObjDef, _wmoNames[mapObjDef.Id].c_str(), mapId, 65, 65, dirfile);
-                    Doodad::ExtractSet(WmoDoodads[_wmoNames[mapObjDef.Id]], mapObjDef, mapId, 65, 65, dirfile);
+                    int id;
+                    _file.read(&id, 4);
+                    WMOInstance inst(_file, _wmoNames[id].c_str(), mapId, 65, 65, mapId, dirfile, nullptr);
                 }
             }
         }
@@ -116,18 +122,27 @@ bool WDTFile::init(uint32 mapId)
     return true;
 }
 
-WDTFile::~WDTFile(void)
+ADTFile* WDTFile::GetMap(int32 x, int32 y)
 {
-    _file.close();
-}
-
-ADTFile* WDTFile::GetMap(int x, int z)
-{
-    if(!(x>=0 && z >= 0 && x<64 && z<64))
+    if (!(x >= 0 && y >= 0 && x < 64 && y < 64))
         return nullptr;
+
+    if (_adtCache && _adtCache->file[x][y])
+        return _adtCache->file[x][y].get();
 
     char name[512];
 
-    sprintf(name,"World\\Maps\\%s\\%s_%d_%d.adt", filename.c_str(), filename.c_str(), x, z);
-    return new ADTFile(name);
+    sprintf(name, "World\\Maps\\%s\\%s_%d_%d_obj0.adt", _mapName.c_str(), _mapName.c_str(), x, y);
+    ADTFile* adt = new ADTFile(name, _adtCache != nullptr);
+    if (_adtCache)
+        _adtCache->file[x][y].reset(adt);
+    return adt;
+}
+
+void WDTFile::FreeADT(ADTFile* adt)
+{
+    if (_adtCache)
+        return;
+
+    delete adt;
 }

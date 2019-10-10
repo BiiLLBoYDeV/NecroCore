@@ -52,8 +52,8 @@ public:
     Item*  GetSpellCastItem() const;
     bool HasSpellCastItem() const { return !_spellCastItem.IsEmpty(); }
 
-    uint32 GetMoney() const { return _money; }
-    void SetMoney(uint32 money);
+    uint64 GetMoney() const { return _money; }
+    void SetMoney(uint64 money);
 
     bool IsAccepted() const { return _accepted; }
     void SetAccepted(bool state, bool forTrader = false);
@@ -70,7 +70,7 @@ private:
     bool       _accepted;                              // _player press accept for trade list
     bool       _acceptProccess;                        // one from player/trader press accept and this processed
 
-    uint32     _money;                                 // _player place money to trade
+    uint64     _money;                                 // _player place money to trade
 
     uint32     _spell;                                 // _player apply spell to non-traded slot item
     ObjectGuid _spellCastItem;                         // applied spell cast by item use

@@ -23,8 +23,8 @@ Category: Scholomance
 */
 
 #include "ScriptMgr.h"
-#include "scholomance.h"
 #include "ScriptedCreature.h"
+#include "scholomance.h"
 
 enum Say
 {
@@ -56,9 +56,9 @@ class boss_doctor_theolen_krastinov : public CreatureScript
             void JustEngagedWith(Unit* /*who*/) override
             {
                 _JustEngagedWith();
-                events.ScheduleEvent(EVENT_REND, 8s);
-                events.ScheduleEvent(EVENT_BACKHAND, 9s);
-                events.ScheduleEvent(EVENT_FRENZY, 1s);
+                events.ScheduleEvent(EVENT_REND, 8000);
+                events.ScheduleEvent(EVENT_BACKHAND, 9000);
+                events.ScheduleEvent(EVENT_FRENZY, 1000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -77,11 +77,11 @@ class boss_doctor_theolen_krastinov : public CreatureScript
                     {
                         case EVENT_REND:
                             DoCastVictim(SPELL_REND, true);
-                            events.ScheduleEvent(EVENT_REND, 10s);
+                            events.ScheduleEvent(EVENT_REND, 10000);
                             break;
                         case EVENT_BACKHAND:
                             DoCastVictim(SPELL_BACKHAND, true);
-                            events.ScheduleEvent(EVENT_BACKHAND, 10s);
+                            events.ScheduleEvent(EVENT_BACKHAND, 10000);
                             break;
                         case EVENT_FRENZY:
                             DoCast(me, SPELL_FRENZY, true);
@@ -102,7 +102,7 @@ class boss_doctor_theolen_krastinov : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetScholomanceAI<boss_theolenkrastinovAI>(creature);
+            return new boss_theolenkrastinovAI(creature);
         }
 
 };

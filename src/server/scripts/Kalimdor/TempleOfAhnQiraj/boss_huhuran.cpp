@@ -25,7 +25,6 @@ EndScriptData */
 
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
-#include "temple_of_ahnqiraj.h"
 
 enum Huhuran
 {
@@ -47,12 +46,12 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetAQ40AI<boss_huhuranAI>(creature);
+        return new boss_huhuranAI(creature);
     }
 
-    struct boss_huhuranAI : public BossAI
+    struct boss_huhuranAI : public ScriptedAI
     {
-        boss_huhuranAI(Creature* creature) : BossAI(creature, DATA_HUHURAN)
+        boss_huhuranAI(Creature* creature) : ScriptedAI(creature)
         {
             Initialize();
         }
@@ -83,7 +82,10 @@ public:
         void Reset() override
         {
             Initialize();
-            _Reset();
+        }
+
+        void JustEngagedWith(Unit* /*who*/) override
+        {
         }
 
         void UpdateAI(uint32 diff) override

@@ -25,6 +25,7 @@
 #include "AsyncAcceptor.h"
 #include "Banner.h"
 #include "BattlegroundMgr.h"
+#include "BattlenetServerManager.h"
 #include "BigNumber.h"
 #include "CliRunnable.h"
 #include "Configuration/Config.h"
@@ -42,20 +43,15 @@
 #include "OutdoorPvP/OutdoorPvPMgr.h"
 #include "ProcessPriority.h"
 #include "RASession.h"
-#include "RealmList.h"
 #include "Resolver.h"
 #include "ScriptLoader.h"
 #include "ScriptMgr.h"
 #include "ScriptReloadMgr.h"
-#include "SecretMgr.h"
-#include "SharedDefines.h"
 #include "TCSoap.h"
 #include "World.h"
 #include "WorldSocket.h"
 #include "WorldSocketMgr.h"
-#ifdef ELUNA
-#include "LuaEngine.h"
-#endif
+#include "ZmqContext.h"
 #include <openssl/opensslv.h>
 #include <openssl/crypto.h>
 #include <boost/asio/signal_set.hpp>
@@ -63,6 +59,10 @@
 #include <boost/program_options.hpp>
 #include <csignal>
 #include <iostream>
+
+#ifdef _WIN32 // ugly as hell
+#pragma comment(lib, "iphlpapi.lib")
+#endif
 
 using namespace boost::program_options;
 namespace fs = boost::filesystem;
@@ -90,8 +90,8 @@ int m_ServiceStatus = -1;
 class FreezeDetector
 {
     public:
-    FreezeDetector(Trinity::Asio::IoContext& ioContext, uint32 maxCoreStuckTime)
-        : _timer(ioContext), _worldLoopCounter(0), _lastChangeMsTime(getMSTime()), _maxCoreStuckTimeInMs(maxCoreStuckTime) { }
+        FreezeDetector(Trinity::Asio::IoContext& ioContext, uint32 maxCoreStuckTime)
+            : _timer(ioContext), _worldLoopCounter(0), _lastChangeMsTime(getMSTime()), _maxCoreStuckTimeInMs(maxCoreStuckTime) { }
 
         static void Start(std::shared_ptr<FreezeDetector> const& freezeDetector)
         {
@@ -109,6 +109,7 @@ class FreezeDetector
 };
 
 void SignalHandler(boost::system::error_code const& error, int signalNumber);
+
 AsyncAcceptor* StartRaSocketAcceptor(Trinity::Asio::IoContext& ioContext);
 bool StartDB();
 void StopDB();
@@ -121,7 +122,6 @@ variables_map GetConsoleArguments(int argc, char** argv, fs::path& configFile, s
 /// Launch the Trinity server
 extern int main(int argc, char** argv)
 {
-    Trinity::Impl::CurrentServerProcessHolder::_type = SERVER_PROCESS_WORLDSERVER;
     signal(SIGABRT, &Trinity::AbortHandler);
 
     auto configFile = fs::absolute(_TRINITY_CORE_CONFIG);
@@ -253,7 +253,6 @@ extern int main(int argc, char** argv)
     });
 
     // Initialize the World
-    sSecretMgr->Initialize();
     sWorld->SetInitialWorldSettings();
 
     std::shared_ptr<void> mapManagementHandle(nullptr, [](void*)
@@ -264,9 +263,6 @@ extern int main(int argc, char** argv)
         sInstanceSaveMgr->Unload();
         sOutdoorPvPMgr->Die();                     // unload it before MapManager
         sMapMgr->UnloadAll();                      // unload all grids (including locked in memory)
-#ifdef ELUNA
-        Eluna::Uninitialize();
-#endif
     });
 
     // Start the Remote Access port (acceptor) if enabled
@@ -331,7 +327,11 @@ extern int main(int argc, char** argv)
         TC_LOG_INFO("server.worldserver", "Starting up anti-freeze thread (%u seconds max stuck time)...", coreStuckTime);
     }
 
+    sIpcContext->Initialize();
     TC_LOG_INFO("server.worldserver", "%s (worldserver-daemon) ready...", GitRevision::GetFullVersion());
+
+    sBattlenetServer.InitializeConnection();
+
 
     sScriptMgr->OnStartup();
 
@@ -354,6 +354,10 @@ extern int main(int argc, char** argv)
     sLog->SetSynchronous();
 
     sScriptMgr->OnShutdown();
+
+    sIpcContext->Close();
+
+    sBattlenetServer.CloseConnection();
 
     // set server offline
     LoginDatabase.DirectPExecute("UPDATE realmlist SET flag = flag | %u WHERE id = '%d'", REALM_FLAG_OFFLINE, realm.Id.Realm);
@@ -580,7 +584,17 @@ bool StartDB()
         return false;
     }
 
-    TC_LOG_INFO("server.worldserver", "Realm running as realm ID %d", realm.Id.Realm);
+    QueryResult realmIdQuery = LoginDatabase.PQuery("SELECT `Region`,`Battlegroup` FROM `realmlist` WHERE `id`=%u", realm.Id.Realm);
+    if (!realmIdQuery)
+    {
+        TC_LOG_ERROR("server.worldserver", "Realm id %u not defined in realmlist table", realm.Id.Realm);
+        return false;
+    }
+
+    realm.Id.Region = (*realmIdQuery)[0].GetUInt8();
+    realm.Id.Site = (*realmIdQuery)[1].GetUInt8();
+
+    TC_LOG_INFO("server.worldserver", "Realm running as realm ID %u region %u battlegroup %u", realm.Id.Realm, uint32(realm.Id.Region), uint32(realm.Id.Site));
 
     ///- Clean the database before starting
     ClearOnlineAccounts();

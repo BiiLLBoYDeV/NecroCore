@@ -16,10 +16,10 @@
  */
 
 #include "ScriptMgr.h"
-#include "hyjal.h"
 #include "hyjal_trash.h"
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
+#include "ScriptedCreature.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
 
@@ -47,11 +47,6 @@ class boss_kazrogal : public CreatureScript
 {
 public:
     boss_kazrogal() : CreatureScript("boss_kazrogal") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<boss_kazrogalAI>(creature);
-    }
 
     struct boss_kazrogalAI : public hyjal_trashAI
     {
@@ -97,13 +92,13 @@ public:
             Talk(SAY_ONSLAY);
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7 && instance)
             {
-                Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                 if (target && target->IsAlive())
-                    AddThreat(target, 0.0f);
+                    me->AddThreat(target, 0.0f);
             }
         }
 
@@ -119,8 +114,8 @@ public:
         {
             if (IsEvent)
             {
-                //Must update EscortAI
-                EscortAI::UpdateAI(diff);
+                //Must update npc_escortAI
+                npc_escortAI::UpdateAI(diff);
                 if (!go)
                 {
                     go = true;
@@ -168,6 +163,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<boss_kazrogalAI>(creature);
+    }
 };
 
 class MarkTargetFilter
@@ -176,7 +175,7 @@ class MarkTargetFilter
         bool operator()(WorldObject* target) const
         {
             if (Unit* unit = target->ToUnit())
-                return unit->GetPowerType() != POWER_MANA;
+                return unit->getPowerType() != POWER_MANA;
             return false;
         }
 };
@@ -216,7 +215,7 @@ class spell_mark_of_kazrogal : public SpellScriptLoader
 
                 if (target->GetPower(POWER_MANA) == 0)
                 {
-                    target->CastSpell(target, SPELL_MARK_DAMAGE, aurEff);
+                    target->CastSpell(target, SPELL_MARK_DAMAGE, true, nullptr, aurEff);
                     // Remove aura
                     SetDuration(0);
                 }

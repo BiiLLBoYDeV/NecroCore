@@ -99,11 +99,7 @@ class TC_DATABASE_API Field
             return data.value == nullptr;
         }
 
-        DatabaseFieldTypes GetType() const
-        {
-            return data.type;
-        }
-
+        #ifdef TRINITY_DEBUG
         struct Metadata
         {
             char const* TableName;
@@ -113,6 +109,7 @@ class TC_DATABASE_API Field
             char const* Type;
             uint32 Index;
         };
+        #endif
 
     protected:
         #pragma pack(push, 1)
@@ -141,7 +138,7 @@ class TC_DATABASE_API Field
         bool IsNumeric() const;
 
     private:
-        #ifdef TRINITY_STRICT_DATABASE_TYPE_CHECKS
+        #ifdef TRINITY_DEBUG
         void SetMetadata(MYSQL_FIELD* field, uint32 fieldIndex);
         Metadata meta;
         #endif

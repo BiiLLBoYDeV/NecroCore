@@ -17,11 +17,11 @@
 
 #include "ScriptMgr.h"
 #include "AreaBoundary.h"
+#include "Creature.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "magtheridons_lair.h"
 #include "Map.h"
-#include "ScriptedCreature.h"
 
 BossBoundaryData const boundaries =
 {
@@ -71,7 +71,7 @@ class instance_magtheridons_lair : public InstanceMapScript
 
         struct instance_magtheridons_lair_InstanceMapScript : public InstanceScript
         {
-            instance_magtheridons_lair_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_magtheridons_lair_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -123,7 +123,7 @@ class instance_magtheridons_lair : public InstanceMapScript
                         for (ObjectGuid warderGuid : warderGUIDS)
                             if (Creature* warder = instance->GetCreature(warderGuid))
                                 if (warder->IsAlive())
-                                    warder->AI()->DoZoneInCombat();
+                                    warder->SetInCombatWithZone();
                         break;
                     default:
                         break;

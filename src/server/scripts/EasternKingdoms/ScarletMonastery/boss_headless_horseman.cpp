@@ -146,11 +146,6 @@ class npc_wisp_invis : public CreatureScript
 public:
     npc_wisp_invis() : CreatureScript("npc_wisp_invis") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetScarletMonasteryAI<npc_wisp_invisAI>(creature);
-    }
-
     struct npc_wisp_invisAI : public ScriptedAI
     {
         npc_wisp_invisAI(Creature* creature) : ScriptedAI(creature)
@@ -218,17 +213,17 @@ public:
             }
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetScarletMonasteryAI<npc_wisp_invisAI>(creature);
+    }
 };
 
 class npc_head : public CreatureScript
 {
 public:
     npc_head() : CreatureScript("npc_head") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetScarletMonasteryAI<npc_headAI>(creature);
-    }
 
     struct npc_headAI : public ScriptedAI
     {
@@ -324,7 +319,7 @@ public:
                 DoCast(me, SPELL_HEAD_LANDS, true);
                 DoCast(me, SPELL_HEAD, false);
                 SaySound(SAY_LOST_HEAD);
-                me->GetMotionMaster()->Clear();
+                me->GetMotionMaster()->Clear(false);
                 me->GetMotionMaster()->MoveFleeing(caster->GetVictim());
             }
         }
@@ -339,7 +334,7 @@ public:
                     wait = 1000;
                     if (!me->GetVictim())
                         return;
-                    me->GetMotionMaster()->Clear();
+                    me->GetMotionMaster()->Clear(false);
                     me->GetMotionMaster()->MoveFleeing(me->GetVictim());
                 }
                 else wait -= diff;
@@ -371,17 +366,17 @@ public:
             }
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetScarletMonasteryAI<npc_headAI>(creature);
+    }
 };
 
 class boss_headless_horseman : public CreatureScript
 {
 public:
     boss_headless_horseman() : CreatureScript("boss_headless_horseman") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetScarletMonasteryAI<boss_headless_horsemanAI>(creature);
-    }
 
     struct boss_headless_horsemanAI : public ScriptedAI
     {
@@ -448,7 +443,7 @@ public:
                 headGUID.Clear();
             }
 
-            me->SetImmuneToPC(false);
+            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
             //instance->SetBossState(DATA_HORSEMAN_EVENT, NOT_STARTED);
         }
 
@@ -604,8 +599,16 @@ public:
                 me->SetFullHealth();
                 SaySound(SAY_REJOINED);
                 DoCast(me, SPELL_HEAD);
-                caster->GetMotionMaster()->Clear();
+                caster->GetMotionMaster()->Clear(false);
                 caster->GetMotionMaster()->MoveFollow(me, 6, float(urand(0, 5)));
+                //DoResetThreat();//not sure if need
+                ThreatContainer::StorageType threatlist = caster->getThreatManager().getThreatList();
+                for (ThreatContainer::StorageType::const_iterator itr = threatlist.begin(); itr != threatlist.end(); ++itr)
+                {
+                    Unit* unit = ObjectAccessor::GetUnit(*me, (*itr)->getUnitGuid());
+                    if (unit && unit->IsAlive() && unit != caster)
+                        me->AddThreat(unit, caster->getThreatManager().getThreat(unit));
+                }
             }
         }
 
@@ -679,7 +682,7 @@ public:
                             if (wp_reached)
                             {
                                 wp_reached = false;
-                                me->GetMotionMaster()->Clear();
+                                me->GetMotionMaster()->Clear(false);
                                 me->GetMotionMaster()->MovePoint(id, FlightPoint[id]);
                             }
                         }
@@ -773,17 +776,17 @@ public:
             }
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetScarletMonasteryAI<boss_headless_horsemanAI>(creature);
+    }
 };
 
 class npc_pulsing_pumpkin : public CreatureScript
 {
 public:
     npc_pulsing_pumpkin() : CreatureScript("npc_pulsing_pumpkin") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetScarletMonasteryAI<npc_pulsing_pumpkinAI>(creature);
-    }
 
     struct npc_pulsing_pumpkinAI : public ScriptedAI
     {
@@ -799,7 +802,7 @@ public:
         {
             float x, y, z;
             me->GetPosition(x, y, z);   //this visual aura some under ground
-            me->UpdatePosition(x, y, z + 0.35f, 0.0f);
+            me->SetPosition(x, y, z + 0.35f, 0.0f);
             debuffGUID.Clear();
             Despawn();
             Creature* debuff = DoSpawnCreature(HELPER, 0, 0, 0, 0, TEMPSUMMON_TIMED_OR_CORPSE_DESPAWN, 14500);
@@ -855,7 +858,7 @@ public:
             if (!who || !me->IsValidAttackTarget(who) || me->GetVictim())
                 return;
 
-            AddThreat(who, 0.0f);
+            me->AddThreat(who, 0.0f);
             if (sprouted)
                 DoStartMovement(who);
         }
@@ -866,6 +869,11 @@ public:
                 DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetScarletMonasteryAI<npc_pulsing_pumpkinAI>(creature);
+    }
 };
 
 enum LooselyTurnedSoil

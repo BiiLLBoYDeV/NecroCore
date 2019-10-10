@@ -18,7 +18,6 @@
 
 #include "ScriptMgr.h"
 #include "CombatAI.h"
-#include "CreatureTextMgr.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -64,9 +63,9 @@ class npc_emily : public CreatureScript
 public:
     npc_emily() : CreatureScript("npc_emily") { }
 
-    struct npc_emilyAI : public EscortAI
+    struct npc_emilyAI : public npc_escortAI
     {
-        npc_emilyAI(Creature* creature) : EscortAI(creature) { }
+        npc_emilyAI(Creature* creature) : npc_escortAI(creature) { }
 
         void JustSummoned(Creature* summoned) override
         {
@@ -76,7 +75,7 @@ public:
                 summoned->AI()->AttackStart(me->GetVictim());
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             Player* player = GetPlayerForEscort();
             if (!player)
@@ -136,7 +135,7 @@ public:
                     {
                         if (Creature* RWORG = ObjectAccessor::GetCreature(*me, _RavenousworgGUID))
                         {
-                            Unit::Kill(RWORG, Mrfloppy);
+                            RWORG->Kill(Mrfloppy);
                             Mrfloppy->ExitVehicle();
                             RWORG->SetFaction(FACTION_MONSTER);
                             RWORG->GetMotionMaster()->MovePoint(0, RWORG->GetPositionX()+10, RWORG->GetPositionY()+80, RWORG->GetPositionZ());
@@ -370,7 +369,7 @@ public:
                 if (me->FindNearestGameObject(OBJECT_HAUNCH, 2.0f))
                 {
                     me->SetStandState(UNIT_STAND_STATE_DEAD);
-                    me->SetImmuneToPC(true);
+                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                     me->SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
                 }
                 _phase = 0;
@@ -563,17 +562,16 @@ public:
     {
         npc_venture_co_stragglerAI(Creature* creature) : ScriptedAI(creature) { }
 
-    void JustEngagedWith(Unit* /*who*/) override
-    {
-        _events.ScheduleEvent(EVENT_CHOP, 3s, 6s);
-    }
+        void JustEngagedWith(Unit* /*who*/) override
+        {
+            _events.ScheduleEvent(EVENT_CHOP, Seconds(3), Seconds(6));
+        }
 
         void Reset() override
         {
             _playerGUID.Clear();
 
-            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-            me->SetImmuneToPC(false);
+            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
             me->SetReactState(REACT_AGGRESSIVE);
         }
 
@@ -622,8 +620,7 @@ public:
         {
             if (spell->Id == SPELL_SMOKE_BOMB && caster->GetTypeId() == TYPEID_PLAYER)
             {
-                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                me->SetImmuneToPC(true);
+                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
                 me->SetReactState(REACT_PASSIVE);
                 me->CombatStop(false);
                 _playerGUID = caster->GetGUID();
@@ -902,7 +899,7 @@ public:
         {
             _finished = false;
             me->SetVisible(true);
-            me->GetMotionMaster()->Clear();
+            me->GetMotionMaster()->Clear(true);
         }
 
         void DoAction(int32 /*action*/) override
@@ -1047,12 +1044,6 @@ public:
     {
         PrepareAuraScript(spell_z_check_AuraScript);
 
-    public:
-        spell_z_check_AuraScript()
-        {
-            _posZ = 0.0f;
-        }
-
         void HandleEffectApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
         {
             _posZ = GetTarget()->GetPositionZ();
@@ -1067,8 +1058,7 @@ public:
                     target->AI()->DoAction(0);
         }
 
-    private:
-        float _posZ;
+        float _posZ = 0.0f;
 
         void Register() override
         {

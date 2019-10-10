@@ -21,7 +21,7 @@
 #include "hyjal.h"
 #include "ScriptedEscortAI.h"
 
-struct hyjal_trashAI : public EscortAI
+struct hyjal_trashAI : public npc_escortAI
 {
     hyjal_trashAI(Creature* creature);
 

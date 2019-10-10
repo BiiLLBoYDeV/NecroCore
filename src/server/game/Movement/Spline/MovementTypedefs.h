@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -71,6 +71,8 @@ namespace Movement
 
     TC_GAME_API extern float gravity;
     TC_GAME_API extern UInt32Counter splineIdGen;
+    extern std::string MovementFlags_ToString(uint32 flags);
+    extern std::string MovementFlagsExtra_ToString(uint32 flags);
 }
 
 #endif // TRINITYSERVER_TYPEDEFS_H

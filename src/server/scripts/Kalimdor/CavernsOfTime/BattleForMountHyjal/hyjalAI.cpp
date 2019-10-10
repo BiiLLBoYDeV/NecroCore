@@ -316,7 +316,7 @@ float HordeFirePos[65][8]=//spawn points for the fire visuals (GO) in the horde 
     {5545.43f,    -2647.82f,    1483.05f,    5.38848f,    0,    0,    0.432578f,    -0.901596f}
 };
 
-hyjalAI::hyjalAI(Creature* creature) : EscortAI(creature), Summons(me)
+hyjalAI::hyjalAI(Creature* creature) : npc_escortAI(creature), Summons(me)
 {
     Initialize();
     instance = creature->GetInstanceScript();
@@ -423,11 +423,10 @@ void hyjalAI::EnterEvadeMode(EvadeReason /*why*/)
 {
     if (me->GetEntry() != JAINA)
         me->RemoveAllAuras();
+    me->DeleteThreatList();
     me->CombatStop(true);
-    
-    EngagementOver();
-    
     me->LoadCreaturesAddon();
+
     if (me->IsAlive())
         me->GetMotionMaster()->MoveTargetedHome();
 
@@ -449,7 +448,7 @@ void hyjalAI::MoveInLineOfSight(Unit* who)
     if (IsDummy)
         return;
 
-    EscortAI::MoveInLineOfSight(who);
+    npc_escortAI::MoveInLineOfSight(who);
 }
 
 void hyjalAI::SummonCreature(uint32 entry, float Base[4][3])
@@ -678,19 +677,19 @@ void hyjalAI::DeSpawnVeins()
 {
     if (Faction == 1)
     {
-        Creature* unit = ObjectAccessor::GetCreature((*me), instance->GetGuidData(DATA_JAINAPROUDMOORE));
+        Creature* unit = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
         if (!unit)return;
         hyjalAI* ai = CAST_AI(hyjalAI, unit->AI());
         if (!ai)return;
         for (uint8 i = 0; i < 7; ++i)
         {
-            if (GameObject* gem = instance->instance->GetGameObject(ai->VeinGUID[i]))
+            if (GameObject* gem = ObjectAccessor::GetGameObject(*me, ai->VeinGUID[i]))
                 gem->Delete();
         }
     }
     else if (Faction)
     {
-        Creature* unit = ObjectAccessor::GetCreature((*me), instance->GetGuidData(DATA_THRALL));
+        Creature* unit = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
         if (!unit)
             return;
         hyjalAI* ai = CAST_AI(hyjalAI, unit->AI());
@@ -698,7 +697,7 @@ void hyjalAI::DeSpawnVeins()
             return;
         for (uint8 i = 7; i < 14; ++i)
         {
-            if (GameObject* gem = instance->instance->GetGameObject(ai->VeinGUID[i]))
+            if (GameObject* gem = ObjectAccessor::GetGameObject(*me, ai->VeinGUID[i]))
                 gem->Delete();
         }
     }
@@ -933,7 +932,7 @@ void hyjalAI::RespawnNearPos(float x, float y)
     Cell::VisitGridObjects(x, y, me->GetMap(), worker, me->GetGridActivationRange());
 }
 
-void hyjalAI::WaypointReached(uint32 waypointId, uint32 /*pathId*/)
+void hyjalAI::WaypointReached(uint32 waypointId)
 {
     if (waypointId == 1 || (waypointId == 0 && me->GetEntry() == THRALL))
     {
@@ -973,7 +972,7 @@ void hyjalAI::WaypointReached(uint32 waypointId, uint32 /*pathId*/)
                     (*itr)->GetMotionMaster()->Initialize();
                     float range = 10;
                     if (me->GetEntry() == THRALL)range = 20;
-                    me->GetNearPoint(nullptr, x, y, z, range, me->GetAbsoluteAngle((*itr)));
+                    me->GetNearPoint(me, x, y, z, range, 0, me->GetAngle((*itr)));
                     (*itr)->GetMotionMaster()->MovePoint(0, x+irand(-5, 5), y+irand(-5, 5), me->GetPositionZ());
                 }
             }
@@ -982,7 +981,7 @@ void hyjalAI::WaypointReached(uint32 waypointId, uint32 /*pathId*/)
 }
 void hyjalAI::DoOverrun(uint32 faction, const uint32 diff)
 {
-    EscortAI::UpdateAI(diff);
+    npc_escortAI::UpdateAI(diff);
     if (WaitForTeleport)
     {
         if (TeleportTimer <= diff)

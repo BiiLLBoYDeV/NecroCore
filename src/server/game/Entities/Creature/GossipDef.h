@@ -79,6 +79,7 @@ enum GossipOptionIcon
     GOSSIP_ICON_CHAT_18             = 18,                   // white chat bubble
     GOSSIP_ICON_CHAT_19             = 19,                   // white chat bubble
     GOSSIP_ICON_CHAT_20             = 20,                   // white chat bubble
+    GOSSIP_ICON_CHAT_21             = 21,                   // transmogrifier?
     GOSSIP_ICON_MAX
 };
 
@@ -277,15 +278,17 @@ class TC_GAME_API PlayerMenu
         /*********************************************************/
         /***                    QUEST SYSTEM                   ***/
         /*********************************************************/
-        void SendQuestGiverStatus(uint8 questStatus, ObjectGuid npcGUID) const;
+        void SendQuestGiverStatus(uint32 questStatus, ObjectGuid npcGUID) const;
 
         void SendQuestGiverQuestList(QEmote const& eEmote, const std::string& Title, ObjectGuid npcGUID);
 
         void SendQuestQueryResponse(Quest const* quest) const;
-        void SendQuestGiverQuestDetails(Quest const* quest, ObjectGuid npcGUID, bool activateAccept) const;
+        void SendQuestGiverQuestDetails(Quest const* quest, ObjectGuid npcGUID, bool autoLaunched, bool displayPopup) const;
 
-        void SendQuestGiverOfferReward(Quest const* quest, ObjectGuid npcGUID, bool enableNext) const;
-        void SendQuestGiverRequestItems(Quest const* quest, ObjectGuid npcGUID, bool canComplete, bool closeOnCancel) const;
+        void SendQuestGiverOfferReward(Quest const* quest, ObjectGuid npcGUID, bool autoLaunched) const;
+        void SendQuestGiverRequestItems(Quest const* quest, ObjectGuid npcGUID, bool canComplete, bool autoLaunched) const;
+
+        static void AddQuestLevelToTitle(std::string &title, int32 level);
 
     private:
         GossipMenu _gossipMenu;

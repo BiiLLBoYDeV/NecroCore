@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
@@ -131,9 +131,9 @@ class npc_barnes : public CreatureScript
 public:
     npc_barnes() : CreatureScript("npc_barnes") { }
 
-    struct npc_barnesAI : public EscortAI
+    struct npc_barnesAI : public npc_escortAI
     {
-        npc_barnesAI(Creature* creature) : EscortAI(creature)
+        npc_barnesAI(Creature* creature) : npc_escortAI(creature)
         {
             Initialize();
             RaidWiped = false;
@@ -184,7 +184,7 @@ public:
 
         void JustEngagedWith(Unit* /*who*/) override { }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             switch (waypointId)
             {
@@ -288,7 +288,7 @@ public:
 
         void UpdateAI(uint32 diff) override
         {
-            EscortAI::UpdateAI(diff);
+            npc_escortAI::UpdateAI(diff);
 
             if (HasEscortState(STATE_ESCORT_PAUSED))
             {
@@ -379,24 +379,27 @@ public:
 
         bool GossipHello(Player* player) override
         {
-            // Check for death of Moroes and if opera event is not done already
-            if (instance->GetBossState(DATA_MOROES) == DONE && instance->GetBossState(DATA_OPERA_PERFORMANCE) != DONE)
+            if (InstanceScript* instance = me->GetInstanceScript())
             {
-                AddGossipItemFor(player, GOSSIP_ICON_CHAT, OZ_GOSSIP1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-
-                if (player->IsGameMaster())
+                // Check for death of Moroes and if opera event is not done already
+                if (instance->GetBossState(DATA_MOROES) == DONE && instance->GetBossState(DATA_OPERA_PERFORMANCE) != DONE)
                 {
-                    AddGossipItemFor(player, GOSSIP_ICON_DOT, OZ_GM_GOSSIP1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
-                    AddGossipItemFor(player, GOSSIP_ICON_DOT, OZ_GM_GOSSIP2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 4);
-                    AddGossipItemFor(player, GOSSIP_ICON_DOT, OZ_GM_GOSSIP3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 5);
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, OZ_GOSSIP1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+
+                    if (player->IsGameMaster())
+                    {
+                        AddGossipItemFor(player, GOSSIP_ICON_DOT, OZ_GM_GOSSIP1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
+                        AddGossipItemFor(player, GOSSIP_ICON_DOT, OZ_GM_GOSSIP2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 4);
+                        AddGossipItemFor(player, GOSSIP_ICON_DOT, OZ_GM_GOSSIP3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 5);
+                    }
+
+                    if (!RaidWiped)
+                        SendGossipMenuFor(player, 8970, me->GetGUID());
+                    else
+                        SendGossipMenuFor(player, 8975, me->GetGUID());
+
+                    return true;
                 }
-
-                if (!RaidWiped)
-                    SendGossipMenuFor(player, 8970, me->GetGUID());
-                else
-                    SendGossipMenuFor(player, 8975, me->GetGUID());
-
-                return true;
             }
 
             SendGossipMenuFor(player, 8978, me->GetGUID());
@@ -432,11 +435,6 @@ class npc_image_of_medivh : public CreatureScript
 {
 public:
     npc_image_of_medivh() : CreatureScript("npc_image_of_medivh") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<npc_image_of_medivhAI>(creature);
-    }
 
     struct npc_image_of_medivhAI : public ScriptedAI
     {
@@ -479,7 +477,8 @@ public:
             }
             else
             {
-                me->DespawnOrUnsummon();
+                me->DealDamage(me, me->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+                me->RemoveCorpse();
             }
         }
         void JustEngagedWith(Unit* /*who*/) override { }
@@ -586,7 +585,7 @@ public:
             }
             case 15:
                 if (Creature* arca = ObjectAccessor::GetCreature(*me, ArcanagosGUID))
-                    arca->KillSelf();
+                    arca->DealDamage(arca, arca->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
                 return 5000;
             default:
                 return 9999999;
@@ -621,6 +620,11 @@ public:
             }
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<npc_image_of_medivhAI>(creature);
+    }
 };
 
 void AddSC_karazhan()

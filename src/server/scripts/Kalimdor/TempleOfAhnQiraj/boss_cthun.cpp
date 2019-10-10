@@ -155,11 +155,6 @@ class boss_eye_of_cthun : public CreatureScript
 public:
     boss_eye_of_cthun() : CreatureScript("boss_eye_of_cthun") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<eye_of_cthunAI>(creature);
-    }
-
     struct eye_of_cthunAI : public ScriptedAI
     {
         eye_of_cthunAI(Creature* creature) : ScriptedAI(creature)
@@ -317,7 +312,7 @@ public:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
                         {
                             //Face our target
-                            DarkGlareAngle = me->GetAbsoluteAngle(target);
+                            DarkGlareAngle = me->GetAngle(target);
                             DarkGlareTickTimer = 1000;
                             DarkGlareTick = 0;
                             ClockWise = RAND(true, false);
@@ -448,6 +443,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<eye_of_cthunAI>(creature);
+    }
 };
 
 class boss_cthun : public CreatureScript
@@ -455,17 +454,14 @@ class boss_cthun : public CreatureScript
 public:
     boss_cthun() : CreatureScript("boss_cthun") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
+    struct cthunAI : public ScriptedAI
     {
-        return GetAQ40AI<cthunAI>(creature);
-    }
-
-    struct cthunAI : public BossAI
-    {
-        cthunAI(Creature* creature) : BossAI(creature, DATA_CTHUN)
+        cthunAI(Creature* creature) : ScriptedAI(creature)
         {
             Initialize();
             SetCombatMovement(false);
+
+            instance = creature->GetInstanceScript();
         }
 
         void Initialize()
@@ -489,6 +485,8 @@ public:
             StomachEnterVisTimer = 0;                           //Always 3.5 seconds after Stomach Enter Timer
             StomachEnterTarget.Clear();                         //Target to be teleported to stomach
         }
+
+        InstanceScript* instance;
 
         //Out of combat whisper timer
         uint32 WisperTimer;
@@ -517,7 +515,6 @@ public:
         void Reset() override
         {
             Initialize();
-            _Reset();
 
             //Clear players in stomach and outside
             Stomach_Map.clear();
@@ -528,6 +525,11 @@ public:
             me->SetVisible(false);
 
             instance->SetData(DATA_CTHUN_PHASE, PHASE_NOT_STARTED);
+        }
+
+        void JustEngagedWith(Unit* /*who*/) override
+        {
+            DoZoneInCombat();
         }
 
         void SpawnEyeTentacle(float x, float y)
@@ -642,8 +644,8 @@ public:
                         //Place all units in threat list on outside of stomach
                         Stomach_Map.clear();
 
-                        for (ThreatReference const* ref : me->GetThreatManager().GetUnsortedThreatList())
-                            Stomach_Map[ref->GetVictim()->GetGUID()] = false;   //Outside stomach
+                        for (std::list<HostileReference*>::const_iterator i = me->getThreatManager().getThreatList().begin(); i != me->getThreatManager().getThreatList().end(); ++i)
+                            Stomach_Map[(*i)->getUnitGuid()] = false;   //Outside stomach
 
                         //Spawn 2 flesh tentacles
                         FleshTentaclesKilled = 0;
@@ -750,7 +752,7 @@ public:
                             //Set target in stomach
                             Stomach_Map[target->GetGUID()] = true;
                             target->InterruptNonMeleeSpells(false);
-                            target->CastSpell(target, SPELL_MOUTH_TENTACLE, me->GetGUID());
+                            target->CastSpell(target, SPELL_MOUTH_TENTACLE, true, nullptr, nullptr, me->GetGUID());
                             StomachEnterTarget = target->GetGUID();
                             StomachEnterVisTimer = 3800;
                         }
@@ -878,17 +880,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<cthunAI>(creature);
+    }
 };
 
 class npc_eye_tentacle : public CreatureScript
 {
 public:
     npc_eye_tentacle() : CreatureScript("npc_eye_tentacle") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<eye_tentacleAI>(creature);
-    }
 
     struct eye_tentacleAI : public ScriptedAI
     {
@@ -956,17 +957,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<eye_tentacleAI>(creature);
+    }
 };
 
 class npc_claw_tentacle : public CreatureScript
 {
 public:
     npc_claw_tentacle() : CreatureScript("npc_claw_tentacle") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<claw_tentacleAI>(creature);
-    }
 
     struct claw_tentacleAI : public ScriptedAI
     {
@@ -1035,7 +1035,7 @@ public:
 
                     if (!target->HasAura(SPELL_DIGESTIVE_ACID))
                     {
-                        me->UpdatePosition(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), 0);
+                        me->SetPosition(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), 0);
                         if (Creature* pPortal = me->SummonCreature(NPC_SMALL_PORTAL, *me, TEMPSUMMON_CORPSE_DESPAWN))
                         {
                             pPortal->SetReactState(REACT_PASSIVE);
@@ -1070,17 +1070,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<claw_tentacleAI>(creature);
+    }
 };
 
 class npc_giant_claw_tentacle : public CreatureScript
 {
 public:
     npc_giant_claw_tentacle() : CreatureScript("npc_giant_claw_tentacle") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<giant_claw_tentacleAI>(creature);
-    }
 
     struct giant_claw_tentacleAI : public ScriptedAI
     {
@@ -1152,7 +1151,7 @@ public:
 
                     if (!target->HasAura(SPELL_DIGESTIVE_ACID))
                     {
-                        me->UpdatePosition(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), 0);
+                        me->SetPosition(target->GetPositionX(), target->GetPositionY(), target->GetPositionZ(), 0);
                         if (Creature* pPortal = me->SummonCreature(NPC_GIANT_PORTAL, *me, TEMPSUMMON_CORPSE_DESPAWN))
                         {
                             pPortal->SetReactState(REACT_PASSIVE);
@@ -1194,17 +1193,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<giant_claw_tentacleAI>(creature);
+    }
 };
 
 class npc_giant_eye_tentacle : public CreatureScript
 {
 public:
     npc_giant_eye_tentacle() : CreatureScript("npc_giant_eye_tentacle") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<giant_eye_tentacleAI>(creature);
-    }
 
     struct giant_eye_tentacleAI : public ScriptedAI
     {
@@ -1260,17 +1258,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<giant_eye_tentacleAI>(creature);
+    }
 };
 
 class npc_giant_flesh_tentacle : public CreatureScript
 {
 public:
     npc_giant_flesh_tentacle() : CreatureScript("npc_giant_flesh_tentacle") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<flesh_tentacleAI>(creature);
-    }
 
     struct flesh_tentacleAI : public ScriptedAI
     {
@@ -1282,12 +1279,16 @@ public:
         void JustDied(Unit* /*killer*/) override
         {
             if (TempSummon* summon = me->ToTempSummon())
-                if (Unit* summoner = summon->GetSummonerUnit())
-                    if (summoner->IsAIEnabled())
+                if (Unit* summoner = summon->GetSummoner())
+                    if (summoner->IsAIEnabled)
                         summoner->GetAI()->DoAction(ACTION_FLESH_TENTACLE_KILLED);
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<flesh_tentacleAI>(creature);
+    }
 };
 
 //GetAIs

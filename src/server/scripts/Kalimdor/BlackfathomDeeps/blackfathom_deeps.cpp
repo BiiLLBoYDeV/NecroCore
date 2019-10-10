@@ -17,9 +17,9 @@
 
 #include "ScriptMgr.h"
 #include "blackfathom_deeps.h"
-#include "InstanceScript.h"
 #include "GameObject.h"
 #include "GameObjectAI.h"
+#include "InstanceScript.h"
 #include "Map.h"
 #include "Player.h"
 #include "ScriptedEscortAI.h"
@@ -90,11 +90,6 @@ class npc_blackfathom_deeps_event : public CreatureScript
 public:
     npc_blackfathom_deeps_event() : CreatureScript("npc_blackfathom_deeps_event") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetBlackfathomDeepsAI<npc_blackfathom_deeps_eventAI>(creature);
-    }
-
     struct npc_blackfathom_deeps_eventAI : public ScriptedAI
     {
         npc_blackfathom_deeps_eventAI(Creature* creature) : ScriptedAI(creature)
@@ -134,7 +129,6 @@ public:
         void AttackPlayer()
         {
             Map::PlayerList const& PlList = me->GetMap()->GetPlayers();
-
             if (PlList.isEmpty())
                 return;
 
@@ -149,7 +143,7 @@ public:
                     {
                         me->SetInCombatWith(player);
                         player->SetInCombatWith(me);
-                        AddThreat(player, 0.0f);
+                        me->AddThreat(player, 0.0f);
                     }
                 }
             }
@@ -210,6 +204,11 @@ public:
                 instance->SetData(DATA_EVENT, instance->GetData(DATA_EVENT) + 1);
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetBlackfathomDeepsAI<npc_blackfathom_deeps_eventAI>(creature);
+    }
 };
 
 enum Morridune
@@ -223,16 +222,16 @@ class npc_morridune : public CreatureScript
 public:
     npc_morridune() : CreatureScript("npc_morridune") { }
 
-    struct npc_morriduneAI : public EscortAI
+    struct npc_morriduneAI : public npc_escortAI
     {
-        npc_morriduneAI(Creature* creature) : EscortAI(creature)
+        npc_morriduneAI(Creature* creature) : npc_escortAI(creature)
         {
             Talk(SAY_MORRIDUNE_1);
             me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
             Start(false);
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             switch (waypointId)
             {

@@ -61,11 +61,6 @@ class boss_razuvious : public CreatureScript
 public:
     boss_razuvious() : CreatureScript("boss_razuvious") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetNaxxramasAI<boss_razuviousAI>(creature);
-    }
-
     struct boss_razuviousAI : public BossAI
     {
         boss_razuviousAI(Creature* creature) : BossAI(creature, BOSS_RAZUVIOUS) { }
@@ -123,10 +118,10 @@ public:
             me->StopMoving();
             summons.DoZoneInCombat();
             Talk(SAY_AGGRO);
-            events.ScheduleEvent(EVENT_ATTACK, 7s);
-            events.ScheduleEvent(EVENT_STRIKE, 21s);
-            events.ScheduleEvent(EVENT_SHOUT, 16s);
-            events.ScheduleEvent(EVENT_KNIFE, 10s);
+            events.ScheduleEvent(EVENT_ATTACK, Seconds(7));
+            events.ScheduleEvent(EVENT_STRIKE, Seconds(21));
+            events.ScheduleEvent(EVENT_SHOUT, Seconds(16));
+            events.ScheduleEvent(EVENT_KNIFE, Seconds(10));
         }
 
         void UpdateAI(uint32 diff) override
@@ -171,6 +166,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetNaxxramasAI<boss_razuviousAI>(creature);
+    }
 };
 
 class npc_dk_understudy : public CreatureScript
@@ -189,7 +188,7 @@ class npc_dk_understudy : public CreatureScript
             {
                 me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
                 if (Creature* razuvious = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_RAZUVIOUS)))
-                    razuvious->AI()->DoZoneInCombat();
+                    razuvious->AI()->DoZoneInCombat(nullptr, 250.0f);
             }
 
             void JustReachedHome() override
@@ -216,11 +215,24 @@ class npc_dk_understudy : public CreatureScript
                 DoMeleeAttackIfReady();
             }
 
-            void OnCharmed(bool isNew) override
+            void OnCharmed(bool apply) override
             {
-                if (me->IsCharmed() && !me->IsEngaged())
-                    JustEngagedWith(nullptr);
-                ScriptedAI::OnCharmed(isNew);
+                ScriptedAI::OnCharmed(apply);
+                if (apply)
+                {
+                    if (!me->IsInCombat())
+                        JustEngagedWith(nullptr);
+                    me->StopMoving();
+                    me->SetReactState(REACT_PASSIVE);
+                    _charmer = me->GetCharmerGUID();
+                }
+                else
+                {
+                    me->SetReactState(REACT_AGGRESSIVE);
+                    if (Unit* charmer = ObjectAccessor::GetUnit(*me, _charmer))
+                        me->AddThreat(charmer, 100000.0f);
+                    DoZoneInCombat(nullptr, 250.0f);
+                }
             }
         private:
             InstanceScript* const _instance;

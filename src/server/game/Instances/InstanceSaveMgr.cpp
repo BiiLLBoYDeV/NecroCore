@@ -21,7 +21,6 @@
 #include "Config.h"
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
-#include "GameTime.h"
 #include "GridNotifiers.h"
 #include "GridStates.h"
 #include "Group.h"
@@ -106,7 +105,7 @@ InstanceSave* InstanceSaveManager::AddInstanceSave(uint32 mapId, uint32 instance
             resetTime = GetResetTimeFor(mapId, difficulty);
         else
         {
-            resetTime = GameTime::GetGameTime() + 2 * HOUR;
+            resetTime = time(nullptr) + 2 * HOUR;
             // normally this will be removed soon after in InstanceMap::Add, prevent error
             ScheduleReset(true, resetTime, InstResetEvent(0, mapId, difficulty, instanceId));
         }
@@ -300,7 +299,7 @@ void InstanceSaveManager::LoadInstances()
 
 void InstanceSaveManager::LoadResetTimes()
 {
-    time_t now = GameTime::GetGameTime();
+    time_t now = time(nullptr);
     time_t today = (now / DAY) * DAY;
 
     // NOTE: Use DirectPExecute for tables that will be queried later
@@ -346,7 +345,7 @@ void InstanceSaveManager::LoadResetTimes()
     }
 
     // load the global respawn times for raid/heroic instances
-    uint32 resetHour = sWorld->getIntConfig(CONFIG_INSTANCE_RESET_TIME_HOUR);
+    uint32 diff = sWorld->getIntConfig(CONFIG_INSTANCE_RESET_TIME_HOUR) * HOUR;
     if (QueryResult result = CharacterDatabase.Query("SELECT mapid, difficulty, resettime FROM instance_reset"))
     {
         do
@@ -369,7 +368,7 @@ void InstanceSaveManager::LoadResetTimes()
             }
 
             // update the reset time if the hour in the configs changes
-            uint64 newresettime = GetLocalHourTimestamp(oldresettime, resetHour, false);
+            uint64 newresettime = (oldresettime / DAY) * DAY + diff;
             if (oldresettime != newresettime)
             {
                 PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GLOBAL_INSTANCE_RESETTIME);
@@ -403,7 +402,7 @@ void InstanceSaveManager::LoadResetTimes()
         if (!t)
         {
             // initialize the reset time
-            t = GetLocalHourTimestamp(today + period, resetHour);
+            t = today + period + diff;
 
             PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_GLOBAL_INSTANCE_RESETTIME);
             stmt->setUInt16(0, uint16(mapid));
@@ -416,8 +415,8 @@ void InstanceSaveManager::LoadResetTimes()
         {
             // assume that expired instances have already been cleaned
             // calculate the next reset time
-            time_t day = (t / DAY) * DAY;
-            t = GetLocalHourTimestamp(day + ((today - day) / period + 1) * period, resetHour);
+            t = (t / DAY) * DAY;
+            t += ((today - t) / period + 1) * period + diff;
 
             PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_UPD_GLOBAL_INSTANCE_RESETTIME);
             stmt->setUInt64(0, uint64(t));
@@ -451,12 +450,12 @@ time_t InstanceSaveManager::GetSubsequentResetTime(uint32 mapid, Difficulty diff
         return 0;
     }
 
-    time_t resetHour = sWorld->getIntConfig(CONFIG_INSTANCE_RESET_TIME_HOUR);
+    time_t diff = sWorld->getIntConfig(CONFIG_INSTANCE_RESET_TIME_HOUR) * HOUR;
     time_t period = uint32(((mapDiff->resetTime * sWorld->getRate(RATE_INSTANCE_RESET_TIME)) / DAY) * DAY);
     if (period < DAY)
         period = DAY;
 
-    return GetLocalHourTimestamp(((resetTime + MINUTE) / DAY * DAY) + period, resetHour);
+    return ((resetTime + MINUTE) / DAY * DAY) + period + diff;
 }
 
 void InstanceSaveManager::SetResetTimeFor(uint32 mapid, Difficulty d, time_t t)
@@ -511,12 +510,12 @@ void InstanceSaveManager::ForceGlobalReset(uint32 mapId, Difficulty difficulty)
     ScheduleReset(false, 0, InstResetEvent(1, mapId, difficulty, 0));
     ScheduleReset(false, 0, InstResetEvent(4, mapId, difficulty, 0));
     // force global reset on the instance
-    _ResetOrWarnAll(mapId, difficulty, false, GameTime::GetGameTime());
+    _ResetOrWarnAll(mapId, difficulty, false, time(nullptr));
 }
 
 void InstanceSaveManager::Update()
 {
-    time_t now = GameTime::GetGameTime();
+    time_t now = time(nullptr);
     time_t t;
 
     while (!m_resetTimeQueue.empty())
@@ -631,9 +630,9 @@ void InstanceSaveManager::_ResetOrWarnAll(uint32 mapid, Difficulty difficulty, b
     MapEntry const* mapEntry = sMapStore.LookupEntry(mapid);
     if (!mapEntry->Instanceable())
         return;
-    TC_LOG_DEBUG("misc", "InstanceSaveManager::ResetOrWarnAll: Processing map %s (%u) on difficulty %u (warn? %u)", mapEntry->name[0], mapid, uint8(difficulty), warn);
+    TC_LOG_DEBUG("misc", "InstanceSaveManager::ResetOrWarnAll: Processing map %s (%u) on difficulty %u (warn? %u)", mapEntry->name, mapid, uint8(difficulty), warn);
 
-    time_t now = GameTime::GetGameTime();
+    time_t now = time(nullptr);
 
     if (!warn)
     {

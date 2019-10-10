@@ -35,6 +35,7 @@ endif()
 add_library(fmt STATIC ${FMT_SOURCES})
 
 target_include_directories(fmt
+
   PUBLIC
     ${CMAKE_CURRENT_SOURCE_DIR})
 

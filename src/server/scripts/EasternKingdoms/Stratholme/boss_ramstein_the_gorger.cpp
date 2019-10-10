@@ -45,11 +45,6 @@ class boss_ramstein_the_gorger : public CreatureScript
 public:
     boss_ramstein_the_gorger() : CreatureScript("boss_ramstein_the_gorger") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetStratholmeAI<boss_ramstein_the_gorgerAI>(creature);
-    }
-
     struct boss_ramstein_the_gorgerAI : public ScriptedAI
     {
         boss_ramstein_the_gorgerAI(Creature* creature) : ScriptedAI(creature)
@@ -113,6 +108,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetStratholmeAI<boss_ramstein_the_gorgerAI>(creature);
+    }
 };
 
 void AddSC_boss_ramstein_the_gorger()

@@ -57,7 +57,7 @@ class instance_stratholme : public InstanceMapScript
 
         struct instance_stratholme_InstanceMapScript : public InstanceScript
         {
-            instance_stratholme_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_stratholme_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
 
@@ -359,7 +359,7 @@ class instance_stratholme : public InstanceMapScript
 
                         if (data == DONE)
                         {
-                            events.ScheduleEvent(EVENT_SLAUGHTER_SQUARE, 1min);
+                            events.ScheduleEvent(EVENT_SLAUGHTER_SQUARE, 60000);
                             TC_LOG_DEBUG("scripts", "Instance Stratholme: Slaugther event will continue in 1 minute.");
                         }
                         EncounterState[4] = data;

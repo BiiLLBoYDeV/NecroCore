@@ -1,2 +1,0 @@
-ALTER TABLE `gameobject` CHANGE `spawnMask` `spawnMask` TINYINT(3) DEFAULT 1 NOT NULL, CHANGE `phaseMask` `phaseMask` INT(10) DEFAULT 1 NOT NULL; 
-ALTER TABLE `creature` CHANGE `spawnMask` `spawnMask` TINYINT(3) DEFAULT 1 NOT NULL, CHANGE `phaseMask` `phaseMask` INT(10) DEFAULT 1 NOT NULL;

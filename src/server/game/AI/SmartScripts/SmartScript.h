@@ -42,15 +42,15 @@ class TC_GAME_API SmartScript
         void ProcessEventsFor(SMART_EVENT e, Unit* unit = nullptr, uint32 var0 = 0, uint32 var1 = 0, bool bvar = false, SpellInfo const* spell = nullptr, GameObject* gob = nullptr);
         void ProcessEvent(SmartScriptHolder& e, Unit* unit = nullptr, uint32 var0 = 0, uint32 var1 = 0, bool bvar = false, SpellInfo const* spell = nullptr, GameObject* gob = nullptr);
         bool CheckTimer(SmartScriptHolder const& e) const;
-        static void RecalcTimer(SmartScriptHolder& e, uint32 min, uint32 max);
+        void RecalcTimer(SmartScriptHolder& e, uint32 min, uint32 max);
         void UpdateTimer(SmartScriptHolder& e, uint32 const diff);
-        static void InitTimer(SmartScriptHolder& e);
+        void InitTimer(SmartScriptHolder& e);
         void ProcessAction(SmartScriptHolder& e, Unit* unit = nullptr, uint32 var0 = 0, uint32 var1 = 0, bool bvar = false, SpellInfo const* spell = nullptr, GameObject* gob = nullptr);
         void ProcessTimedAction(SmartScriptHolder& e, uint32 const& min, uint32 const& max, Unit* unit = nullptr, uint32 var0 = 0, uint32 var1 = 0, bool bvar = false, SpellInfo const* spell = nullptr, GameObject* gob = nullptr);
-        void GetTargets(ObjectVector& targets, SmartScriptHolder const& e, Unit* invoker = nullptr) const;
-        void GetWorldObjectsInDist(ObjectVector& objects, float dist) const;
+        void GetTargets(ObjectVector& targets, SmartScriptHolder const& e, Unit* invoker = nullptr);
+        void GetWorldObjectsInDist(ObjectVector& targets, float dist);
         void InstallTemplate(SmartScriptHolder const& e);
-        static SmartScriptHolder CreateSmartEvent(SMART_EVENT e, uint32 event_flags, uint32 event_param1, uint32 event_param2, uint32 event_param3, uint32 event_param4, uint32 event_param5, SMART_ACTION action, uint32 action_param1, uint32 action_param2, uint32 action_param3, uint32 action_param4, uint32 action_param5, uint32 action_param6, SMARTAI_TARGETS t, uint32 target_param1, uint32 target_param2, uint32 target_param3, uint32 target_param4, uint32 phaseMask);
+        SmartScriptHolder CreateSmartEvent(SMART_EVENT e, uint32 event_flags, uint32 event_param1, uint32 event_param2, uint32 event_param3, uint32 event_param4, uint32 event_param5, SMART_ACTION action, uint32 action_param1, uint32 action_param2, uint32 action_param3, uint32 action_param4, uint32 action_param5, uint32 action_param6, SMARTAI_TARGETS t, uint32 target_param1, uint32 target_param2, uint32 target_param3, uint32 target_param4, uint32 phaseMask);
         void AddEvent(SMART_EVENT e, uint32 event_flags, uint32 event_param1, uint32 event_param2, uint32 event_param3, uint32 event_param4, uint32 event_param5, SMART_ACTION action, uint32 action_param1, uint32 action_param2, uint32 action_param3, uint32 action_param4, uint32 action_param5, uint32 action_param6, SMARTAI_TARGETS t, uint32 target_param1, uint32 target_param2, uint32 target_param3, uint32 target_param4, uint32 phaseMask);
         void SetPathId(uint32 id) { mPathId = id; }
         uint32 GetPathId() const { return mPathId; }
@@ -64,10 +64,11 @@ class TC_GAME_API SmartScript
         void OnUpdate(const uint32 diff);
         void OnMoveInLineOfSight(Unit* who);
 
-        Unit* DoSelectLowestHpFriendly(float range, uint32 MinHPDiff) const;
-        void DoFindFriendlyCC(std::vector<Creature*>& creatures, float range) const;
-        void DoFindFriendlyMissingBuff(std::vector<Creature*>& creatures, float range, uint32 spellid) const;
-        Unit* DoFindClosestFriendlyInRange(float range, bool playerOnly) const;
+        Unit* DoSelectLowestHpFriendly(float range, uint32 MinHPDiff);
+        void DoFindFriendlyCC(std::list<Creature*>& _list, float range);
+        void DoFindFriendlyMissingBuff(std::list<Creature*>& list, float range, uint32 spellid);
+        Unit* DoFindClosestFriendlyInRange(float range, bool playerOnly);
+
 
         bool IsSmart(Creature* c, bool silent = false);
         bool IsSmart(GameObject* g, bool silent = false);
@@ -85,14 +86,14 @@ class TC_GAME_API SmartScript
         void OnReset();
         void ResetBaseObject();
 
-        void SetTimedActionList(SmartScriptHolder& e, uint32 entry, Unit* invoker);
-        Unit* GetLastInvoker(Unit* invoker = nullptr) const;
+        //TIMED_ACTIONLIST (script type 9 aka script9)
+        void SetScript9(SmartScriptHolder& e, uint32 entry);
+        Unit* GetLastInvoker(Unit* invoker = nullptr);
         ObjectGuid mLastInvoker;
         typedef std::unordered_map<uint32, uint32> CounterMap;
         CounterMap mCounterList;
 
     private:
-
         void IncPhase(uint32 p);
         void DecPhase(uint32 p);
 
@@ -102,7 +103,6 @@ class TC_GAME_API SmartScript
         SmartAIEventList mEvents;
         SmartAIEventList mInstallEvents;
         SmartAIEventList mTimedActionList;
-        ObjectGuid mTimedActionListInvoker;
         bool isProcessingTimedActionList;
         Creature* me;
         ObjectGuid meOrigGUID;

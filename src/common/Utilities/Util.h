@@ -24,7 +24,6 @@
 
 #include <string>
 #include <sstream>
-#include <utility>
 #include <vector>
 
 class TC_COMMON_API Tokenizer
@@ -55,17 +54,23 @@ private:
     StorageType m_storage;
 };
 
-TC_COMMON_API int32 MoneyStringToMoney(std::string const& moneyString);
+TC_COMMON_API void stripLineInvisibleChars(std::string &src);
+
+TC_COMMON_API int64 MoneyStringToMoney(std::string const& moneyString);
 
 TC_COMMON_API struct tm* localtime_r(time_t const* time, struct tm *result);
 TC_COMMON_API time_t LocalTimeToUTCTime(time_t time);
-TC_COMMON_API time_t GetLocalHourTimestamp(time_t time, uint8 hour, bool onlyAfterTime = true);
-TC_COMMON_API tm TimeBreakdown(time_t t);
 
 TC_COMMON_API std::string secsToTimeString(uint64 timeInSecs, bool shortText = false, bool hoursOnly = false);
 TC_COMMON_API uint32 TimeStringToSecs(std::string const& timestring);
 TC_COMMON_API std::string TimeToTimestampStr(time_t t);
-TC_COMMON_API std::string TimeToHumanReadable(time_t t);
+
+inline void ApplyPercentModFloatVar(float& var, float val, bool apply)
+{
+    if (val == -100.0f)     // prevent set var to zero
+        val = -99.99f;
+    var *= (apply ? (100.0f + val) / 100.0f : 100.0f / (100.0f + val));
+}
 
 // Percentage calculation
 template <class T, class U>
@@ -91,9 +96,6 @@ inline T RoundToInterval(T& num, T floor, T ceil)
 {
     return num = std::min(std::max(num, floor), ceil);
 }
-
-template <class T>
-inline T square(T x) { return x*x; }
 
 // UTF8 handling
 TC_COMMON_API bool Utf8toWStr(const std::string& utf8str, std::wstring& wstr);
@@ -304,10 +306,23 @@ TC_COMMON_API void HexStrToByteArray(std::string const& str, uint8* out, bool re
 TC_COMMON_API bool StringToBool(std::string const& str);
 
 TC_COMMON_API bool StringContainsStringI(std::string const& haystack, std::string const& needle);
-template <typename T>
-inline bool ValueContainsStringI(std::pair<T, std::string> const& haystack, std::string const& needle)
+
+TC_COMMON_API float DegToRad(float degrees);
+
+template<class Container>
+std::string StringJoin(Container const& c, std::string delimiter)
 {
-    return StringContainsStringI(haystack.second, needle);
+    if (c.empty())
+        return "";
+
+    std::ostringstream os;
+    auto itr = c.begin();
+    os << *itr++;
+
+    for (; itr != c.end(); ++itr)
+        os << delimiter << *itr;
+
+    return os.str();
 }
 
 // simple class for not-modifyable list
@@ -322,13 +337,13 @@ class HookList final
     public:
         typedef typename ContainerType::iterator iterator;
 
-        HookList<T>& operator+=(T&& t)
+        HookList<T>& operator+=(T t)
         {
-            _container.push_back(std::move(t));
+            _container.push_back(t);
             return *this;
         }
 
-        size_t size() const
+        size_t size()
         {
             return _container.size();
         }
@@ -398,7 +413,7 @@ public:
 
     inline bool operator!=(flag96 const& right) const
     {
-        return !(*this == right);
+        return !this->operator ==(right);
     }
 
     inline flag96& operator=(flag96 const& right)
@@ -411,7 +426,8 @@ public:
 
     inline flag96 operator&(flag96 const& right) const
     {
-        return flag96(part[0] & right.part[0], part[1] & right.part[1], part[2] & right.part[2]);
+        return flag96(part[0] & right.part[0], part[1] & right.part[1],
+            part[2] & right.part[2]);
     }
 
     inline flag96& operator&=(flag96 const& right)
@@ -424,10 +440,11 @@ public:
 
     inline flag96 operator|(flag96 const& right) const
     {
-        return flag96(part[0] | right.part[0], part[1] | right.part[1], part[2] | right.part[2]);
+        return flag96(part[0] | right.part[0], part[1] | right.part[1],
+            part[2] | right.part[2]);
     }
 
-    inline flag96& operator |=(flag96 const& right)
+    inline flag96& operator|=(flag96 const& right)
     {
         part[0] |= right.part[0];
         part[1] |= right.part[1];
@@ -442,10 +459,11 @@ public:
 
     inline flag96 operator^(flag96 const& right) const
     {
-        return flag96(part[0] ^ right.part[0], part[1] ^ right.part[1], part[2] ^ right.part[2]);
+        return flag96(part[0] ^ right.part[0], part[1] ^ right.part[1],
+            part[2] ^ right.part[2]);
     }
 
-    inline flag96& operator^=(flag96 const& right)
+    inline flag96 & operator^=(flag96 const& right)
     {
         part[0] ^= right.part[0];
         part[1] ^= right.part[1];
@@ -458,7 +476,7 @@ public:
         return (part[0] != 0 || part[1] != 0 || part[2] != 0);
     }
 
-    inline bool operator !() const
+    inline bool operator!() const
     {
         return !(bool(*this));
     }
@@ -468,7 +486,7 @@ public:
         return part[el];
     }
 
-    inline uint32 const& operator [](uint8 el) const
+    inline uint32 const& operator[](uint8 el) const
     {
         return part[el];
     }

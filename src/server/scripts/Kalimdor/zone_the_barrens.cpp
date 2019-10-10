@@ -19,16 +19,11 @@
 /* ScriptData
 SDName: The_Barrens
 SD%Complete: 90
-SDComment: Quest support: 863, 898, 1719, 2458, 4921, 6981,
+SDComment: Quest support: 863
 SDCategory: Barrens
 EndScriptData */
 
 /* ContentData
-npc_beaten_corpse
-npc_gilthares
-npc_sputtervalve
-npc_taskmaster_fizzule
-npc_twiggy_flathead
 npc_wizzlecrank_shredder
 EndContentData */
 
@@ -58,7 +53,9 @@ class npc_beaten_corpse : public CreatureScript
 
         struct npc_beaten_corpseAI : public ScriptedAI
         {
-            npc_beaten_corpseAI(Creature* creature) : ScriptedAI(creature) { }
+            npc_beaten_corpseAI(Creature* creature) : ScriptedAI(creature)
+            {
+            }
 
             bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
             {
@@ -67,7 +64,7 @@ class npc_beaten_corpse : public CreatureScript
                     CloseGossipMenuFor(player);
                     player->TalkedToCreature(me->GetEntry(), me->GetGUID());
                 }
-                return false;
+                return true;
             }
         };
 
@@ -93,7 +90,8 @@ enum Gilthares
     SAY_GIL_FREED               = 7,
 
     QUEST_FREE_FROM_HOLD        = 898,
-    AREA_MERCHANT_COAST         = 391
+    AREA_MERCHANT_COAST         = 391,
+    FACTION_ESCORTEE            = 232                       //guessed, possible not needed for this quest
 };
 
 class npc_gilthares : public CreatureScript
@@ -101,13 +99,31 @@ class npc_gilthares : public CreatureScript
 public:
     npc_gilthares() : CreatureScript("npc_gilthares") { }
 
-    struct npc_giltharesAI : public EscortAI
+    CreatureAI* GetAI(Creature* creature) const override
     {
-        npc_giltharesAI(Creature* creature) : EscortAI(creature) { }
+        return new npc_giltharesAI(creature);
+    }
+
+    struct npc_giltharesAI : public npc_escortAI
+    {
+        npc_giltharesAI(Creature* creature) : npc_escortAI(creature) { }
+
+        void QuestAccept(Player* player, const Quest* quest) override
+        {
+            if (quest->GetQuestId() == QUEST_FREE_FROM_HOLD)
+            {
+                me->SetFaction(FACTION_ESCORTEE);
+                me->SetStandState(UNIT_STAND_STATE_STAND);
+
+                Talk(SAY_GIL_START, player);
+
+                Start(false, false, player->GetGUID(), quest);
+            }
+        }
 
         void Reset() override { }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             Player* player = GetPlayerForEscort();
             if (!player)
@@ -150,24 +166,8 @@ public:
                 Talk(SAY_GIL_AGGRO, who);
             }
         }
-
-        void QuestAccept(Player* player, Quest const* quest) override
-        {
-            if (quest->GetQuestId() == QUEST_FREE_FROM_HOLD)
-            {
-                me->SetFaction(FACTION_ESCORTEE_H_NEUTRAL_ACTIVE);
-                me->SetStandState(UNIT_STAND_STATE_STAND);
-
-                Talk(SAY_GIL_START, player);
-                Start(false, false, player->GetGUID(), quest);
-            }
-        }
     };
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_giltharesAI(creature);
-    }
 };
 
 /*######
@@ -176,6 +176,7 @@ public:
 
 enum TaskmasterFizzule
 {
+    FACTION_FRIENDLY_F  = 35,
     SPELL_FLARE         = 10113,
     SPELL_FOLLY         = 10137,
 };
@@ -219,13 +220,13 @@ public:
         void DoFriend()
         {
             me->RemoveAllAuras();
+            me->DeleteThreatList();
             me->CombatStop(true);
+
             me->StopMoving();
-            
-            EngagementOver();
-            
             me->GetMotionMaster()->MoveIdle();
-            me->SetFaction(FACTION_FRIENDLY);
+
+            me->SetFaction(FACTION_FRIENDLY_F);
             me->HandleEmoteCommand(EMOTE_ONESHOT_SALUTE);
         }
 
@@ -265,7 +266,7 @@ public:
             {
                 if (FlareCount >= 2)
                 {
-                    if (me->GetFaction() == FACTION_FRIENDLY)
+                    if (me->GetFaction() == FACTION_FRIENDLY_F)
                         return;
 
                     DoFriend();
@@ -519,6 +520,7 @@ enum Wizzlecrank
     SAY_END             = 6,
 
     QUEST_ESCAPE        = 863,
+    FACTION_RATCHET     = 637,
     NPC_PILOT_WIZZ      = 3451,
     NPC_MERCENARY       = 3282,
 };
@@ -528,9 +530,9 @@ class npc_wizzlecrank_shredder : public CreatureScript
 public:
     npc_wizzlecrank_shredder() : CreatureScript("npc_wizzlecrank_shredder") { }
 
-    struct npc_wizzlecrank_shredderAI : public EscortAI
+    struct npc_wizzlecrank_shredderAI : public npc_escortAI
     {
-        npc_wizzlecrank_shredderAI(Creature* creature) : EscortAI(creature)
+        npc_wizzlecrank_shredderAI(Creature* creature) : npc_escortAI(creature)
         {
             IsPostEvent = false;
             PostEventTimer = 1000;
@@ -542,7 +544,7 @@ public:
         uint32 PostEventTimer;
         uint32 PostEventCount;
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             switch (waypointId)
             {
@@ -565,7 +567,7 @@ public:
             }
         }
 
-        void WaypointStarted(uint32 PointId, uint32 /*pathId*/) override
+        void WaypointStart(uint32 PointId) override
         {
             Player* player = GetPlayerForEscort();
 
@@ -625,7 +627,7 @@ public:
                     if (Player* player = GetPlayerForEscort())
                     {
                         player->GroupEventHappens(QUEST_ESCAPE, me);
-                        me->DespawnOrUnsummon(5min);
+                        me->DespawnOrUnsummon(Minutes(3));
                         me->SummonCreature(NPC_PILOT_WIZZ, 0.0f, 0.0f, 0.0f, 0.0f, TEMPSUMMON_TIMED_DESPAWN, 180000);
                     }
                     break;
@@ -656,9 +658,5 @@ public:
 
 void AddSC_the_barrens()
 {
-    new npc_beaten_corpse();
-    new npc_gilthares();
-    new npc_taskmaster_fizzule();
-    new npc_twiggy_flathead();
     new npc_wizzlecrank_shredder();
 }

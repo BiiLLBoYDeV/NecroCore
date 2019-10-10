@@ -31,14 +31,12 @@
 #include "DatabaseEnv.h"
 #include "DatabaseLoader.h"
 #include "DeadlineTimer.h"
+#include "GitRevision.h"
+#include "GruntRealmList.h"
 #include "IoContext.h"
 #include "IPLocation.h"
-#include "GitRevision.h"
 #include "MySQLThreading.h"
 #include "ProcessPriority.h"
-#include "RealmList.h"
-#include "SecretMgr.h"
-#include "SharedDefines.h"
 #include "Util.h"
 #include <boost/asio/signal_set.hpp>
 #include <boost/program_options.hpp>
@@ -81,7 +79,6 @@ variables_map GetConsoleArguments(int argc, char** argv, fs::path& configFile, s
 
 int main(int argc, char** argv)
 {
-    Trinity::Impl::CurrentServerProcessHolder::_type = SERVER_PROCESS_AUTHSERVER;
     signal(SIGABRT, &Trinity::AbortHandler);
 
     auto configFile = fs::absolute(_TRINITY_REALM_CONFIG);
@@ -142,8 +139,6 @@ int main(int argc, char** argv)
     if (!StartDB())
         return 1;
 
-    sSecretMgr->Initialize();
-
     // Load IP Location Database
     sIPLocation->Load();
 
@@ -152,11 +147,11 @@ int main(int argc, char** argv)
     std::shared_ptr<Trinity::Asio::IoContext> ioContext = std::make_shared<Trinity::Asio::IoContext>();
 
     // Get the list of realms for the server
-    sRealmList->Initialize(*ioContext, sConfigMgr->GetIntDefault("RealmsStateUpdateDelay", 20));
+    sGruntRealmList->Initialize(*ioContext, sConfigMgr->GetIntDefault("RealmsStateUpdateDelay", 20));
 
-    std::shared_ptr<void> sRealmListHandle(nullptr, [](void*) { sRealmList->Close(); });
+    std::shared_ptr<void> sRealmListHandle(nullptr, [](void*) { sGruntRealmList->Close(); });
 
-    if (sRealmList->GetRealms().empty())
+    if (sGruntRealmList->GetRealms().empty())
     {
         TC_LOG_ERROR("server.authserver", "No valid realms specified.");
         return 1;

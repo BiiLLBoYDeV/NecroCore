@@ -24,12 +24,12 @@ SDCategory: Shadowfang Keep
 EndScriptData */
 
 #include "ScriptMgr.h"
-#include "shadowfang_keep.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Log.h"
 #include "Map.h"
 #include "ScriptedCreature.h"
+#include "shadowfang_keep.h"
 #include "TemporarySummon.h"
 
 #define MAX_ENCOUNTER              4
@@ -74,14 +74,9 @@ class instance_shadowfang_keep : public InstanceMapScript
 public:
     instance_shadowfang_keep() : InstanceMapScript(SFKScriptName, 33) { }
 
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_shadowfang_keep_InstanceMapScript(map);
-    }
-
     struct instance_shadowfang_keep_InstanceMapScript : public InstanceScript
     {
-        instance_shadowfang_keep_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_shadowfang_keep_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             memset(&m_auiEncounter, 0, sizeof(m_auiEncounter));
@@ -258,7 +253,7 @@ public:
                         case 1:
                         {
                             Creature* summon = pArchmage->SummonCreature(pArchmage->GetEntry(), SpawnLocation[4], TEMPSUMMON_TIMED_DESPAWN, 10000);
-                            summon->SetImmuneToPC(true);
+                            summon->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                             summon->SetReactState(REACT_DEFENSIVE);
                             summon->CastSpell(summon, SPELL_ASHCROMBE_TELEPORT, true);
                             summon->AI()->Talk(SAY_ARCHMAGE);
@@ -282,6 +277,10 @@ public:
         }
     };
 
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_shadowfang_keep_InstanceMapScript(map);
+    }
 };
 
 void AddSC_instance_shadowfang_keep()

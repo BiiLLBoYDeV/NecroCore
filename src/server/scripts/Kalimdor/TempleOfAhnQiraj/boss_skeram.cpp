@@ -133,7 +133,7 @@ class boss_skeram : public CreatureScript
                     BossAI::JustDied(killer);
                 }
                 else
-                    me->DespawnOrUnsummon();
+                    me->RemoveCorpse();
             }
 
             void JustEngagedWith(Unit* /*who*/) override
@@ -141,10 +141,10 @@ class boss_skeram : public CreatureScript
                 _JustEngagedWith();
                 events.Reset();
 
-                events.ScheduleEvent(EVENT_ARCANE_EXPLOSION, 6s, 12s);
-                events.ScheduleEvent(EVENT_FULLFILMENT, 15s);
-                events.ScheduleEvent(EVENT_BLINK, 30s, 45s);
-                events.ScheduleEvent(EVENT_EARTH_SHOCK, 2s);
+                events.ScheduleEvent(EVENT_ARCANE_EXPLOSION, urand(6000, 12000));
+                events.ScheduleEvent(EVENT_FULLFILMENT, 15000);
+                events.ScheduleEvent(EVENT_BLINK, urand(30000, 45000));
+                events.ScheduleEvent(EVENT_EARTH_SHOCK, 2000);
 
                 Talk(SAY_AGGRO);
             }
@@ -162,22 +162,22 @@ class boss_skeram : public CreatureScript
                     {
                         case EVENT_ARCANE_EXPLOSION:
                             DoCastAOE(SPELL_ARCANE_EXPLOSION, true);
-                            events.ScheduleEvent(EVENT_ARCANE_EXPLOSION, 8s, 18s);
+                            events.ScheduleEvent(EVENT_ARCANE_EXPLOSION, urand(8000, 18000));
                             break;
                         case EVENT_FULLFILMENT:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 45.0f, true))
                                 DoCast(target, SPELL_TRUE_FULFILLMENT);
-                            events.ScheduleEvent(EVENT_FULLFILMENT, 20s, 30s);
+                            events.ScheduleEvent(EVENT_FULLFILMENT, urand(20000, 30000));
                             break;
                         case EVENT_BLINK:
                             DoCast(me, BlinkSpells[urand(0, 2)]);
-                            ResetThreatList();
+                            DoResetThreat();
                             me->SetVisible(true);
-                            events.ScheduleEvent(EVENT_BLINK, 10s, 30s);
+                            events.ScheduleEvent(EVENT_BLINK, urand(10000, 30000));
                             break;
                         case EVENT_EARTH_SHOCK:
                             DoCastVictim(SPELL_EARTH_SHOCK);
-                            events.ScheduleEvent(EVENT_EARTH_SHOCK, 2s);
+                            events.ScheduleEvent(EVENT_EARTH_SHOCK, 2000);
                             break;
                     }
                 }
@@ -209,6 +209,21 @@ class boss_skeram : public CreatureScript
     }
 };
 
+class PlayerOrPetCheck
+{
+    public:
+        bool operator()(WorldObject* object) const
+        {
+            if (object->GetTypeId() == TYPEID_PLAYER)
+                return false;
+
+            if (Creature* creature = object->ToCreature())
+                return !creature->IsPet();
+
+            return true;
+        }
+};
+
 // 26192 - Arcane Explosion
 class spell_skeram_arcane_explosion : public SpellScriptLoader
 {
@@ -221,16 +236,7 @@ class spell_skeram_arcane_explosion : public SpellScriptLoader
 
             void FilterTargets(std::list<WorldObject*>& targets)
             {
-                targets.remove_if([](WorldObject* object) -> bool
-                {
-                    if (object->GetTypeId() == TYPEID_PLAYER)
-                        return false;
-
-                    if (Creature* creature = object->ToCreature())
-                        return !creature->IsPet();
-
-                    return true;
-                });
+                targets.remove_if(PlayerOrPetCheck());
             }
 
             void Register() override

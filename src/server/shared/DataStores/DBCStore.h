@@ -20,10 +20,9 @@
 #define DBCSTORE_H
 
 #include "Common.h"
-#include "DBCStorageIterator.h"
+#include "DBStorageIterator.h"
 #include "Errors.h"
 #include <vector>
-#include <cstring>
 
  /// Interface class for common access
 class TC_SHARED_API DBCStorageBase
@@ -35,18 +34,19 @@ class TC_SHARED_API DBCStorageBase
         char const* GetFormat() const { return _fileFormat; }
         uint32 GetFieldCount() const { return _fieldCount; }
 
-        virtual bool Load(char const* path) = 0;
-        virtual bool LoadStringsFrom(char const* path) = 0;
-        virtual void LoadFromDB(char const* table, char const* format, char const* index) = 0;
+        virtual bool Load(std::string const& path) = 0;
+        virtual bool LoadStringsFrom(std::string const& path) = 0;
+        virtual void LoadFromDB(std::string const& path, std::string const& dbFormat, std::string const& primaryKey) = 0;
 
     protected:
-        bool Load(char const* path, char**& indexTable);
-        bool LoadStringsFrom(char const* path, char** indexTable);
-        void LoadFromDB(char const* table, char const* format, char const* index, char**& indexTable);
+        bool Load(std::string const& path, char**& indexTable);
+        bool LoadStringsFrom(std::string const& path, char**& indexTable);
+        void LoadFromDB(std::string const& path, std::string const& dbFormat, std::string const& primaryKey, char**& indexTable);
 
         uint32 _fieldCount;
         char const* _fileFormat;
         char* _dataTable;
+        char* _dataTableEx;
         std::vector<char*> _stringPool;
         uint32 _indexTableSize;
 };
@@ -55,7 +55,7 @@ template <class T>
 class DBCStorage : public DBCStorageBase
 {
     public:
-        typedef DBCStorageIterator<T> iterator;
+        typedef DBStorageIterator<T> iterator;
 
         explicit DBCStorage(char const* fmt) : DBCStorageBase(fmt)
         {
@@ -70,42 +70,21 @@ class DBCStorage : public DBCStorageBase
         T const* LookupEntry(uint32 id) const { return (id >= _indexTableSize) ? nullptr : _indexTable.AsT[id]; }
         T const* AssertEntry(uint32 id) const { return ASSERT_NOTNULL(LookupEntry(id)); }
 
-#ifdef ELUNA
-        void SetEntry(uint32 id, T* t)
-        {
-            if (id >= _indexTableSize)
-            {
-                // Resize
-                typedef char* ptr;
-                size_t newSize = id + 1;
-                ptr* newArr = new ptr[newSize];
-                memset(newArr, 0, newSize * sizeof(ptr));
-                memcpy(newArr, _indexTable.AsChar, _indexTableSize * sizeof(ptr));
-                delete[] reinterpret_cast<char*>(_indexTable.AsT);
-                _indexTable.AsChar = newArr;
-                _indexTableSize = newSize;
-            }
-
-            delete _indexTable.AsT[id];
-            _indexTable.AsT[id] = t;
-        }
-#endif
-
         uint32 GetNumRows() const { return _indexTableSize; }
 
-        bool Load(char const* path) override
+        bool Load(std::string const& path) override
         {
             return DBCStorageBase::Load(path, _indexTable.AsChar);
         }
 
-        bool LoadStringsFrom(char const* path) override
+        bool LoadStringsFrom(std::string const& path) override
         {
             return DBCStorageBase::LoadStringsFrom(path, _indexTable.AsChar);
         }
 
-        void LoadFromDB(char const* table, char const* format, char const* index) override
+        void LoadFromDB(std::string const& path, std::string const& dbFormat, std::string const& primaryKey) override
         {
-            DBCStorageBase::LoadFromDB(table, format, index, _indexTable.AsChar);
+            DBCStorageBase::LoadFromDB(path, dbFormat, primaryKey, _indexTable.AsChar);
         }
 
         iterator begin() { return iterator(_indexTable.AsT, _indexTableSize); }

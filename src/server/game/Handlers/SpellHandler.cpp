@@ -17,29 +17,27 @@
  */
 
 #include "WorldSession.h"
+#include "Archaeology.h"
 #include "Common.h"
 #include "Config.h"
-#include "CreatureOutfit.h"
 #include "DatabaseEnv.h"
-#include "Log.h"
 #include "DBCStores.h"
 #include "GameObject.h"
 #include "GameObjectAI.h"
+#include "Guild.h"
+#include "GuildMgr.h"
 #include "Item.h"
+#include "Log.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
-#include "Transmogrification.h"
 #include "Player.h"
+#include "QueryCallback.h"
 #include "ScriptMgr.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
-#ifdef ELUNA
-#include "LuaEngine.h"
-#endif
 #include "SpellMgr.h"
 #include "Totem.h"
-#include "TotemPackets.h"
 #include "World.h"
 #include "WorldPacket.h"
 
@@ -59,10 +57,32 @@ void WorldSession::HandleClientCastFlags(WorldPacket& recvPacket, uint8 castFlag
         uint8 hasMovementData;
         recvPacket >> hasMovementData;
         if (hasMovementData)
-        {
-            recvPacket.SetOpcode(recvPacket.read<uint32>());
             HandleMovementOpcodes(recvPacket);
+    }
+    else if (castFlags & 0x8)   // Archaeology
+    {
+        ArchData archData;
+        uint32 count;
+        uint8 type;
+        recvPacket >> count;
+        for (uint32 i = 0; i < count; ++i)
+        {
+            recvPacket >> type;
+            switch (type)
+            {
+                case 2: // Keystones
+                    recvPacket >> archData.KeyId;       // Item id
+                    recvPacket >> archData.KeyCount;    // Item count
+                    break;
+                case 1: // Fragments
+                    recvPacket >> archData.FragId;      // Currency id
+                    recvPacket >> archData.FragCount;   // Currency count
+                    break;
+            }
         }
+
+        if (Player* player = GetPlayer())
+            player->SetArchData(archData);
     }
 }
 
@@ -72,7 +92,7 @@ void WorldSession::HandleUseItemOpcode(WorldPacket& recvPacket)
     Player* pUser = _player;
 
     // ignore for remote control state
-    if (pUser->GetUnitBeingMoved() != pUser)
+    if (pUser->m_unitMovedByMe != pUser)
         return;
 
     uint8 bagIndex, slot, castFlags;
@@ -183,13 +203,13 @@ void WorldSession::HandleOpenItemOpcode(WorldPacket& recvPacket)
     Player* player = GetPlayer();
 
     // ignore for remote control state
-    if (player->GetUnitBeingMoved() != player)
+    if (player->m_unitMovedByMe != player)
         return;
 
     // additional check, client outputs message on its own
     if (!player->IsAlive())
     {
-        player->SendEquipError(EQUIP_ERR_YOU_ARE_DEAD, nullptr, nullptr);
+        player->SendEquipError(EQUIP_ERR_PLAYER_DEAD, nullptr, nullptr);
         return;
     }
 
@@ -215,8 +235,8 @@ void WorldSession::HandleOpenItemOpcode(WorldPacket& recvPacket)
     // Verify that the bag is an actual bag or wrapped item that can be used "normally"
     if (!(proto->Flags & ITEM_FLAG_HAS_LOOT) && !item->HasFlag(ITEM_FIELD_FLAGS, ITEM_FIELD_FLAG_WRAPPED))
     {
-        player->SendEquipError(EQUIP_ERR_CANT_DO_RIGHT_NOW, item, nullptr);
-        TC_LOG_ERROR("entities.player.cheat", "Possible hacking attempt: Player %s [guid: %u] tried to open item [guid: %u, entry: %u] which is not openable!",
+        player->SendEquipError(EQUIP_ERR_CLIENT_LOCKED_OUT, item, nullptr);
+        TC_LOG_INFO("entities.player.cheat", "Possible hacking attempt: Player %s [guid: %u] tried to open item [guid: %u, entry: %u] which is not openable!",
             player->GetName().c_str(), player->GetGUID().GetCounter(), item->GetGUID().GetCounter(), proto->ItemId);
         return;
     }
@@ -245,6 +265,7 @@ void WorldSession::HandleOpenItemOpcode(WorldPacket& recvPacket)
     if (item->HasFlag(ITEM_FIELD_FLAGS, ITEM_FIELD_FLAG_WRAPPED))// wrapped?
     {
         PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_SEL_CHARACTER_GIFT_BY_ITEM);
+
         stmt->setUInt32(0, item->GetGUID().GetCounter());
         _queryProcessor.AddQuery(CharacterDatabase.AsyncQuery(stmt)
             .WithPreparedCallback(std::bind(&WorldSession::HandleOpenWrappedItemCallback, this, item->GetPos(), item->GetGUID(), std::placeholders::_1)));
@@ -303,8 +324,8 @@ void WorldSession::HandleGameObjectUseOpcode(WorldPacket& recvData)
     if (GameObject* obj = GetPlayer()->GetGameObjectIfCanInteractWith(guid))
     {
         // ignore for remote control state
-        if (GetPlayer()->GetUnitBeingMoved() != GetPlayer())
-            if (!(GetPlayer()->IsOnVehicle(GetPlayer()->GetUnitBeingMoved()) || GetPlayer()->IsMounted()) && !obj->GetGOInfo()->IsUsableMounted())
+        if (GetPlayer()->m_unitMovedByMe != GetPlayer())
+            if (!(GetPlayer()->IsOnVehicle(GetPlayer()->m_unitMovedByMe) || GetPlayer()->IsMounted()) && !obj->GetGOInfo()->IsUsableMounted())
                 return;
 
         obj->Use(GetPlayer());
@@ -319,15 +340,11 @@ void WorldSession::HandleGameobjectReportUse(WorldPacket& recvPacket)
     TC_LOG_DEBUG("network", "WORLD: Recvd CMSG_GAMEOBJ_REPORT_USE Message [%s]", guid.ToString().c_str());
 
     // ignore for remote control state
-    if (_player->GetUnitBeingMoved() != _player)
+    if (_player->m_unitMovedByMe != _player)
         return;
 
     if (GameObject* go = GetPlayer()->GetGameObjectIfCanInteractWith(guid))
     {
-#ifdef ELUNA
-        if (sEluna->OnGameObjectUse(_player, go))
-            return;
-#endif
         if (go->AI()->OnReportUse(_player))
             return;
 
@@ -337,15 +354,18 @@ void WorldSession::HandleGameobjectReportUse(WorldPacket& recvPacket)
 
 void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
 {
-    uint32 spellId;
+    uint32 spellId, glyphIndex;
     uint8  castCount, castFlags;
-    recvPacket >> castCount >> spellId >> castFlags;
-    TriggerCastFlags triggerFlag = TRIGGERED_NONE;
+
+    recvPacket >> castCount;
+    recvPacket >> spellId;
+    recvPacket >> glyphIndex;
+    recvPacket >> castFlags;
 
     TC_LOG_DEBUG("network", "WORLD: got cast spell packet, castCount: %u, spellId: %u, castFlags: %u, data length = %u", castCount, spellId, castFlags, (uint32)recvPacket.size());
 
     // ignore for remote control state (for player case)
-    Unit* mover = _player->GetUnitBeingMoved();
+    Unit* mover = _player->m_unitMovedByMe;
     if (mover != _player && mover->GetTypeId() == TYPEID_PLAYER)
     {
         recvPacket.rfinish(); // prevent spam at ignore packet
@@ -367,7 +387,7 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
     }
 
     Unit* caster = mover;
-    if (caster->GetTypeId() == TYPEID_UNIT && !caster->ToCreature()->HasSpell(spellId))
+    if (caster->GetTypeId() == TYPEID_UNIT && !caster->ToCreature()->HasSpell(spellInfo->Id))
     {
         // If the vehicle creature does not have the spell but it allows the passenger to cast own spells
         // change caster to player and let him cast
@@ -380,38 +400,28 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
         caster = _player;
     }
 
+    if (caster->GetTypeId() == TYPEID_PLAYER && !caster->ToPlayer()->HasActiveSpell(spellInfo->Id) && !spellInfo->IsRaidMarker() &&
+        !caster->ToPlayer()->HasArchProject(static_cast<uint16>(spellInfo->ResearchProjectId)))
+    {
+        // not have spell in spellbook
+        recvPacket.rfinish(); // prevent spam at ignore packet
+        return;
+    }
+
+    // Check possible spell cast overrides
+    spellInfo = caster->GetCastSpellInfo(spellInfo);
+
+    // can't use our own spells when we're in possession of another unit,
+    if (_player->isPossessing())
+    {
+        recvPacket.rfinish(); // prevent spam at ignore packet
+        return;
+    }
+
     // client provided targets
     SpellCastTargets targets;
     targets.Read(recvPacket, caster);
     HandleClientCastFlags(recvPacket, castFlags, targets);
-
-    // not have spell in spellbook
-    if (caster->GetTypeId() == TYPEID_PLAYER && !caster->ToPlayer()->HasActiveSpell(spellId))
-    {
-        bool allow = false;
-
-        // allow casting of unknown spells for special lock cases
-        if (GameObject *go = targets.GetGOTarget())
-            if (go->GetSpellForLock(caster->ToPlayer()) == spellInfo)
-                allow = true;
-
-        // TODO: Preparation for #23204
-        // allow casting of spells triggered by clientside periodic trigger auras
-        /*
-         if (caster->HasAuraTypeWithTriggerSpell(SPELL_AURA_PERIODIC_TRIGGER_SPELL_FROM_CLIENT, spellId))
-        {
-            allow = true;
-            triggerFlag = TRIGGERED_FULL_MASK;
-        }
-        */
-
-        if (!allow)
-            return;
-    }
-
-    // can't use our own spells when we're in possession of another unit,
-    if (_player->isPossessing())
-        return;
 
     // Client is resending autoshot cast opcode when other spell is cast during shoot rotation
     // Skip it to prevent "interrupt" message
@@ -440,9 +450,10 @@ void WorldSession::HandleCastSpellOpcode(WorldPacket& recvPacket)
                 spellInfo = actualSpellInfo;
         }
 
-    Spell* spell = new Spell(caster, spellInfo, triggerFlag);
+    Spell* spell = new Spell(caster, spellInfo, TRIGGERED_NONE, ObjectGuid::Empty, false);
     spell->m_cast_count = castCount;                       // set count of casts
-    spell->prepare(targets);
+    spell->m_glyphIndex = glyphIndex;
+    spell->prepare(&targets);
 }
 
 void WorldSession::HandleCancelCastOpcode(WorldPacket& recvPacket)
@@ -523,14 +534,13 @@ void WorldSession::HandlePetCancelAuraOpcode(WorldPacket& recvPacket)
     }
 
     Creature* pet = ObjectAccessor::GetCreatureOrPetOrVehicle(*_player, guid);
-
     if (!pet)
     {
         TC_LOG_ERROR("network", "HandlePetCancelAura: Attempt to cancel an aura for non-existant %s by player '%s'", guid.ToString().c_str(), GetPlayer()->GetName().c_str());
         return;
     }
 
-    if (pet != GetPlayer()->GetGuardianPet() && pet != GetPlayer()->GetCharmed())
+    if (pet != GetPlayer()->GetGuardianPet() && pet != GetPlayer()->GetCharm())
     {
         TC_LOG_ERROR("network", "HandlePetCancelAura: %s is not a pet of player '%s'", guid.ToString().c_str(), GetPlayer()->GetName().c_str());
         return;
@@ -559,43 +569,49 @@ void WorldSession::HandleCancelChanneling(WorldPacket& recvData)
     recvData.read_skip<uint32>();                          // spellid, not used
 
     // ignore for remote control state (for player case)
-    Unit* mover = _player->GetUnitBeingMoved();
+    Unit* mover = _player->m_unitMovedByMe;
     if (mover != _player && mover->GetTypeId() == TYPEID_PLAYER)
         return;
 
     mover->InterruptSpell(CURRENT_CHANNELED_SPELL);
 }
 
-void WorldSession::HandleTotemDestroyed(WorldPackets::Totem::TotemDestroyed& totemDestroyed)
+void WorldSession::HandleTotemDestroyed(WorldPacket& recvPacket)
 {
     // ignore for remote control state
-    if (_player->GetUnitBeingMoved() != _player)
+    if (_player->m_unitMovedByMe != _player)
         return;
 
-    uint8 slotId = totemDestroyed.Slot;
-    slotId += SUMMON_SLOT_TOTEM_FIRE;
+    uint8 slotId;
+    uint64 guid;
+    recvPacket >> slotId;
+    recvPacket >> guid;
 
+    ++slotId;
     if (slotId >= MAX_TOTEM_SLOT)
         return;
 
     if (!_player->m_SummonSlot[slotId])
         return;
 
-    Creature* totem = ObjectAccessor::GetCreature(*_player, _player->m_SummonSlot[slotId]);
-    if (totem && totem->IsTotem())
+    Creature* totem = ObjectAccessor::GetCreature(*GetPlayer(), _player->m_SummonSlot[slotId]);
+    if (totem && totem->IsTotem() && totem->GetGUID() == guid)
         totem->ToTotem()->UnSummon();
 }
 
-void WorldSession::HandleSelfResOpcode(WorldPacket & /*recvData*/)
+void WorldSession::HandleSelfResOpcode(WorldPacket& /*recvData*/)
 {
     TC_LOG_DEBUG("network", "WORLD: CMSG_SELF_RES");                  // empty opcode
 
     if (_player->HasAuraType(SPELL_AURA_PREVENT_RESURRECTION))
         return; // silent return, client should display error by itself and not send this opcode
 
-    if (uint32 spellId = _player->GetUInt32Value(PLAYER_SELF_RES_SPELL))
+    if (_player->GetUInt32Value(PLAYER_SELF_RES_SPELL))
     {
-        _player->CastSpell(_player, spellId);
+        SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(_player->GetUInt32Value(PLAYER_SELF_RES_SPELL));
+        if (spellInfo)
+            _player->CastSpell(_player, spellInfo, false, nullptr);
+
         _player->SetUInt32Value(PLAYER_SELF_RES_SPELL, 0);
     }
 }
@@ -623,38 +639,12 @@ void WorldSession::HandleMirrorImageDataRequest(WorldPacket& recvData)
     TC_LOG_DEBUG("network", "WORLD: CMSG_GET_MIRRORIMAGE_DATA");
     ObjectGuid guid;
     recvData >> guid;
+    recvData.read_skip<uint32>(); // DisplayId ?
 
     // Get unit for which data is needed by client
     Unit* unit = ObjectAccessor::GetUnit(*_player, guid);
     if (!unit)
         return;
-
-    if (Creature* creature = unit->ToCreature())
-    {
-        if (std::shared_ptr<CreatureOutfit> const & outfit_ptr = creature->GetOutfit())
-        {
-            CreatureOutfit const& outfit = *outfit_ptr;
-            WorldPacket data(SMSG_MIRRORIMAGE_DATA, 68);
-            data << uint64(guid);
-            data << uint32(outfit.GetDisplayId());  // displayId
-            data << uint8(outfit.GetRace());        // race
-            data << uint8(outfit.GetGender());      // gender
-            data << uint8(outfit.Class);            // class
-            data << uint8(outfit.skin);             // skin
-            data << uint8(outfit.face);             // face
-            data << uint8(outfit.hair);             // hair
-            data << uint8(outfit.haircolor);        // haircolor
-            data << uint8(outfit.facialhair);       // facialhair
-            data << uint32(outfit.guild);           // guildId
-
-            // item displays
-            for (auto const& slot : CreatureOutfit::item_slots)
-                data << uint32(outfit.outfitdisplays[slot]);
-
-            SendPacket(&data);
-            return;
-        }
-    }
 
     if (!unit->HasAuraType(SPELL_AURA_CLONE_CASTER))
         return;
@@ -667,7 +657,7 @@ void WorldSession::HandleMirrorImageDataRequest(WorldPacket& recvData)
     WorldPacket data(SMSG_MIRRORIMAGE_DATA, 68);
     data << uint64(guid);
     data << uint32(creator->GetDisplayId());
-    data << uint8(creator->GetRace());
+    data << uint8(creator->getRace());
     data << uint8(creator->GetGender());
     data << uint8(creator->GetClass());
 
@@ -704,12 +694,7 @@ void WorldSession::HandleMirrorImageDataRequest(WorldPacket& recvData)
             else if (*itr == EQUIPMENT_SLOT_BACK && player->HasFlag(PLAYER_FLAGS, PLAYER_FLAGS_HIDE_CLOAK))
                 data << uint32(0);
             else if (Item const* item = player->GetItemByPos(INVENTORY_SLOT_BAG_0, *itr))
-            {
-                if (auto const * itemTemplate = sObjectMgr->GetItemTemplate(item->transmog))
-                    data << uint32(itemTemplate->DisplayInfoID);
-                else
-                    data << uint32(item->GetTemplate()->DisplayInfoID);
-            }
+                data << uint32(item->GetTemplate()->DisplayInfoID);
             else
                 data << uint32(0);
         }
@@ -764,9 +749,6 @@ void WorldSession::HandleUpdateProjectilePosition(WorldPacket& recvPacket)
     pos.Relocate(x, y, z);
     spell->m_targets.ModDst(pos);
 
-    // we changed dest, recalculate flight time
-    spell->RecalculateDelayMomentForDst();
-
     WorldPacket data(SMSG_SET_PROJECTILE_POSITION, 21);
     data << uint64(casterGuid);
     data << uint8(castCount);
@@ -774,4 +756,9 @@ void WorldSession::HandleUpdateProjectilePosition(WorldPacket& recvPacket)
     data << float(y);
     data << float(z);
     caster->SendMessageToSet(&data, true);
+}
+
+void WorldSession::HandleRequestCategoryCooldowns(WorldPacket& /*recvPacket*/)
+{
+    _player->SendSpellCategoryCooldowns();
 }

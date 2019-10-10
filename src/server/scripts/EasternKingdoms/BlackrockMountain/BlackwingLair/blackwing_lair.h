@@ -22,7 +22,7 @@
 
 uint32 const EncounterCount     = 8;
 
-#define BWLScriptName "instance_blackwing_lair"
+#define BRLScriptName "instance_blackwing_lair"
 #define DataHeader    "BWL"
 
 enum BWLEncounter
@@ -85,7 +85,7 @@ enum BWLMisc
 template <class AI, class T>
 inline AI* GetBlackwingLairAI(T* obj)
 {
-    return GetInstanceAI<AI>(obj, BWLScriptName);
+    return GetInstanceAI<AI>(obj, BRLScriptName);
 }
 
 #endif

@@ -76,14 +76,9 @@ enum States
     STATE_ZOMBIE_TOBE_EATEN             = 3
 };
 
-enum SummonGroups
-{
-    SUMMON_GROUP_CHOW_10MAN = 1,
-    SUMMON_GROUP_CHOW_25MAN = 2
-};
-
 enum Misc
 {
+    NPC_ZOMBIE_CHOW                     = 16360,
     EVENT_GLUTH_ZOMBIE_BEHAVIOR         = 10495, // unused. event handled by spell_gluth_decimate_SpellScript::HandleEvent
     DATA_ZOMBIE_STATE                   = 1,
     ACTION_DECIMATE_EVENT               = 2,
@@ -93,11 +88,6 @@ class boss_gluth : public CreatureScript
 {
 public:
     boss_gluth() : CreatureScript("boss_gluth") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetNaxxramasAI<boss_gluthAI>(creature);
-    }
 
     struct boss_gluthAI : public BossAI
     {
@@ -110,18 +100,18 @@ public:
             zombieToBeEatenGUID.Clear();
             state = STATE_GLUTH_NORMAL;
             me->SetReactState(REACT_AGGRESSIVE);
-            me->SetSpeed(UnitMoveType::MOVE_RUN, 12.0f);
+            me->SetSpeed(UnitMoveType::MOVE_RUN, 12.0f / baseMoveSpeed[MOVE_RUN]);
         }
 
         void JustEngagedWith(Unit* /*who*/) override
         {
             _JustEngagedWith();
-            events.ScheduleEvent(EVENT_WOUND, 10s);
+            events.ScheduleEvent(EVENT_WOUND, Seconds(10));
             events.ScheduleEvent(EVENT_ENRAGE, randtime(Seconds(16), Seconds(22)));
             events.ScheduleEvent(EVENT_DECIMATE, randtime(Minutes(1)+Seconds(50), Minutes(2)));
-            events.ScheduleEvent(EVENT_BERSERK, 8min);
-            events.ScheduleEvent(EVENT_SUMMON, 15s);
-            events.ScheduleEvent(EVENT_SEARCH_ZOMBIE_SINGLE, 12s);
+            events.ScheduleEvent(EVENT_BERSERK, Minutes(8));
+            events.ScheduleEvent(EVENT_SUMMON, Seconds(15));
+            events.ScheduleEvent(EVENT_SEARCH_ZOMBIE_SINGLE, Seconds(12));
         }
 
         void SummonedCreatureDies(Creature* summoned, Unit* /* who */) override
@@ -184,9 +174,12 @@ public:
                         break;
                     case EVENT_SUMMON:
                         if (Is25ManRaid()) // one wave each 10s. one wave=1 zombie in 10man and 2 zombies in 25man.
-                            me->SummonCreatureGroup(SUMMON_GROUP_CHOW_25MAN);
+                        {
+                            DoSummon(NPC_ZOMBIE_CHOW, PosSummon[1]);
+                            DoSummon(NPC_ZOMBIE_CHOW, PosSummon[2]);
+                        }
                         else
-                            me->SummonCreatureGroup(SUMMON_GROUP_CHOW_10MAN);
+                            DoSummon(NPC_ZOMBIE_CHOW, PosSummon[0]);
                         events.Repeat(Seconds(10));
                         break;
                     case EVENT_SEARCH_ZOMBIE_SINGLE:
@@ -195,19 +188,19 @@ public:
                         for (SummonList::const_iterator itr = summons.begin(); !zombie && itr != summons.end(); ++itr)
                         {
                             zombie = ObjectAccessor::GetCreature(*me, *itr);
-                            if (!zombie || !zombie->IsAlive() || !zombie->IsWithinDistInMap(me, 10.0))
+                            if (zombie == nullptr || !zombie->IsAlive() || !zombie->IsWithinDistInMap(me, 10.0))
                                 zombie = nullptr;
                         }
 
                         if (zombie)
                         {
-                            zombieToBeEatenGUID = zombie->GetGUID(); // save for later use
+                            zombieToBeEatenGUID = zombie->GetGUID(); // save for later use// the soon-to-be-eaten zombie should stop moving and stop attacking
 
                             // the soon-to-be-eaten zombie should stop moving and stop attacking
                             zombie->AI()->SetData(DATA_ZOMBIE_STATE, STATE_ZOMBIE_TOBE_EATEN);
 
                             // gluth should stop AAs on his primary target and turn toward the zombie (2 yards away). He then pauses for a few seconds.
-                            me->SetSpeed(MOVE_RUN, 36.0f);
+                            me->SetSpeed(MOVE_RUN, 36.0f / baseMoveSpeed[MOVE_RUN]);
 
                             me->SetReactState(ReactStates::REACT_PASSIVE);
                             me->AttackStop();
@@ -232,7 +225,7 @@ public:
 
                         zombieToBeEatenGUID = ObjectGuid::Empty;
                         state = STATE_GLUTH_NORMAL;
-                        me->SetSpeed(UnitMoveType::MOVE_RUN, 12.0f);
+                        me->SetSpeed(UnitMoveType::MOVE_RUN, 12.0f / baseMoveSpeed[MOVE_RUN]);
 
                         // and then return on primary target
                         me->SetReactState(REACT_AGGRESSIVE);
@@ -272,7 +265,7 @@ public:
         {
             if (id == 1){
                 me->GetMotionMaster()->MoveIdle();
-                events.ScheduleEvent(EVENT_KILL_ZOMBIE_SINGLE, 1s);
+                events.ScheduleEvent(EVENT_KILL_ZOMBIE_SINGLE, Seconds(1));
             }
 
         }
@@ -297,6 +290,10 @@ public:
         uint8 state;
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetNaxxramasAI<boss_gluthAI>(creature);
+    }
 };
 
 // spell 28374 (10man) / 54426 (25man) -  Decimate
@@ -316,11 +313,7 @@ public:
             {
                 int32 damage = int32(unit->GetHealth()) - int32(unit->CountPctFromMaxHealth(5));
                 if (damage > 0)
-                {
-                    CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                    args.AddSpellBP0(damage);
-                    GetCaster()->CastSpell(unit, SPELL_DECIMATE_DMG, args);
-                }
+                    GetCaster()->CastCustomSpell(SPELL_DECIMATE_DMG, SPELLVALUE_BASE_POINT0, damage, unit);
             }
         }
 
@@ -392,7 +385,6 @@ public:
 class npc_zombie_chow : public CreatureScript
 {
 public:
-
     npc_zombie_chow() : CreatureScript("npc_zombie_chow") { }
 
     struct npc_zombie_chowAI : public ScriptedAI
@@ -423,7 +415,6 @@ public:
                         me->GetMotionMaster()->MovePoint(0, gluth->GetPosition()); // isn't dynamic. So, to take into account Gluth's movement, it must be called periodicly.
                         timer = 0;
                     }
-
                     if (me->GetExactDist2d(gluth) <= 10.0f)
                         me->StopMoving();
                 }
@@ -445,6 +436,7 @@ public:
                     // at this point, the zombie should be non attacking and non moving.
 
                     me->SetWalk(true); // it doesnt seem to work with MoveFollow() (but it does work with MovePoint()).
+                    //me->SetSpeed(UnitMoveType::MOVE_RUN, baseMoveSpeed[UnitMoveType::MOVE_WALK] / baseMoveSpeed[UnitMoveType::MOVE_RUN]); // Hack to stay in run mode but with walk speed in case using MoveFollow()
 
                     timer = 1000;
                 }

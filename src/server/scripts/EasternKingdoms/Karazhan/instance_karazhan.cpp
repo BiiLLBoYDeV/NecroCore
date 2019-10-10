@@ -29,6 +29,7 @@ EndScriptData */
 #include "InstanceScript.h"
 #include "karazhan.h"
 #include "Map.h"
+#include "Random.h"
 
 /*
 0  - Attumen + Midnight (optional)
@@ -55,7 +56,7 @@ const Position OptionalSpawn[] =
 class instance_karazhan : public InstanceMapScript
 {
 public:
-    instance_karazhan() : InstanceMapScript(KZScriptName, 532) { }
+    instance_karazhan() : InstanceMapScript("instance_karazhan", 532) { }
 
     InstanceScript* GetInstanceScript(InstanceMap* map) const override
     {
@@ -64,7 +65,7 @@ public:
 
     struct instance_karazhan_InstanceMapScript : public InstanceScript
     {
-        instance_karazhan_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_karazhan_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             SetBossNumber(EncounterCount);

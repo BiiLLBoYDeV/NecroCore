@@ -23,10 +23,9 @@
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
-#include "Spell.h"
+#include "SpellAuraEffects.h"
 #include "SpellMgr.h"
 #include "SpellScript.h"
-#include "SpellAuraEffects.h"
 
 enum Texts
 {
@@ -70,7 +69,6 @@ enum Spells
     SPELL_INCITE_TERROR                     = 73070,
     SPELL_BLOODBOLT_WHIRL                   = 71772,
     SPELL_ANNIHILATE                        = 71322,
-    SPELL_CLEAR_ALL_STATUS_AILMENTS         = 70939,
 
     // Blood Infusion
     SPELL_BLOOD_INFUSION_CREDIT             = 72934
@@ -163,12 +161,12 @@ class boss_blood_queen_lana_thel : public CreatureScript
             {
                 _Reset();
                 events.ScheduleEvent(EVENT_BERSERK, 330000);
-                events.ScheduleEvent(EVENT_VAMPIRIC_BITE, 15s);
-                events.ScheduleEvent(EVENT_BLOOD_MIRROR, 2500ms, EVENT_GROUP_CANCELLABLE);
-                events.ScheduleEvent(EVENT_DELIRIOUS_SLASH, 20s, 24s, EVENT_GROUP_NORMAL);
-                events.ScheduleEvent(EVENT_PACT_OF_THE_DARKFALLEN, 15s, EVENT_GROUP_NORMAL);
+                events.ScheduleEvent(EVENT_VAMPIRIC_BITE, 15000);
+                events.ScheduleEvent(EVENT_BLOOD_MIRROR, 2500, EVENT_GROUP_CANCELLABLE);
+                events.ScheduleEvent(EVENT_DELIRIOUS_SLASH, urand(20000, 24000), EVENT_GROUP_NORMAL);
+                events.ScheduleEvent(EVENT_PACT_OF_THE_DARKFALLEN, 15000, EVENT_GROUP_NORMAL);
                 events.ScheduleEvent(EVENT_SWARMING_SHADOWS, 30500, EVENT_GROUP_NORMAL);
-                events.ScheduleEvent(EVENT_TWILIGHT_BLOODBOLT, 20s, 25s, EVENT_GROUP_NORMAL);
+                events.ScheduleEvent(EVENT_TWILIGHT_BLOODBOLT, urand(20000, 25000), EVENT_GROUP_NORMAL);
                 events.ScheduleEvent(EVENT_AIR_PHASE, 124000 + uint32(Is25ManRaid() ? 3000 : 0));
                 CleanAuras();
                 _vampires.clear();
@@ -192,7 +190,6 @@ class boss_blood_queen_lana_thel : public CreatureScript
 
                 DoCast(me, SPELL_SHROUD_OF_SORROW, true);
                 DoCast(me, SPELL_FRENZIED_BLOODTHIRST_VISUAL, true);
-                DoCastSelf(SPELL_CLEAR_ALL_STATUS_AILMENTS, true);
                 _creditBloodQuickening = instance->GetData(DATA_BLOOD_QUICKENING_STATE) == IN_PROGRESS;
             }
 
@@ -316,13 +313,13 @@ class boss_blood_queen_lana_thel : public CreatureScript
                         events.ScheduleEvent(EVENT_AIR_PHASE, 100000 + uint32(Is25ManRaid() ? 0 : 20000));
                         events.RescheduleEvent(EVENT_SWARMING_SHADOWS, 30500, EVENT_GROUP_NORMAL);
                         events.RescheduleEvent(EVENT_PACT_OF_THE_DARKFALLEN, 25500, EVENT_GROUP_NORMAL);
-                        events.ScheduleEvent(EVENT_AIR_START_FLYING, 5s);
+                        events.ScheduleEvent(EVENT_AIR_START_FLYING, 5000);
                         break;
                     case POINT_AIR:
                         _bloodboltedPlayers.clear();
                         DoCast(me, SPELL_BLOODBOLT_WHIRL);
                         Talk(SAY_AIR_PHASE);
-                        events.ScheduleEvent(EVENT_AIR_FLY_DOWN, 10s);
+                        events.ScheduleEvent(EVENT_AIR_FLY_DOWN, 10000);
                         break;
                     case POINT_GROUND:
                         me->SetDisableGravity(false);
@@ -330,7 +327,7 @@ class boss_blood_queen_lana_thel : public CreatureScript
                         me->SetReactState(REACT_AGGRESSIVE);
                         if (Unit* victim = me->SelectVictim())
                             AttackStart(victim);
-                        events.ScheduleEvent(EVENT_BLOOD_MIRROR, 2500ms, EVENT_GROUP_CANCELLABLE);
+                        events.ScheduleEvent(EVENT_BLOOD_MIRROR, 2500, EVENT_GROUP_CANCELLABLE);
                         break;
                     case POINT_MINCHAR:
                         DoCast(me, SPELL_ANNIHILATE, true);
@@ -404,14 +401,14 @@ class boss_blood_queen_lana_thel : public CreatureScript
                                 else
                                     _offtankGUID.Clear();
                             }
-                            events.ScheduleEvent(EVENT_BLOOD_MIRROR, 2500ms, EVENT_GROUP_CANCELLABLE);
+                            events.ScheduleEvent(EVENT_BLOOD_MIRROR, 2500, EVENT_GROUP_CANCELLABLE);
                             break;
                         }
                         case EVENT_DELIRIOUS_SLASH:
                             if (_offtankGUID && !me->HasByteFlag(UNIT_FIELD_BYTES_1, UNIT_BYTES_1_OFFSET_ANIM_TIER, UNIT_BYTE1_FLAG_ALWAYS_STAND | UNIT_BYTE1_FLAG_HOVER))
                                 if (Player* _offtank = ObjectAccessor::GetPlayer(*me, _offtankGUID))
                                     DoCast(_offtank, SPELL_DELIRIOUS_SLASH);
-                            events.ScheduleEvent(EVENT_DELIRIOUS_SLASH, 20s, 24s, EVENT_GROUP_NORMAL);
+                            events.ScheduleEvent(EVENT_DELIRIOUS_SLASH, urand(20000, 24000), EVENT_GROUP_NORMAL);
                             break;
                         case EVENT_PACT_OF_THE_DARKFALLEN:
                         {
@@ -444,7 +441,7 @@ class boss_blood_queen_lana_thel : public CreatureScript
                             for (std::list<Player*>::iterator itr = targets.begin(); itr != targets.end(); ++itr)
                                 DoCast(*itr, SPELL_TWILIGHT_BLOODBOLT);
                             DoCast(me, SPELL_TWILIGHT_BLOODBOLT_TARGET);
-                            events.ScheduleEvent(EVENT_TWILIGHT_BLOODBOLT, 10s, 15s, EVENT_GROUP_NORMAL);
+                            events.ScheduleEvent(EVENT_TWILIGHT_BLOODBOLT, urand(10000, 15000), EVENT_GROUP_NORMAL);
                             break;
                         }
                         case EVENT_AIR_PHASE:
@@ -487,14 +484,15 @@ class boss_blood_queen_lana_thel : public CreatureScript
             // offtank for this encounter is the player standing closest to main tank
             Player* SelectRandomTarget(bool includeOfftank, std::list<Player*>* targetList = nullptr)
             {
-                if (me->GetThreatManager().IsThreatListEmpty(true))
+                std::list<HostileReference*> const& threatlist = me->getThreatManager().getThreatList();
+                std::list<Player*> tempTargets;
+
+                if (threatlist.empty())
                     return nullptr;
 
-                std::list<Player*> tempTargets;
-                Unit* maintank = me->GetThreatManager().GetCurrentVictim();
-                for (ThreatReference const* ref : me->GetThreatManager().GetSortedThreatList())
-                    if (Player* refTarget = ref->GetVictim()->ToPlayer())
-                        if (refTarget != maintank && (includeOfftank || (refTarget->GetGUID() != _offtankGUID)))
+                for (std::list<HostileReference*>::const_iterator itr = threatlist.begin(); itr != threatlist.end(); ++itr)
+                    if (Unit* refTarget = (*itr)->getTarget())
+                        if (refTarget != me->GetVictim() && refTarget->GetTypeId() == TYPEID_PLAYER && (includeOfftank || (refTarget->GetGUID() != _offtankGUID)))
                             tempTargets.push_back(refTarget->ToPlayer());
 
                 if (tempTargets.empty())
@@ -502,7 +500,7 @@ class boss_blood_queen_lana_thel : public CreatureScript
 
                 if (targetList)
                 {
-                    *targetList = std::move(tempTargets);
+                    *targetList = tempTargets;
                     return nullptr;
                 }
 
@@ -556,9 +554,9 @@ class spell_blood_queen_vampiric_bite : public SpellScriptLoader
                 return SPELL_CAST_OK;
             }
 
-            void OnCast(SpellMissInfo missInfo)
+            void OnCast()
             {
-                if (GetCaster()->GetTypeId() != TYPEID_PLAYER || missInfo != SPELL_MISS_NONE)
+                if (GetCaster()->GetTypeId() != TYPEID_PLAYER)
                     return;
 
                 uint32 spellId = sSpellMgr->GetSpellIdForDifficulty(SPELL_FRENZIED_BLOODTHIRST, GetCaster());
@@ -591,7 +589,7 @@ class spell_blood_queen_vampiric_bite : public SpellScriptLoader
             void Register() override
             {
                 OnCheckCast += SpellCheckCastFn(spell_blood_queen_vampiric_bite_SpellScript::CheckTarget);
-                BeforeHit += BeforeSpellHitFn(spell_blood_queen_vampiric_bite_SpellScript::OnCast);
+                BeforeHit += SpellHitFn(spell_blood_queen_vampiric_bite_SpellScript::OnCast);
                 OnEffectHitTarget += SpellEffectFn(spell_blood_queen_vampiric_bite_SpellScript::HandlePresence, EFFECT_1, SPELL_EFFECT_TRIGGER_SPELL);
             }
         };
@@ -731,9 +729,8 @@ class spell_blood_queen_essence_of_the_blood_queen : public SpellScriptLoader
                 if (!damageInfo || !damageInfo->GetDamage())
                     return;
 
-                CastSpellExtraArgs args(aurEff);
-                args.AddSpellBP0(CalculatePct(damageInfo->GetDamage(), aurEff->GetAmount()));
-                GetTarget()->CastSpell(GetTarget(), SPELL_ESSENCE_OF_THE_BLOOD_QUEEN_HEAL, args);
+                int32 heal = CalculatePct(static_cast<int32>(damageInfo->GetDamage()), aurEff->GetAmount());
+                GetTarget()->CastCustomSpell(SPELL_ESSENCE_OF_THE_BLOOD_QUEEN_HEAL, SPELLVALUE_BASE_POINT0, heal, GetTarget(), TRIGGERED_FULL_MASK, nullptr, aurEff);
             }
 
             void Register() override
@@ -817,10 +814,7 @@ class spell_blood_queen_pact_of_the_darkfallen_dmg : public SpellScriptLoader
                 int32 damage = damageSpell->Effects[EFFECT_0].CalcValue();
                 float multiplier = 0.3375f + 0.1f * uint32(aurEff->GetTickNumber()/10); // do not convert to 0.01f - we need tick number/10 as INT (damage increases every 10 ticks)
                 damage = int32(damage * multiplier);
-
-                CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                args.AddSpellBP0(damage);
-                GetTarget()->CastSpell(GetTarget(), SPELL_PACT_OF_THE_DARKFALLEN_DAMAGE, args);
+                GetTarget()->CastCustomSpell(SPELL_PACT_OF_THE_DARKFALLEN_DAMAGE, SPELLVALUE_BASE_POINT0, damage, GetTarget(), true);
             }
 
             void Register() override

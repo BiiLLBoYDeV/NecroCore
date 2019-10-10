@@ -48,14 +48,9 @@ class boss_fankriss : public CreatureScript
 public:
     boss_fankriss() : CreatureScript("boss_fankriss") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
+    struct boss_fankrissAI : public ScriptedAI
     {
-        return GetAQ40AI<boss_fankrissAI>(creature);
-    }
-
-    struct boss_fankrissAI : public BossAI
-    {
-        boss_fankrissAI(Creature* creature) : BossAI(creature, DATA_FRANKRIS)
+        boss_fankrissAI(Creature* creature) : ScriptedAI(creature)
         {
             Initialize();
         }
@@ -74,7 +69,6 @@ public:
         void Reset() override
         {
             Initialize();
-            _Reset();
         }
 
         void SummonSpawn(Unit* victim)
@@ -102,6 +96,10 @@ public:
             Creature* Spawn = DoSpawnCreature(15630, RandX, RandY, 0, 0, TEMPSUMMON_TIMED_DESPAWN_OUT_OF_COMBAT, 30000);
             if (Spawn)
                 Spawn->AI()->AttackStart(victim);
+        }
+
+        void JustEngagedWith(Unit* /*who*/) override
+        {
         }
 
         void UpdateAI(uint32 diff) override
@@ -148,8 +146,8 @@ public:
                     {
                         DoCast(target, SPELL_ROOT);
 
-                        if (GetThreat(target))
-                            ModifyThreatByPercent(target, -100);
+                        if (DoGetThreat(target))
+                            DoModifyThreatPercent(target, -100);
 
                         Creature* Hatchling = nullptr;
                         switch (urand(0, 2))
@@ -209,6 +207,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<boss_fankrissAI>(creature);
+    }
 };
 
 void AddSC_boss_fankriss()

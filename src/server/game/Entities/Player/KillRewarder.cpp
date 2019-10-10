@@ -66,6 +66,7 @@
  // 4.3. Give reputation (player must not be on BG).
  // 4.4. Give kill credit (player must not be in group, or he must be alive or without corpse).
  // 5. Credit instance encounter.
+ // 6. Update guild achievements.
 
 KillRewarder::KillRewarder(Player* killer, Unit* victim, bool isBattleGround) :
     // 1. Initialize internal variables to default values.
@@ -151,7 +152,8 @@ inline void KillRewarder::_RewardXP(Player* player, float rate)
     if (xp)
     {
         // 4.2.2. Apply auras modifying rewarded XP (SPELL_AURA_MOD_XP_PCT).
-        xp *= player->GetTotalAuraMultiplier(SPELL_AURA_MOD_XP_PCT);
+        for (auto const& aura : player->GetAuraEffectsByType(SPELL_AURA_MOD_XP_PCT))
+            AddPct(xp, aura->GetAmount());
 
         // 4.2.3. Give XP to player.
         player->GiveXP(xp, _victim, _groupRate);
@@ -175,7 +177,7 @@ inline void KillRewarder::_RewardKillCredit(Player* player)
         if (Creature* target = _victim->ToCreature())
         {
             player->KilledMonster(target->GetCreatureTemplate(), target->GetGUID());
-            player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE_TYPE, target->GetCreatureType(), 1, target);
+            player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE_TYPE, target->GetCreatureType(), 1, 0, target);
         }
 }
 
@@ -239,7 +241,7 @@ void KillRewarder::_RewardGroup()
                     if (_killer == member || member->IsAtGroupRewardDistance(_victim))
                     {
                         _RewardPlayer(member, isDungeon);
-                        member->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_SPECIAL_PVP_KILL, 1, 0, _victim);
+                        member->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_SPECIAL_PVP_KILL, 1, 0, 0, _victim);
                     }
                 }
             }
@@ -267,8 +269,15 @@ void KillRewarder::Reward()
     }
 
     // 5. Credit instance encounter.
+    // 6. Update guild achievements.
     if (Creature* victim = _victim->ToCreature())
+    {
         if (victim->IsDungeonBoss())
             if (InstanceScript* instance = _victim->GetInstanceScript())
                 instance->UpdateEncounterStateForKilledCreature(_victim->GetEntry(), _victim);
+
+        if (uint32 guildId = victim->GetMap()->GetOwnerGuildId())
+            if (Guild* guild = sGuildMgr->GetGuildById(guildId))
+                guild->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_KILL_CREATURE, victim->GetEntry(), 1, 0, victim, _killer);
+    }
 }

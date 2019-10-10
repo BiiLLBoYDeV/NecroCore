@@ -1,20 +1,19 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
- *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
- *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
- */
+* Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+*
+* This program is free software; you can redistribute it and/or modify it
+* under the terms of the GNU General Public License as published by the
+* Free Software Foundation; either version 2 of the License, or (at your
+* option) any later version.
+*
+* This program is distributed in the hope that it will be useful, but WITHOUT
+* ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
+* FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
+* more details.
+*
+* You should have received a copy of the GNU General Public License along
+* with this program. If not, see <http://www.gnu.org/licenses/>.
+*/
 
 #ifndef CinematicMgr_h__
 #define CinematicMgr_h__
@@ -28,13 +27,12 @@
 class Player;
 struct FlyByCamera;
 
-class TC_GAME_API CinematicMgr
+class CinematicMgr
 {
     friend class Player;
 public:
     explicit CinematicMgr(Player* playerref);
     ~CinematicMgr();
-
     // Cinematic camera data and remote sight functions
     uint32 GetActiveCinematicCamera() const { return m_activeCinematicCameraId; }
     void SetActiveCinematicCamera(uint32 cinematicCameraId = 0) { m_activeCinematicCameraId = cinematicCameraId; }
@@ -57,4 +55,4 @@ protected:
     TempSummon*   m_CinematicObject;
 };
 
-#endif
+#endif // CinematicMgr_h__

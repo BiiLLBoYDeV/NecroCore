@@ -28,5 +28,4 @@ TC_GAME_API uint32 GetSkillDiscoverySpell(uint32 skillId, uint32 spellId, Player
 TC_GAME_API bool HasDiscoveredAllSpells(uint32 spellId, Player* player);
 TC_GAME_API bool HasDiscoveredAnySpell(uint32 spellId, Player* player);
 TC_GAME_API uint32 GetExplicitDiscoverySpell(uint32 spellId, Player* player);
-
 #endif

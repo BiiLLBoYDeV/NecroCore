@@ -19,7 +19,7 @@
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
-#include "SpellAuras.h"
+#include "SpellAuraEffects.h"
 #include "SpellScript.h"
 #include "sunwell_plateau.h"
 
@@ -182,7 +182,7 @@ public:
 
         void EnterEvadeMode(EvadeReason /*why*/) override
         {
-            if (Creature* muru = instance->GetCreature(DATA_MURU))
+            if (Creature* muru = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_MURU)))
                 muru->AI()->EnterEvadeMode();
 
             DoResetPortals();
@@ -194,7 +194,7 @@ public:
         {
             _JustDied();
 
-            if (Creature* muru = instance->GetCreature(DATA_MURU))
+            if (Creature* muru = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_MURU)))
                 muru->DisappearAndDie();
         }
 
@@ -428,7 +428,7 @@ public:
             });
         }
 
-        void IsSummonedBy(WorldObject* summoner) override
+        void IsSummonedBy(Unit* summoner) override
         {
             _summonerGUID = summoner->GetGUID();
         }
@@ -466,9 +466,9 @@ public:
             _instance = me->GetInstanceScript();
         }
 
-        void IsSummonedBy(WorldObject* /*summoner*/) override
+        void IsSummonedBy(Unit* /*summoner*/) override
         {
-            if (Creature* muru = _instance->GetCreature(DATA_MURU))
+            if (Creature* muru = ObjectAccessor::GetCreature(*me, _instance->GetGuidData(DATA_MURU)))
                 muru->AI()->JustSummoned(me);
         }
 

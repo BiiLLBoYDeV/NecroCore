@@ -14,6 +14,10 @@ CollectSourceFiles(
   # Exclude
   ${CMAKE_CURRENT_SOURCE_DIR}/PrecompiledHeaders)
 
+#
+# Build shared sourcelist
+#
+
 if (USE_COREPCH)
   set(PRIVATE_PCH_HEADER PrecompiledHeaders/sharedPCH.h)
 endif()

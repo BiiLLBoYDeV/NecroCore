@@ -19,20 +19,13 @@
 /* ScriptData
 SDName: Silithus
 SD%Complete: 100
-SDComment: Quest support: 8348,8352,8361,8519
+SDComment: Quest support: 7785, 8304.
 SDCategory: Silithus
 EndScriptData */
 
 /* ContentData
-A Pawn on the Eternal Board - creatures, gameobjects and defines
-quest_a_pawn_on_the_eternal_board
-npc_qiraj_war_spawn : Adds that are summoned in the Qiraj gates battle.
-npc_anachronos_the_ancient : Creature that controls the event.
-npc_anachronos_quest_trigger: controls the spawning of the BG War mobs.
-go_crystalline_tear : GameObject that begins the event and hands out quest
-TO DO: get correct spell IDs and timings for spells cast upon dragon transformations
-TO DO: Dragons should use the HandleEmoteCommand(EMOTE_ONESHOT_LIFTOFF) after transformation,
-       but for some unknown reason it doesn't work.
+npcs_rutgar_and_frankal
+go_wind_stone
 EndContentData */
 
 #include "ScriptMgr.h"
@@ -45,8 +38,6 @@ EndContentData */
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
-#include "SpellAuraEffects.h"
-#include "SpellScript.h"
 #include "TemporarySummon.h"
 
 /*#####
@@ -504,7 +495,7 @@ public:
                         DoCast(player, SPELL_ARCANE_CHANNELING, true);//Arcane Channeling
                         break;
                     case 35:
-                        me->CastSpell({ -8088, 1520.43f, 2.67f }, SPELL_TIME_STOP, true);
+                        me->CastSpell(-8088, 1520.43f, 2.67f, SPELL_TIME_STOP, true);
                         break;
                     case 36:
                         DoCast(player, SPELL_CALL_PRISMATIC_BARRIER, true);
@@ -554,7 +545,7 @@ public:
                         break;
                     case 50:
                         Fandral->AI()->Talk(FANDRAL_EMOTE_2);
-                        Fandral->CastSpell({ -8127, 1525, 17.5f }, SPELL_THROW_HAMMER, true);
+                        Fandral->CastSpell(-8127, 1525, 17.5f, SPELL_THROW_HAMMER, true);
                         break;
                     case 51:
                     {
@@ -622,7 +613,7 @@ public:
                         {
                             Talk(ARYGOS_YELL_1);
                             AnachronosQuestTrigger->AI()->EnterEvadeMode();
-                            eventEnd = true;
+                            eventEnd=true;
                         }
                         break;
                 }
@@ -936,7 +927,7 @@ public:
 
 void npc_qiraj_war_spawn::npc_qiraj_war_spawnAI::JustDied(Unit* /*killer*/)
 {
-    me->DespawnOrUnsummon();
+    me->RemoveCorpse();
 
     if (!MobGUID)
         return;
@@ -964,7 +955,7 @@ class go_crystalline_tear : public GameObjectScript
 public:
     go_crystalline_tear() : GameObjectScript("go_crystalline_tear") { }
 
-    struct go_crystalline_tearAI : GameObjectAI
+    struct go_crystalline_tearAI : public GameObjectAI
     {
         go_crystalline_tearAI(GameObject* go) : GameObjectAI(go) { }
 
@@ -1144,289 +1135,248 @@ class go_wind_stone : public GameObjectScript
         {
             go_wind_stoneAI(GameObject* go) : GameObjectAI(go) { }
 
-            private:
-                uint8 GetPlayerRank(Player* player) // For random summoning
+            bool GossipHello(Player* player) override
+            {
+                uint8 rank = GetPlayerRank(player);
+
+                uint32 gossipId = me->GetGOInfo()->GetGossipMenuId();
+                switch (gossipId)
                 {
-                    bool setAura = player->HasAura(AURA_TWILIGHT_SET);
-                    bool medallionAura = player->HasAura(AURA_MEDALLION);
-                    bool ringAura = player->HasAura(AURA_RING);
-
-                    if (setAura && medallionAura && ringAura)
-                        return 3;
-                    else if (setAura && medallionAura)
-                        return 2;
-                    else if (setAura)
-                        return 1;
-                    else
-                        return 0;
-                }
-
-                uint8 GetItems(Player* player, WS type)
-                {
-                    uint8 result = 0x0;
-
-                    switch (type)
+                    case GOSSIP_ID_LESSER_WS:
                     {
-                        case TEMPLAR:
+                        if (rank >= 1) // 1 or 2 or 3
+                            AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_WS_RANDOM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                        else
                         {
-                            if (player->HasItemCount(ITEM_TEMPLAR_FIRE))
-                                result |= FIRE;
-                            if (player->HasItemCount(ITEM_TEMPLAR_WATER))
-                                result |= WATER;
-                            if (player->HasItemCount(ITEM_TEMPLAR_EARTH))
-                                result |= EARTH;
-                            if (player->HasItemCount(ITEM_TEMPLAR_AIR))
-                                result |= AIR;
+                            me->CastSpell(player, SPELL_PUNISHMENT);
                             break;
                         }
-                        case DUKE:
-                        {
-                            if (player->HasItemCount(ITEM_DUKE_FIRE))
-                                result |= FIRE;
-                            if (player->HasItemCount(ITEM_DUKE_WATER))
-                                result |= WATER;
-                            if (player->HasItemCount(ITEM_DUKE_EARTH))
-                                result |= EARTH;
-                            if (player->HasItemCount(ITEM_DUKE_AIR))
-                                result |= AIR;
-                            break;
-                        }
-                        case ROYAL:
-                        {
-                            if (player->HasItemCount(ITEM_ROYAL_FIRE))
-                                result |= FIRE;
-                            if (player->HasItemCount(ITEM_ROYAL_WATER))
-                                result |= WATER;
-                            if (player->HasItemCount(ITEM_ROYAL_EARTH))
-                                result |= EARTH;
-                            if (player->HasItemCount(ITEM_ROYAL_AIR))
-                                result |= AIR;
-                            break;
-                        }
-                        default:
-                            break;
-                    }
-                    return result;
-                }
 
-                void SummonNPC(GameObject* go, Player* player, uint32 npc, uint32 spell)
-                {
-                    go->CastSpell(player, spell);
-                    TempSummon* summons = go->SummonCreature(npc, go->GetPositionX(), go->GetPositionY(), go->GetPositionZ(), player->GetOrientation() - float(M_PI), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 10 * 60 * 1000);
-                    summons->CastSpell(summons, SPELL_SPAWN_IN, false);
-                    switch (summons->GetEntry())
+                        uint8 item = GetItems(player, TEMPLAR);
+                        if (item & FIRE)
+                            AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_1_CRIMSON, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                        if (item & WATER)
+                            AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_2_AZURE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
+                        if (item & EARTH)
+                            AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_3_EARTHEN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 4);
+                        if (item & AIR)
+                            AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_4_HOARY, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 5);
+                        break;
+                    }
+                    case GOSSIP_ID_WIND_STONE:
                     {
-                        case NPC_TEMPLAR_FIRE:
-                        case NPC_TEMPLAR_WATER:
-                        case NPC_TEMPLAR_AIR:
-                        case NPC_TEMPLAR_EARTH:
-                            summons->AI()->Talk(SAY_TEMPLAR_AGGRO, player);
+                        if (rank >= 2) // 2 or 3
+                            AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_WS_RANDOM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 6);
+                        else
+                        {
+                            me->CastSpell(player, SPELL_PUNISHMENT);
                             break;
+                        }
 
-                        case NPC_DUKE_FIRE:
-                        case NPC_DUKE_WATER:
-                        case NPC_DUKE_EARTH:
-                        case NPC_DUKE_AIR:
-                            summons->AI()->Talk(SAY_DUKE_AGGRO, player);
-                            break;
-                        case NPC_ROYAL_FIRE:
-                        case NPC_ROYAL_AIR:
-                        case NPC_ROYAL_EARTH:
-                        case NPC_ROYAL_WATER:
-                            summons->AI()->Talk(YELL_ROYAL_AGGRO, player);
-                            break;
+                        uint8 item = GetItems(player, DUKE);
+                        if (item & FIRE)
+                            AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_1_CYNDERS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 7);
+                        if (item & WATER)
+                            AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_2_FATHOMS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 8);
+                        if (item & EARTH)
+                            AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_3_SHARDS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 9);
+                        if (item & AIR)
+                            AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_4_ZEPHYRS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 10);
+                        break;
                     }
-                    summons->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                    summons->EngageWithTarget(player);
-                }
-
-            public:
-                bool GossipHello(Player* player) override
-                {
-                    uint8 rank = GetPlayerRank(player);
-
-                    uint32 gossipId = me->GetGOInfo()->GetGossipMenuId();
-                    switch (gossipId)
+                    case GOSSIP_ID_GREATER_WS:
                     {
-                        case GOSSIP_ID_LESSER_WS:
+                        if (rank == 3) // 3
+                            AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_WS_RANDOM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 11);
+                        else
                         {
-                            if (rank >= 1) // 1 or 2 or 3
-                                AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_WS_RANDOM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-                            else
-                            {
-                                me->CastSpell(player, SPELL_PUNISHMENT);
-                                break;
-                            }
-
-                            uint8 item = GetItems(player, TEMPLAR);
-                            if (item & FIRE)
-                                AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_1_CRIMSON, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
-                            if (item & WATER)
-                                AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_2_AZURE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 3);
-                            if (item & EARTH)
-                                AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_3_EARTHEN, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 4);
-                            if (item & AIR)
-                                AddGossipItemFor(player, GOSSIP_ID_LESSER_WS, OPTION_ID_4_HOARY, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 5);
+                            me->CastSpell(player, SPELL_PUNISHMENT);
                             break;
                         }
-                        case GOSSIP_ID_WIND_STONE:
-                        {
-                            if (rank >= 2) // 2 or 3
-                                AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_WS_RANDOM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 6);
-                            else
-                            {
-                                me->CastSpell(player, SPELL_PUNISHMENT);
-                                break;
-                            }
 
-                            uint8 item = GetItems(player, DUKE);
-                            if (item & FIRE)
-                                AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_1_CYNDERS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 7);
-                            if (item & WATER)
-                                AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_2_FATHOMS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 8);
-                            if (item & EARTH)
-                                AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_3_SHARDS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 9);
-                            if (item & AIR)
-                                AddGossipItemFor(player, GOSSIP_ID_WIND_STONE, OPTION_ID_4_ZEPHYRS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 10);
-                            break;
-                        }
-                        case GOSSIP_ID_GREATER_WS:
-                        {
-                            if (rank == 3) // 3
-                                AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_WS_RANDOM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 11);
-                            else
-                            {
-                                me->CastSpell(player, SPELL_PUNISHMENT);
-                                break;
-                            }
-
-                            uint8 item = GetItems(player, ROYAL);
-                            if (item & FIRE)
-                                AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_1_SKALDRENOX, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 12);
-                            if (item & WATER)
-                                AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_2_SKWOL, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 13);
-                            if (item & EARTH)
-                                AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_3_KAZUM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 14);
-                            if (item & AIR)
-                                AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_4_WHIRLAXIS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 15);
-                            break;
-                        }
-                        default:
-                            break;
+                        uint8 item = GetItems(player, ROYAL);
+                        if (item & FIRE)
+                            AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_1_SKALDRENOX, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 12);
+                        if (item & WATER)
+                            AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_2_SKWOL, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 13);
+                        if (item & EARTH)
+                            AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_3_KAZUM, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 14);
+                        if (item & AIR)
+                            AddGossipItemFor(player, GOSSIP_ID_GREATER_WS, OPTION_ID_4_WHIRLAXIS, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 15);
+                        break;
                     }
-
-                    SendGossipMenuFor(player, player->GetGossipTextId(gossipId, me), me->GetGUID());
-                    return true;
+                    default:
+                        break;
                 }
 
-                bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+                SendGossipMenuFor(player, player->GetGossipTextId(gossipId, me), me->GetGUID());
+                return true;
+            }
+
+            bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+            {
+                uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+                ClearGossipMenuFor(player);
+                player->PlayerTalkClass->SendCloseGossip();
+
+                switch (action)
                 {
-                    uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
-                    ClearGossipMenuFor(player);
-                    player->PlayerTalkClass->SendCloseGossip();
+                    case GOSSIP_ACTION_INFO_DEF + 1:
+                        SummonNPC(me, player, RAND(NPC_TEMPLAR_WATER, NPC_TEMPLAR_FIRE, NPC_TEMPLAR_EARTH, NPC_TEMPLAR_AIR), SPELL_TEMPLAR_RANDOM);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 2:
+                        SummonNPC(me, player, NPC_TEMPLAR_FIRE, SPELL_TEMPLAR_FIRE);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 3:
+                        SummonNPC(me, player, NPC_TEMPLAR_WATER, SPELL_TEMPLAR_WATER);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 4:
+                        SummonNPC(me, player, NPC_TEMPLAR_EARTH, SPELL_TEMPLAR_EARTH);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 5:
+                        SummonNPC(me, player, NPC_TEMPLAR_AIR, SPELL_TEMPLAR_AIR);
+                        break;
 
-                    switch (action)
-                    {
-                        case GOSSIP_ACTION_INFO_DEF + 1:
-                            SummonNPC(me, player, RAND(NPC_TEMPLAR_WATER, NPC_TEMPLAR_FIRE, NPC_TEMPLAR_EARTH, NPC_TEMPLAR_AIR), SPELL_TEMPLAR_RANDOM);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 2:
-                            SummonNPC(me, player, NPC_TEMPLAR_FIRE, SPELL_TEMPLAR_FIRE);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 3:
-                            SummonNPC(me, player, NPC_TEMPLAR_WATER, SPELL_TEMPLAR_WATER);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 4:
-                            SummonNPC(me, player, NPC_TEMPLAR_EARTH, SPELL_TEMPLAR_EARTH);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 5:
-                            SummonNPC(me, player, NPC_TEMPLAR_AIR, SPELL_TEMPLAR_AIR);
-                            break;
+                    case GOSSIP_ACTION_INFO_DEF + 6:
+                        SummonNPC(me, player, RAND(NPC_DUKE_FIRE, NPC_DUKE_WATER, NPC_DUKE_EARTH, NPC_DUKE_AIR), SPELL_DUKE_RANDOM);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 7:
+                        SummonNPC(me, player, NPC_DUKE_FIRE, SPELL_DUKE_FIRE);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 8:
+                        SummonNPC(me, player, NPC_DUKE_WATER, SPELL_DUKE_WATER);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 9:
+                        SummonNPC(me, player, NPC_DUKE_EARTH, SPELL_DUKE_EARTH);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 10:
+                        SummonNPC(me, player, NPC_DUKE_AIR, SPELL_DUKE_AIR);
+                        break;
 
-                        case GOSSIP_ACTION_INFO_DEF + 6:
-                            SummonNPC(me, player, RAND(NPC_DUKE_FIRE, NPC_DUKE_WATER, NPC_DUKE_EARTH, NPC_DUKE_AIR), SPELL_DUKE_RANDOM);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 7:
-                            SummonNPC(me, player, NPC_DUKE_FIRE, SPELL_DUKE_FIRE);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 8:
-                            SummonNPC(me, player, NPC_DUKE_WATER, SPELL_DUKE_WATER);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 9:
-                            SummonNPC(me, player, NPC_DUKE_EARTH, SPELL_DUKE_EARTH);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 10:
-                            SummonNPC(me, player, NPC_DUKE_AIR, SPELL_DUKE_AIR);
-                            break;
+                    case GOSSIP_ACTION_INFO_DEF + 11:
+                        SummonNPC(me, player, RAND(NPC_ROYAL_FIRE, NPC_ROYAL_AIR, NPC_ROYAL_EARTH, NPC_ROYAL_WATER), SPELL_ROYAL_RANDOM);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 12:
+                        SummonNPC(me, player, NPC_ROYAL_FIRE, SPELL_ROYAL_FIRE);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 13:
+                        SummonNPC(me, player, NPC_ROYAL_WATER, SPELL_ROYAL_WATER);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 14:
+                        SummonNPC(me, player, NPC_ROYAL_EARTH, SPELL_ROYAL_EARTH);
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 15:
+                        SummonNPC(me, player, NPC_ROYAL_AIR, SPELL_ROYAL_AIR);
+                        break;
 
-                        case GOSSIP_ACTION_INFO_DEF + 11:
-                            SummonNPC(me, player, RAND(NPC_ROYAL_FIRE, NPC_ROYAL_AIR, NPC_ROYAL_EARTH, NPC_ROYAL_WATER), SPELL_ROYAL_RANDOM);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 12:
-                            SummonNPC(me, player, NPC_ROYAL_FIRE, SPELL_ROYAL_FIRE);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 13:
-                            SummonNPC(me, player, NPC_ROYAL_WATER, SPELL_ROYAL_WATER);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 14:
-                            SummonNPC(me, player, NPC_ROYAL_EARTH, SPELL_ROYAL_EARTH);
-                            break;
-                        case GOSSIP_ACTION_INFO_DEF + 15:
-                            SummonNPC(me, player, NPC_ROYAL_AIR, SPELL_ROYAL_AIR);
-                            break;
-
-                        default:
-                            break;
-                    }
-                    return true;
+                    default:
+                        break;
                 }
+                return true;
+            }
+
+        private:
+            uint8 GetPlayerRank(Player* player) const // For random summoning
+            {
+                bool setAura = player->HasAura(AURA_TWILIGHT_SET);
+                bool medallionAura = player->HasAura(AURA_MEDALLION);
+                bool ringAura = player->HasAura(AURA_RING);
+
+                if (setAura && medallionAura && ringAura)
+                    return 3;
+                else if (setAura && medallionAura)
+                    return 2;
+                else if (setAura)
+                    return 1;
+                else
+                    return 0;
+            }
+
+            uint8 GetItems(Player* player, WS type) const
+            {
+                uint8 result = 0x0;
+
+                switch (type)
+                {
+                    case TEMPLAR:
+                    {
+                        if (player->HasItemCount(ITEM_TEMPLAR_FIRE))
+                            result |= FIRE;
+                        if (player->HasItemCount(ITEM_TEMPLAR_WATER))
+                            result |= WATER;
+                        if (player->HasItemCount(ITEM_TEMPLAR_EARTH))
+                            result |= EARTH;
+                        if (player->HasItemCount(ITEM_TEMPLAR_AIR))
+                            result |= AIR;
+                        break;
+                    }
+                    case DUKE:
+                    {
+                        if (player->HasItemCount(ITEM_DUKE_FIRE))
+                            result |= FIRE;
+                        if (player->HasItemCount(ITEM_DUKE_WATER))
+                            result |= WATER;
+                        if (player->HasItemCount(ITEM_DUKE_EARTH))
+                            result |= EARTH;
+                        if (player->HasItemCount(ITEM_DUKE_AIR))
+                            result |= AIR;
+                        break;
+                    }
+                    case ROYAL:
+                    {
+                        if (player->HasItemCount(ITEM_ROYAL_FIRE))
+                            result |= FIRE;
+                        if (player->HasItemCount(ITEM_ROYAL_WATER))
+                            result |= WATER;
+                        if (player->HasItemCount(ITEM_ROYAL_EARTH))
+                            result |= EARTH;
+                        if (player->HasItemCount(ITEM_ROYAL_AIR))
+                            result |= AIR;
+                        break;
+                    }
+                    default:
+                        break;
+                }
+                return result;
+            }
+
+            void SummonNPC(GameObject* go, Player* player, uint32 npc, uint32 spell) const
+            {
+                go->CastSpell(player, spell);
+                TempSummon* summons = go->SummonCreature(npc, go->GetPositionX(), go->GetPositionY(), go->GetPositionZ(), player->GetOrientation() - float(M_PI), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 10 * 60 * 1000);
+                summons->CastSpell(summons, SPELL_SPAWN_IN, false);
+                switch (summons->GetEntry())
+                {
+                    case NPC_TEMPLAR_FIRE:
+                    case NPC_TEMPLAR_WATER:
+                    case NPC_TEMPLAR_AIR:
+                    case NPC_TEMPLAR_EARTH:
+                        summons->AI()->Talk(SAY_TEMPLAR_AGGRO, player);
+                        break;
+
+                    case NPC_DUKE_FIRE:
+                    case NPC_DUKE_WATER:
+                    case NPC_DUKE_EARTH:
+                    case NPC_DUKE_AIR:
+                        summons->AI()->Talk(SAY_DUKE_AGGRO, player);
+                        break;
+                    case NPC_ROYAL_FIRE:
+                    case NPC_ROYAL_AIR:
+                    case NPC_ROYAL_EARTH:
+                    case NPC_ROYAL_WATER:
+                        summons->AI()->Talk(YELL_ROYAL_AGGRO, player);
+                        break;
+                }
+                summons->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
+                summons->SendMeleeAttackStart(player);
+                summons->CombatStart(player);
+            }
         };
 
         GameObjectAI* GetAI(GameObject* go) const override
         {
             return new go_wind_stoneAI(go);
         }
-};
-
-// 24745 - Summon Templar, Trigger
-// 24747 - Summon Templar Fire, Trigger
-// 24757 - Summon Templar Air, Trigger
-// 24759 - Summon Templar Earth, Trigger
-// 24761 - Summon Templar Water, Trigger
-// 24762 - Summon Duke, Trigger
-// 24766 - Summon Duke Fire, Trigger
-// 24769 - Summon Duke Air, Trigger
-// 24771 - Summon Duke Earth, Trigger
-// 24773 - Summon Duke Water, Trigger
-// 24785 - Summon Royal, Trigger
-// 24787 - Summon Royal Fire, Trigger
-// 24791 - Summon Royal Air, Trigger
-// 24792 - Summon Royal Earth, Trigger
-// 24793 - Summon Royal Water, Trigger
-// 46595 - Summon Ice Stone Lieutenant, Trigger
-class spell_silithus_summon_cultist_periodic : public AuraScript
-{
-    PrepareAuraScript(spell_silithus_summon_cultist_periodic);
-
-    bool Validate(SpellInfo const* spellInfo) override
-    {
-        return ValidateSpellInfo({ spellInfo->Effects[EFFECT_0].TriggerSpell });
-    }
-
-    void PeriodicTick(AuraEffect const* aurEff)
-    {
-        PreventDefaultAction();
-
-        // All these spells trigger a spell that requires reagents; if the
-        // triggered spell is cast as "triggered", reagents are not consumed
-        if (Unit* caster = GetCaster())
-            caster->CastSpell(nullptr, GetSpellInfo()->Effects[aurEff->GetEffIndex()].TriggerSpell, CastSpellExtraArgs(TriggerCastFlags(TRIGGERED_FULL_MASK & ~TRIGGERED_IGNORE_POWER_AND_REAGENT_COST)).SetTriggeringAura(aurEff));
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_silithus_summon_cultist_periodic::PeriodicTick, EFFECT_0, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
-    }
 };
 
 void AddSC_silithus()
@@ -1436,5 +1386,4 @@ void AddSC_silithus()
     new npc_anachronos_the_ancient();
     new npc_qiraj_war_spawn();
     new go_wind_stone();
-    RegisterAuraScript(spell_silithus_summon_cultist_periodic);
 }

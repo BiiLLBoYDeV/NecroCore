@@ -57,9 +57,9 @@ class boss_ambassador_hellmaw : public CreatureScript
     public:
         boss_ambassador_hellmaw() : CreatureScript("boss_ambassador_hellmaw") { }
 
-        struct boss_ambassador_hellmawAI : public EscortAI
+        struct boss_ambassador_hellmawAI : public npc_escortAI
         {
-            boss_ambassador_hellmawAI(Creature* creature) : EscortAI(creature)
+            boss_ambassador_hellmawAI(Creature* creature) : npc_escortAI(creature)
             {
                 _instance = creature->GetInstanceScript();
                 _intro = false;
@@ -73,10 +73,10 @@ class boss_ambassador_hellmaw : public CreatureScript
                 _events.Reset();
                 _instance->SetBossState(DATA_AMBASSADOR_HELLMAW, NOT_STARTED);
 
-                _events.ScheduleEvent(EVENT_CORROSIVE_ACID, 5s, 10s);
-                _events.ScheduleEvent(EVENT_FEAR, 25s, 30s);
+                _events.ScheduleEvent(EVENT_CORROSIVE_ACID, urand(5000, 10000));
+                _events.ScheduleEvent(EVENT_FEAR, urand(25000, 30000));
                 if (IsHeroic())
-                    _events.ScheduleEvent(EVENT_BERSERK, 3min);
+                    _events.ScheduleEvent(EVENT_BERSERK, 180000);
 
                 DoAction(ACTION_AMBASSADOR_HELLMAW_BANISH);
             }
@@ -86,7 +86,11 @@ class boss_ambassador_hellmaw : public CreatureScript
                 if (me->HasAura(SPELL_BANISH))
                     return;
 
-                EscortAI::MoveInLineOfSight(who);
+                npc_escortAI::MoveInLineOfSight(who);
+            }
+
+            void WaypointReached(uint32 /*waypointId*/) override
+            {
             }
 
             void DoAction(int32 actionId) override
@@ -154,11 +158,11 @@ class boss_ambassador_hellmaw : public CreatureScript
                     {
                         case EVENT_CORROSIVE_ACID:
                             DoCastVictim(SPELL_CORROSIVE_ACID);
-                            _events.ScheduleEvent(EVENT_CORROSIVE_ACID, 15s, 25s);
+                            _events.ScheduleEvent(EVENT_CORROSIVE_ACID, urand(15000, 25000));
                             break;
                         case EVENT_FEAR:
                             DoCastAOE(SPELL_FEAR);
-                            _events.ScheduleEvent(EVENT_FEAR, 20s, 35s);
+                            _events.ScheduleEvent(EVENT_FEAR, urand(20000, 35000));
                             break;
                         case EVENT_BERSERK:
                             DoCast(me, SPELL_ENRAGE, true);

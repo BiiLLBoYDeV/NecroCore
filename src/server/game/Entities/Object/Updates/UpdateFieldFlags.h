@@ -40,5 +40,6 @@ TC_GAME_API extern uint32 UnitUpdateFieldFlags[PLAYER_END];
 TC_GAME_API extern uint32 GameObjectUpdateFieldFlags[GAMEOBJECT_END];
 TC_GAME_API extern uint32 DynamicObjectUpdateFieldFlags[DYNAMICOBJECT_END];
 TC_GAME_API extern uint32 CorpseUpdateFieldFlags[CORPSE_END];
+TC_GAME_API extern uint32 AreaTriggerUpdateFieldFlags[AREATRIGGER_END];
 
 #endif // _UPDATEFIELDFLAGS_H

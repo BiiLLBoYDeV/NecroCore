@@ -25,6 +25,7 @@ class TC_DATABASE_API SQLQueryHolder
     friend class SQLQueryHolderTask;
     private:
         std::vector<std::pair<PreparedStatement*, PreparedQueryResult>> m_queries;
+
     public:
         SQLQueryHolder() { }
         virtual ~SQLQueryHolder();

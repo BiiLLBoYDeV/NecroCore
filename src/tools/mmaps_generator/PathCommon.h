@@ -20,20 +20,31 @@
 #define _MMAP_COMMON_H
 
 #include "Common.h"
-#include <string>
+
 #include <vector>
 
 #ifndef _WIN32
-    #include <cstddef>
-    #include <cstring>
+    #include <stddef.h>
     #include <dirent.h>
-#else
-    #include <Windows.h>
 #endif
 
-#ifndef _WIN32
-    #include <cerrno>
+#ifdef __linux__
+    #include <errno.h>
 #endif
+
+enum NavTerrain
+{
+    NAV_EMPTY   = 0x00,
+    NAV_GROUND  = 0x01,
+    NAV_MAGMA   = 0x02,
+    NAV_SLIME   = 0x04,
+    NAV_WATER   = 0x08,
+    NAV_UNUSED1 = 0x10,
+    NAV_UNUSED2 = 0x20,
+    NAV_UNUSED3 = 0x40,
+    NAV_UNUSED4 = 0x80
+    // we only have 8 bits
+};
 
 namespace MMAP
 {
@@ -90,7 +101,7 @@ namespace MMAP
             return LISTFILE_DIRECTORY_NOT_FOUND;
         do
         {
-            if ((findFileInfo.dwFileAttributes & FILE_ATTRIBUTE_DIRECTORY) == 0)
+            if (strcmp(findFileInfo.cFileName, ".") != 0 && strcmp(findFileInfo.cFileName, "..") != 0)
                 fileList.push_back(std::string(findFileInfo.cFileName));
         }
         while (FindNextFile(hFind, &findFileInfo));
@@ -107,7 +118,7 @@ namespace MMAP
             errno = 0;
             if ((dp = readdir(dirp)) != nullptr)
             {
-                if (strcmp(dp->d_name, ".") != 0 && strcmp(dp->d_name, "..") != 0 && matchWildcardFilter(filter.c_str(), dp->d_name))
+                if (matchWildcardFilter(filter.c_str(), dp->d_name))
                     fileList.push_back(std::string(dp->d_name));
             }
             else

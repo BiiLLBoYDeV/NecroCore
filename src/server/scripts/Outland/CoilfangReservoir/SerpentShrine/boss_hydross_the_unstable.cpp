@@ -171,7 +171,10 @@ public:
             for (uint8 i = 0; i < 2; ++i)
             {
                 if (Creature* mob = ObjectAccessor::GetCreature(*me, beams[i]))
-                    mob->DespawnOrUnsummon();
+                {
+                    mob->setDeathState(DEAD);
+                    mob->RemoveCorpse();
+                }
             }
         }
         void JustEngagedWith(Unit* /*who*/) override
@@ -292,7 +295,7 @@ public:
                         MarkOfHydross_Count = 0;
 
                         Talk(SAY_SWITCH_TO_CLEAN);
-                        ResetThreatList();
+                        DoResetThreat();
                         SummonBeams();
 
                         // spawn 4 adds
@@ -376,7 +379,7 @@ public:
                         CorruptedForm = true;
 
                         Talk(SAY_SWITCH_TO_CORRUPT);
-                        ResetThreatList();
+                        DoResetThreat();
                         DeSummonBeams();
 
                         // spawn 4 adds

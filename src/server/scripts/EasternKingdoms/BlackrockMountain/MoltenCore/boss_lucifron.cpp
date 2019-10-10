@@ -23,10 +23,10 @@ SDComment:
 SDCategory: Molten Core
 EndScriptData */
 
-#include "ScriptMgr.h"
-#include "molten_core.h"
 #include "ObjectMgr.h"
+#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "molten_core.h"
 
 enum Spells
 {
@@ -56,9 +56,9 @@ class boss_lucifron : public CreatureScript
             void JustEngagedWith(Unit* victim) override
             {
                 BossAI::JustEngagedWith(victim);
-                events.ScheduleEvent(EVENT_IMPENDING_DOOM, 10s);
-                events.ScheduleEvent(EVENT_LUCIFRON_CURSE, 20s);
-                events.ScheduleEvent(EVENT_SHADOW_SHOCK, 6s);
+                events.ScheduleEvent(EVENT_IMPENDING_DOOM, 10000);
+                events.ScheduleEvent(EVENT_LUCIFRON_CURSE, 20000);
+                events.ScheduleEvent(EVENT_SHADOW_SHOCK, 6000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -77,15 +77,15 @@ class boss_lucifron : public CreatureScript
                     {
                         case EVENT_IMPENDING_DOOM:
                             DoCastVictim(SPELL_IMPENDING_DOOM);
-                            events.ScheduleEvent(EVENT_IMPENDING_DOOM, 20s);
+                            events.ScheduleEvent(EVENT_IMPENDING_DOOM, 20000);
                             break;
                         case EVENT_LUCIFRON_CURSE:
                             DoCastVictim(SPELL_LUCIFRON_CURSE);
-                            events.ScheduleEvent(EVENT_LUCIFRON_CURSE, 15s);
+                            events.ScheduleEvent(EVENT_LUCIFRON_CURSE, 15000);
                             break;
                         case EVENT_SHADOW_SHOCK:
                             DoCastVictim(SPELL_SHADOW_SHOCK);
-                            events.ScheduleEvent(EVENT_SHADOW_SHOCK, 6s);
+                            events.ScheduleEvent(EVENT_SHADOW_SHOCK, 6000);
                             break;
                         default:
                             break;
@@ -101,7 +101,7 @@ class boss_lucifron : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetMoltenCoreAI<boss_lucifronAI>(creature);
+            return new boss_lucifronAI(creature);
         }
 };
 

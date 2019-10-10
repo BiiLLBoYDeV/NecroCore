@@ -169,7 +169,7 @@ struct BattlegroundWGScore final : public BattlegroundScore
     friend class BattlegroundWS;
 
     protected:
-        BattlegroundWGScore(ObjectGuid playerGuid) : BattlegroundScore(playerGuid), FlagCaptures(0), FlagReturns(0) { }
+        BattlegroundWGScore(ObjectGuid playerGuid, uint32 team) : BattlegroundScore(playerGuid, team), FlagCaptures(0), FlagReturns(0) { }
 
         void UpdateScore(uint32 type, uint32 value) override
         {
@@ -187,7 +187,7 @@ struct BattlegroundWGScore final : public BattlegroundScore
             }
         }
 
-        void BuildObjectivesBlock(WorldPacket& data) final override;
+        void BuildObjectivesBlock(WorldPacket& data, ByteBuffer& content) final override;
 
         uint32 GetAttr1() const final override { return FlagCaptures; }
         uint32 GetAttr2() const final override { return FlagReturns; }
@@ -247,7 +247,7 @@ class BattlegroundWS : public Battleground
         }
 
         ObjectGuid GetDroppedFlagGUID(uint32 TeamID)             { return m_DroppedFlagGUID[GetTeamIndexByTeamId(TeamID)]; }
-        void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override;
+        void FillInitialWorldStates(WorldPacket& data) override;
 
         /* Scorekeeping */
         void AddPoint(uint32 TeamID, uint32 Points = 1)     { m_TeamScores[GetTeamIndexByTeamId(TeamID)] += Points; }

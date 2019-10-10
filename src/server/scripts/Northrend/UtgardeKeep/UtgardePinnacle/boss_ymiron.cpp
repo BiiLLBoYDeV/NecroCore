@@ -142,9 +142,9 @@ public:
         {
             _JustEngagedWith();
             Talk(SAY_AGGRO);
-            events.ScheduleEvent(EVENT_BANE, 18s, 23s, EVENT_GROUP_BASE_SPELLS);
-            events.ScheduleEvent(EVENT_FETID_ROT, 8s, 13s, EVENT_GROUP_BASE_SPELLS);
-            events.ScheduleEvent(EVENT_DARK_SLASH, 28s, 33s, EVENT_GROUP_BASE_SPELLS);
+            events.ScheduleEvent(EVENT_BANE, urand(18000, 23000), EVENT_GROUP_BASE_SPELLS);
+            events.ScheduleEvent(EVENT_FETID_ROT, urand(8000, 13000), EVENT_GROUP_BASE_SPELLS);
+            events.ScheduleEvent(EVENT_DARK_SLASH, urand(28000, 33000), EVENT_GROUP_BASE_SPELLS);
             events.ScheduleEvent(EVENT_ANCESTORS_VENGEANCE, DUNGEON_MODE(60000, 45000), EVENT_GROUP_BASE_SPELLS);
         }
 
@@ -178,7 +178,7 @@ public:
                     ancestor->SetDisableGravity(true);
                     ActiveAncestorGUID = ancestor->GetGUID();
                 }
-                events.ScheduleEvent(EVENT_RESUME_COMBAT, 5s);
+                events.ScheduleEvent(EVENT_RESUME_COMBAT, 5000);
             }
         }
 
@@ -194,7 +194,7 @@ public:
                 case NPC_AVENGING_SPIRIT:
                     if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
                     {
-                        AddThreat(target, 0.0f, summon);
+                        summon->AddThreat(target, 0.0f);
                         summon->AI()->AttackStart(target);
                     }
                     break;
@@ -235,15 +235,15 @@ public:
             {
                 case EVENT_BANE:
                     DoCast(SPELL_BANE);
-                    events.ScheduleEvent(EVENT_BANE, 20s, 25s);
+                    events.ScheduleEvent(EVENT_BANE, urand(20000, 25000));
                     break;
                 case EVENT_FETID_ROT:
                     DoCastVictim(SPELL_FETID_ROT);
-                    events.ScheduleEvent(EVENT_FETID_ROT, 10s, 15s);
+                    events.ScheduleEvent(EVENT_FETID_ROT, urand(10000, 15000));
                     break;
                 case EVENT_DARK_SLASH:
                     DoCastVictim(SPELL_DARK_SLASH);
-                    events.ScheduleEvent(EVENT_DARK_SLASH, 30s, 35s);
+                    events.ScheduleEvent(EVENT_DARK_SLASH, urand(30000, 35000));
                     break;
                 case EVENT_ANCESTORS_VENGEANCE:
                     DoCast(me, SPELL_ANCESTORS_VENGEANCE);
@@ -258,16 +258,16 @@ public:
                     break;
                 case EVENT_HALDOR_SPIRIT_STRIKE:
                     DoCastVictim(SPELL_SPIRIT_STRIKE);
-                    events.ScheduleEvent(EVENT_HALDOR_SPIRIT_STRIKE, 5s);
+                    events.ScheduleEvent(EVENT_HALDOR_SPIRIT_STRIKE, 5000);
                     break;
                 case EVENT_RANULF_SPIRIT_BURST:
                     DoCast(me, SPELL_SPIRIT_BURST);
-                    events.ScheduleEvent(EVENT_RANULF_SPIRIT_BURST, 10s);
+                    events.ScheduleEvent(EVENT_RANULF_SPIRIT_BURST, 10000);
                     break;
                 case EVENT_TORGYN_SUMMON_AVENGING_SPIRITS:
                     for (uint8 i = 0; i < 4; ++i)
                         DoCast(SPELL_SUMMON_AVENGING_SPIRIT);
-                    events.ScheduleEvent(EVENT_TORGYN_SUMMON_AVENGING_SPIRITS, 15s);
+                    events.ScheduleEvent(EVENT_TORGYN_SUMMON_AVENGING_SPIRITS, 15000);
                     break;
                 default:
                     break;
@@ -312,23 +312,6 @@ public:
     }
 };
 
-// 48292 - Dark Slash
-class spell_dark_slash : public SpellScript
-{
-    PrepareSpellScript(spell_dark_slash);
-
-    void CalculateDamage()
-    {
-        // Slashes the target with darkness, dealing damage equal to half the target's current health.
-        SetHitDamage(int32(ceil(GetHitUnit()->GetHealth() / 2.f)));
-    }
-
-    void Register() override
-    {
-        OnHit += SpellHitFn(spell_dark_slash::CalculateDamage);
-    }
-};
-
 class achievement_kings_bane : public AchievementCriteriaScript
 {
     public:
@@ -350,6 +333,5 @@ class achievement_kings_bane : public AchievementCriteriaScript
 void AddSC_boss_ymiron()
 {
     new boss_ymiron();
-    RegisterSpellScript(spell_dark_slash);
     new achievement_kings_bane();
 }

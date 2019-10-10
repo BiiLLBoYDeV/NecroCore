@@ -22,6 +22,7 @@
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
+#include "QueryCallback.h"
 #include "RBAC.h"
 #include "Realm.h"
 #include "SocialMgr.h"
@@ -46,6 +47,7 @@ void WorldSession::HandleAddFriendOpcode(WorldPacket& recvData)
         GetPlayer()->GetName().c_str(), friendName.c_str());
 
     FriendsResult friendResult = FRIEND_NOT_FOUND;
+
     ObjectGuid friendGuid = sCharacterCache->GetCharacterGuidByName(friendName);
     if (!friendGuid.IsEmpty())
     {
@@ -108,6 +110,7 @@ void WorldSession::HandleAddIgnoreOpcode(WorldPacket& recvData)
 
     ObjectGuid ignoreGuid = sCharacterCache->GetCharacterGuidByName(ignoreName);
     FriendsResult ignoreResult = FRIEND_IGNORE_NOT_FOUND;
+
     if (!ignoreGuid.IsEmpty())
     {
         if (ignoreGuid == GetPlayer()->GetGUID())              //not add yourself

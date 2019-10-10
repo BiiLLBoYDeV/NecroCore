@@ -40,6 +40,7 @@ EndContentData */
 #include "GameObject.h"
 #include "GameObjectAI.h"
 #include "Group.h"
+#include "Map.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
@@ -78,10 +79,9 @@ public:
 
         void Reset() override
         {
-            ground = me->GetPositionZ();
-            me->UpdateGroundPositionZ(me->GetPositionX(), me->GetPositionY(), ground);
+            ground = me->GetMap()->GetHeight(me->GetPhaseShift(), me->GetPositionX(), me->GetPositionY(), me->GetPositionZMinusOffset());
             SummonInfernal();
-            events.ScheduleEvent(EVENT_CAST_SUMMON_INFERNAL, 1s, 3s);
+            events.ScheduleEvent(EVENT_CAST_SUMMON_INFERNAL, urand(1000, 3000));
         }
 
         void SetData(uint32 id, uint32 data) override
@@ -111,7 +111,7 @@ public:
                     if (Unit* infernal = ObjectAccessor::GetUnit(*me, infernalGUID))
                         if (infernal->GetDisplayId() == MODEL_INVISIBLE)
                             me->CastSpell(infernal, SPELL_SUMMON_INFERNAL, true);
-                    events.ScheduleEvent(EVENT_CAST_SUMMON_INFERNAL, 12s);
+                    events.ScheduleEvent(EVENT_CAST_SUMMON_INFERNAL, 12000);
                     break;
                 }
                 default:
@@ -151,7 +151,7 @@ public:
             me->GetMotionMaster()->MoveRandom(5.0f);
         }
 
-        void IsSummonedBy(WorldObject* summoner) override
+        void IsSummonedBy(Unit* summoner) override
         {
             if (summoner->ToCreature())
                 casterGUID = summoner->ToCreature()->GetGUID();;
@@ -167,8 +167,7 @@ public:
         {
             if (spell->Id == SPELL_SUMMON_INFERNAL)
             {
-                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PACIFIED | UNIT_FLAG_NOT_SELECTABLE);
-                me->SetImmuneToPC(false);
+                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_PACIFIED | UNIT_FLAG_NOT_SELECTABLE);
                 me->SetDisplayId(MODEL_INFERNAL);
             }
         }
@@ -288,6 +287,9 @@ public:
                         {
                             if (GameObject* go = unit->FindNearestGameObject(GO_CARCASS, 10))
                             {
+                                if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == WAYPOINT_MOTION_TYPE)
+                                    me->GetMotionMaster()->MovementExpired();
+
                                 me->GetMotionMaster()->MoveIdle();
                                 me->StopMoving();
 
@@ -326,9 +328,7 @@ public:
             {
                 DoCastVictim(SPELL_NETHER_BREATH);
                 CastTimer = 5000;
-            }
-            else
-                CastTimer -= diff;
+            } else CastTimer -= diff;
 
             DoMeleeAttackIfReady();
         }
@@ -380,6 +380,7 @@ public:
 
             FlyTimer = 10000;
             me->SetDisableGravity(false);
+            me->SetVisible(true);
         }
 
         void SpellHit(Unit* caster, SpellInfo const* spell) override
@@ -398,11 +399,13 @@ public:
                 Unit* Dragonmaw = me->FindNearestCreature(NPC_DRAGONMAW_SUBJUGATOR, 50);
                 if (Dragonmaw)
                 {
-                    AddThreat(Dragonmaw, 100000.0f);
+                    me->AddThreat(Dragonmaw, 100000.0f);
                     AttackStart(Dragonmaw);
                 }
 
-                me->GetThreatManager().ClearThreat(caster);
+                HostileReference* ref = me->getThreatManager().getOnlineContainer().getReferenceByTarget(caster);
+                if (ref)
+                    ref->removeReference();
             }
         }
 
@@ -421,8 +424,10 @@ public:
 
                     PlayerGUID.Clear();
                 }
-
-                me->DespawnOrUnsummon(1);
+                me->SetVisible(false);
+                me->SetDisableGravity(false);
+                me->DealDamage(me, me->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
+                me->RemoveCorpse();
             }
         }
 
@@ -520,7 +525,7 @@ public:
 
                 Tapped = true;
                 float x, y, z;
-                caster->GetClosePoint(x, y, z, me->GetCombatReach());
+                caster->GetClosePoint(x, y, z, me->GetObjectSize());
 
                 me->SetWalk(false);
                 me->GetMotionMaster()->MovePoint(1, x, y, z);
@@ -552,7 +557,7 @@ public:
                             player->KilledMonsterCredit(23209);
                     }
                     PoisonTimer = 0;
-                    me->KillSelf();
+                    me->DealDamage(me, me->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
                 } else PoisonTimer -= diff;
             }
             if (!UpdateVictim())
@@ -591,9 +596,14 @@ class npc_earthmender_wilda : public CreatureScript
 public:
     npc_earthmender_wilda() : CreatureScript("npc_earthmender_wilda") { }
 
-    struct npc_earthmender_wildaAI : public EscortAI
+    CreatureAI* GetAI(Creature* creature) const override
     {
-        npc_earthmender_wildaAI(Creature* creature) : EscortAI(creature)
+        return new npc_earthmender_wildaAI(creature);
+    }
+
+    struct npc_earthmender_wildaAI : public npc_escortAI
+    {
+        npc_earthmender_wildaAI(Creature* creature) : npc_escortAI(creature)
         {
             Initialize();
         }
@@ -605,12 +615,22 @@ public:
 
         uint32 m_uiHealingTimer;
 
+        void QuestAccept(Player* player, const Quest* quest) override
+        {
+            if (quest->GetQuestId() == QUEST_ESCAPE_COILSCAR)
+            {
+                Talk(SAY_WIL_START, player);
+                me->SetFaction(FACTION_EARTHEN_RING);
+                Start(false, false, player->GetGUID(), quest);
+            }
+        }
+
         void Reset() override
         {
             Initialize();
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             Player* player = GetPlayerForEscort();
             if (!player)
@@ -703,7 +723,7 @@ public:
 
         void UpdateAI(uint32 uiDiff) override
         {
-            EscortAI::UpdateAI(uiDiff);
+            npc_escortAI::UpdateAI(uiDiff);
 
             if (!UpdateVictim())
                 return;
@@ -720,24 +740,7 @@ public:
                     m_uiHealingTimer -= uiDiff;
             }
         }
-
-        void QuestAccept(Player* player, Quest const* quest) override
-        {
-            if (quest->GetQuestId() == QUEST_ESCAPE_COILSCAR)
-            {
-                Talk(SAY_WIL_START, player);
-                me->SetFaction(FACTION_EARTHEN_RING);
-
-                Start(false, false, player->GetGUID(), quest);
-            }
-        }
     };
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return new npc_earthmender_wildaAI(creature);
-    }
-
 };
 
 /*#####
@@ -906,7 +909,7 @@ public:
                 if (Player* AggroTarget = ObjectAccessor::GetPlayer(*me, AggroTargetGUID))
                 {
                     me->SetTarget(AggroTarget->GetGUID());
-                    AddThreat(AggroTarget, 1);
+                    me->AddThreat(AggroTarget, 1);
                     me->HandleEmoteCommand(EMOTE_ONESHOT_POINT);
                 }
                 break;
@@ -1189,7 +1192,7 @@ public:
 
         void JustDied(Unit* /*killer*/) override
         {
-            me->DespawnOrUnsummon();
+            me->RemoveCorpse();
             if (Creature* LordIllidan = (ObjectAccessor::GetCreature(*me, LordIllidanGUID)))
                 ENSURE_AI(npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI, LordIllidan->AI())->LiveCounter();
         }
@@ -1343,32 +1346,33 @@ void npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI::SummonNextWave()
 
 class go_crystal_prison : public GameObjectScript
 {
-public:
-    go_crystal_prison() : GameObjectScript("go_crystal_prison") { }
+    public:
+        go_crystal_prison() : GameObjectScript("go_crystal_prison") { }
 
-    struct go_crystal_prisonAI : GameObjectAI
-    {
-        go_crystal_prisonAI(GameObject* go) : GameObjectAI(go) { }
-
-        void QuestAccept(Player* player, Quest const* quest) override
+        struct go_crystal_prisonAI : public GameObjectAI
         {
-            if (quest->GetQuestId() == QUEST_BATTLE_OF_THE_CRIMSON_WATCH)
+            go_crystal_prisonAI(GameObject* go) : GameObjectAI(go) { }
+
+            void QuestAccept(Player* player, Quest const* quest) override
             {
-                Creature* illidan = player->FindNearestCreature(22083, 50);
-                if (illidan && !ENSURE_AI(npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI, illidan->AI())->EventStarted)
+                if (quest->GetQuestId() == QUEST_BATTLE_OF_THE_CRIMSON_WATCH)
                 {
-                    ENSURE_AI(npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI, illidan->AI())->PlayerGUID = player->GetGUID();
-                    ENSURE_AI(npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI, illidan->AI())->LiveCount = 0;
-                    ENSURE_AI(npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI, illidan->AI())->EventStarted = true;
+                    Creature* Illidan = player->FindNearestCreature(22083, 50);
+
+                    if (Illidan && !ENSURE_AI(npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI, Illidan->AI())->EventStarted)
+                    {
+                        ENSURE_AI(npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI, Illidan->AI())->PlayerGUID = player->GetGUID();
+                        ENSURE_AI(npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI, Illidan->AI())->LiveCount = 0;
+                        ENSURE_AI(npc_lord_illidan_stormrage::npc_lord_illidan_stormrageAI, Illidan->AI())->EventStarted = true;
+                    }
                 }
             }
-        }
-    };
+        };
 
-    GameObjectAI* GetAI(GameObject* go) const override
-    {
-        return new go_crystal_prisonAI(go);
-    }
+        GameObjectAI* GetAI(GameObject* go) const override
+        {
+            return new go_crystal_prisonAI(go);
+        }
 };
 
 /*####
@@ -1465,15 +1469,15 @@ public:
                 case NPC_ENRAGED_FIRE_SPIRIT:
                     if (!me->GetAura(SPELL_FEL_FIRE_AURA))
                         DoCastSelf(SPELL_FEL_FIRE_AURA);
-                    _events.ScheduleEvent(EVENT_ENRAGED_FIRE_SPIRIT, 2s, 10s);
+                    _events.ScheduleEvent(EVENT_ENRAGED_FIRE_SPIRIT, Seconds(2), Seconds(10));
                     break;
                 case NPC_ENRAGED_EARTH_SPIRIT:
                     if (!me->GetAura(SPELL_FEL_FIRE_AURA))
                         DoCastSelf(SPELL_FEL_FIRE_AURA);
-                    _events.ScheduleEvent(EVENT_ENRAGED_EARTH_SPIRIT, 3s, 4s);
+                    _events.ScheduleEvent(EVENT_ENRAGED_EARTH_SPIRIT, Seconds(3), Seconds(4));
                     break;
                 case NPC_ENRAGED_AIR_SPIRIT:
-                    _events.ScheduleEvent(EVENT_ENRAGED_AIR_SPIRIT_CHAIN_LIGHTNING, 10s);
+                    _events.ScheduleEvent(EVENT_ENRAGED_AIR_SPIRIT_CHAIN_LIGHTNING, Seconds(10));
                     break;
                 default:
                     break;
@@ -1508,12 +1512,12 @@ public:
                     case EVENT_ENRAGED_AIR_SPIRIT_CHAIN_LIGHTNING:
                         if (UpdateVictim())
                             DoCastVictim(SPELL_CHAIN_LIGHTNING);
-                        _events.ScheduleEvent(EVENT_ENRAGED_AIR_SPIRIT_HURRICANE, 3s, 5s);
+                        _events.ScheduleEvent(EVENT_ENRAGED_AIR_SPIRIT_HURRICANE, Seconds(3), Seconds(5));
                         break;
                     case EVENT_ENRAGED_AIR_SPIRIT_HURRICANE:
                         if (UpdateVictim())
                             DoCastVictim(SPELL_HURRICANE);
-                        _events.ScheduleEvent(EVENT_ENRAGED_AIR_SPIRIT_CHAIN_LIGHTNING, 15s, 20s);
+                        _events.ScheduleEvent(EVENT_ENRAGED_AIR_SPIRIT_CHAIN_LIGHTNING, Seconds(15), Seconds(20));
                         break;
                     default:
                         break;

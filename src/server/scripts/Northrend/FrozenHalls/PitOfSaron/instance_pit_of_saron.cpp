@@ -17,11 +17,11 @@
 
 #include "ScriptMgr.h"
 #include "Creature.h"
+#include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
 #include "pit_of_saron.h"
 #include "Player.h"
-#include "TemporarySummon.h"
 
 // positions for Martin Victus (37591) and Gorkun Ironskull (37592)
 Position const SlaveLeaderPos  = {689.7158f, -104.8736f, 513.7360f, 0.0f};
@@ -43,7 +43,7 @@ class instance_pit_of_saron : public InstanceMapScript
 
         struct instance_pit_of_saron_InstanceScript : public InstanceScript
         {
-            instance_pit_of_saron_InstanceScript(Map* map) : InstanceScript(map)
+            instance_pit_of_saron_InstanceScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -138,10 +138,30 @@ class instance_pit_of_saron : public InstanceMapScript
                         return _teamInInstance == ALLIANCE ? NPC_FREED_SLAVE_3_ALLIANCE : NPC_FREED_SLAVE_3_HORDE;
                     case NPC_RESCUED_SLAVE_HORDE:
                         return _teamInInstance == ALLIANCE ? NPC_RESCUED_SLAVE_ALLIANCE : NPC_RESCUED_SLAVE_HORDE;
-                    case NPC_GORKUN_IRONSKULL_2:
-                        return _teamInInstance == ALLIANCE ? NPC_MARTIN_VICTUS_1 : NPC_GORKUN_IRONSKULL_2;
                     default:
                         return entry;
+                }
+            }
+
+            void OnGameObjectCreate(GameObject* go) override
+            {
+                switch (go->GetEntry())
+                {
+                    case GO_ICE_WALL:
+                    case GO_HALLS_OF_REFLECTION_PORTCULLIS:
+                        AddDoor(go, true);
+                        break;
+                }
+            }
+
+            void OnGameObjectRemove(GameObject* go) override
+            {
+                switch (go->GetEntry())
+                {
+                    case GO_ICE_WALL:
+                    case GO_HALLS_OF_REFLECTION_PORTCULLIS:
+                        AddDoor(go, false);
+                        break;
                 }
             }
 
@@ -158,15 +178,9 @@ class instance_pit_of_saron : public InstanceMapScript
                             if (Creature* summoner = instance->GetCreature(_garfrostGUID))
                             {
                                 if (_teamInInstance == ALLIANCE)
-                                {
-                                    if (TempSummon* summon = instance->SummonCreature(NPC_MARTIN_VICTUS_1, SlaveLeaderPos))
-                                        summon->SetTempSummonType(TEMPSUMMON_MANUAL_DESPAWN);
-                                }
+                                    summoner->SummonCreature(NPC_MARTIN_VICTUS_1, SlaveLeaderPos, TEMPSUMMON_MANUAL_DESPAWN);
                                 else
-                                {
-                                    if (TempSummon* summon = instance->SummonCreature(NPC_GORKUN_IRONSKULL_2, SlaveLeaderPos))
-                                        summon->SetTempSummonType(TEMPSUMMON_MANUAL_DESPAWN);
-                                }
+                                    summoner->SummonCreature(NPC_GORKUN_IRONSKULL_2, SlaveLeaderPos, TEMPSUMMON_MANUAL_DESPAWN);
                             }
                         }
                         break;
@@ -176,15 +190,9 @@ class instance_pit_of_saron : public InstanceMapScript
                             if (Creature* summoner = instance->GetCreature(_tyrannusGUID))
                             {
                                 if (_teamInInstance == ALLIANCE)
-                                {
-                                    if (TempSummon * summon = instance->SummonCreature(NPC_JAINA_PART2, EventLeaderPos2))
-                                        summon->SetTempSummonType(TEMPSUMMON_MANUAL_DESPAWN);
-                                }
+                                    summoner->SummonCreature(NPC_JAINA_PART2, EventLeaderPos2, TEMPSUMMON_MANUAL_DESPAWN);
                                 else
-                                {
-                                    if (TempSummon * summon = instance->SummonCreature(NPC_SYLVANAS_PART2, EventLeaderPos2))
-                                        summon->SetTempSummonType(TEMPSUMMON_MANUAL_DESPAWN);
-                                }
+                                    summoner->SummonCreature(NPC_SYLVANAS_PART2, EventLeaderPos2, TEMPSUMMON_MANUAL_DESPAWN);
                             }
                         }
                         break;

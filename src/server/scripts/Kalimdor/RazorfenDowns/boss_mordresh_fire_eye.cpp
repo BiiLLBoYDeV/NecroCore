@@ -63,8 +63,8 @@ public:
             _JustEngagedWith();
             events.Reset();
             Talk(SAY_AGGRO);
-            events.ScheduleEvent(EVENT_FIREBALL, 100ms);
-            events.ScheduleEvent(EVENT_FIRE_NOVA, 8s, 12s);
+            events.ScheduleEvent(EVENT_FIREBALL, 100);
+            events.ScheduleEvent(EVENT_FIRE_NOVA, urand(8000, 12000));
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -112,11 +112,11 @@ public:
                 {
                     case EVENT_FIREBALL:
                         DoCastVictim(SPELL_FIREBALL);
-                        events.ScheduleEvent(EVENT_FIREBALL, 2400ms, 3800ms);
+                        events.ScheduleEvent(EVENT_FIREBALL, urand(2400, 3800));
                         break;
                     case EVENT_FIRE_NOVA:
                         DoCast(me, SPELL_FIRE_NOVA);
-                        events.ScheduleEvent(EVENT_FIRE_NOVA, 11s, 16s);
+                        events.ScheduleEvent(EVENT_FIRE_NOVA, urand(11000, 16000));
                         break;
                 }
 
@@ -129,7 +129,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetRazorfenDownsAI<boss_mordresh_fire_eyeAI>(creature);
+        return new boss_mordresh_fire_eyeAI(creature);
     }
 };
 

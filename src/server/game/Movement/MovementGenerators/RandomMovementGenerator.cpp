@@ -18,209 +18,164 @@
 
 #include "RandomMovementGenerator.h"
 #include "Creature.h"
+#include "CreatureGroups.h"
 #include "Map.h"
-#include "MovementDefines.h"
 #include "MoveSpline.h"
 #include "MoveSplineInit.h"
-#include "PathGenerator.h"
 #include "Random.h"
+#include "Util.h"
 
-template<class T>
-RandomMovementGenerator<T>::RandomMovementGenerator(float distance) : _timer(0), _reference(), _wanderDistance(distance)
+#define RUNNING_CHANCE_RANDOMMV 20                                  //will be "1 / RUNNING_CHANCE_RANDOMMV"
+
+template<>
+void RandomMovementGenerator<Creature>::_setRandomLocation(Creature* creature)
 {
-    this->Mode = MOTION_MODE_DEFAULT;
-    this->Priority = MOTION_PRIORITY_NORMAL;
-    this->Flags = MOVEMENTGENERATOR_FLAG_INITIALIZATION_PENDING;
-    this->BaseUnitState = UNIT_STATE_ROAMING;
-}
-
-template RandomMovementGenerator<Creature>::RandomMovementGenerator(float/* distance*/);
-
-template<class T>
-MovementGeneratorType RandomMovementGenerator<T>::GetMovementGeneratorType() const
-{
-    return RANDOM_MOTION_TYPE;
-}
-
-template<class T>
-void RandomMovementGenerator<T>::Pause(uint32 timer /*= 0*/)
-{
-    if (timer)
+    if (creature->IsMovementPreventedByCasting())
     {
-        this->AddFlag(MOVEMENTGENERATOR_FLAG_TIMED_PAUSED);
-        _timer.Reset(timer);
-        this->RemoveFlag(MOVEMENTGENERATOR_FLAG_PAUSED);
+        creature->CastStop();
+        return;
     }
+
+    float respX, respY, respZ, respO, destX, destY, destZ, travelDistZ;
+    creature->GetHomePosition(respX, respY, respZ, respO);
+    Map const* map = creature->GetBaseMap();
+
+    // For 2D/3D system selection
+    //bool is_land_ok  = creature.CanWalk();                // not used?
+    //bool is_water_ok = creature.CanSwim();                // not used?
+    bool is_air_ok = creature->CanFly();
+
+    const float angle = float(rand_norm()) * static_cast<float>(M_PI*2.0f);
+    const float range = float(rand_norm()) * wander_distance;
+    const float distanceX = range * std::cos(angle);
+    const float distanceY = range * std::sin(angle);
+
+    destX = respX + distanceX;
+    destY = respY + distanceY;
+
+    // prevent invalid coordinates generation
+    Trinity::NormalizeMapCoord(destX);
+    Trinity::NormalizeMapCoord(destY);
+
+    travelDistZ = range;                                    // sin^2+cos^2=1, so travelDistZ=range^2; no need for sqrt below
+
+    if (is_air_ok)                                          // 3D system above ground and above water (flying mode)
+    {
+        // Limit height change
+        const float distanceZ = float(rand_norm()) * travelDistZ/2.0f;
+        destZ = respZ + distanceZ;
+        float levelZ = map->GetWaterOrGroundLevel(creature->GetPhaseShift(), destX, destY, destZ-2.5f);
+
+        // Problem here, we must fly above the ground and water, not under. Let's try on next tick
+        if (levelZ >= destZ)
+            return;
+    }
+    //else if (is_water_ok)                                 // 3D system under water and above ground (swimming mode)
+    else                                                    // 2D only
+    {
+        // 10.0 is the max that vmap high can check (MAX_CAN_FALL_DISTANCE)
+        travelDistZ = travelDistZ >= 10.0f ? 10.0f : travelDistZ;
+
+        // The fastest way to get an accurate result 90% of the time.
+        // Better result can be obtained like 99% accuracy with a ray light, but the cost is too high and the code is too long.
+        destZ = map->GetHeight(creature->GetPhaseShift(), destX, destY, respZ+travelDistZ-2.0f, false);
+
+        if (std::fabs(destZ - respZ) > travelDistZ)              // Map check
+        {
+            // Vmap Horizontal or above
+            destZ = map->GetHeight(creature->GetPhaseShift(), destX, destY, respZ - 2.0f, true);
+
+            if (std::fabs(destZ - respZ) > travelDistZ)
+            {
+                // Vmap Higher
+                destZ = map->GetHeight(creature->GetPhaseShift(), destX, destY, respZ+travelDistZ-2.0f, true);
+
+                // let's forget this bad coords where a z cannot be find and retry at next tick
+                if (std::fabs(destZ - respZ) > travelDistZ)
+                    return;
+            }
+        }
+    }
+
+    if (is_air_ok)
+        i_nextMoveTime.Reset(0);
     else
     {
-        this->AddFlag(MOVEMENTGENERATOR_FLAG_PAUSED);
-        this->RemoveFlag(MOVEMENTGENERATOR_FLAG_TIMED_PAUSED);
-    }
-}
-
-template<class T>
-void RandomMovementGenerator<T>::Resume(uint32 overrideTimer /*= 0*/)
-{
-    if (overrideTimer)
-        _timer.Reset(overrideTimer);
-
-    this->RemoveFlag(MOVEMENTGENERATOR_FLAG_PAUSED);
-}
-
-template MovementGeneratorType RandomMovementGenerator<Creature>::GetMovementGeneratorType() const;
-
-template<class T>
-void RandomMovementGenerator<T>::DoInitialize(T*) { }
-
-template<>
-void RandomMovementGenerator<Creature>::DoInitialize(Creature* owner)
-{
-    RemoveFlag(MOVEMENTGENERATOR_FLAG_INITIALIZATION_PENDING | MOVEMENTGENERATOR_FLAG_TRANSITORY | MOVEMENTGENERATOR_FLAG_DEACTIVATED | MOVEMENTGENERATOR_FLAG_TIMED_PAUSED);
-    AddFlag(MOVEMENTGENERATOR_FLAG_INITIALIZED);
-
-    if (!owner || !owner->IsAlive())
-        return;
-
-    _reference = owner->GetPosition();
-    owner->StopMoving();
-
-    if (!_wanderDistance)
-        _wanderDistance = owner->GetRespawnRadius();
-
-    _timer.Reset(0);
-    _path = nullptr;
-}
-
-template<class T>
-void RandomMovementGenerator<T>::DoReset(T*) { }
-
-template<>
-void RandomMovementGenerator<Creature>::DoReset(Creature* owner)
-{
-    RemoveFlag(MOVEMENTGENERATOR_FLAG_TRANSITORY | MOVEMENTGENERATOR_FLAG_DEACTIVATED);
-
-    DoInitialize(owner);
-}
-
-template<class T>
-void RandomMovementGenerator<T>::SetRandomLocation(T*) { }
-
-template<>
-void RandomMovementGenerator<Creature>::SetRandomLocation(Creature* owner)
-{
-    if (!owner)
-        return;
-
-    if (owner->HasUnitState(UNIT_STATE_NOT_MOVE | UNIT_STATE_LOST_CONTROL) || owner->IsMovementPreventedByCasting())
-    {
-        AddFlag(MOVEMENTGENERATOR_FLAG_INTERRUPTED);
-        owner->StopMoving();
-        _path = nullptr;
-        return;
+        if (roll_chance_i(50))
+            i_nextMoveTime.Reset(urand(5000, 10000));
+        else
+            i_nextMoveTime.Reset(urand(50, 400));
     }
 
-    Position position(_reference);
-    float distance = frand(0.f, 1.f) * _wanderDistance;
-    float angle = frand(0.f, 1.f) * float(M_PI) * 2.f;
-    owner->MovePositionToFirstCollision(position, distance, angle);
+    creature->AddUnitState(UNIT_STATE_ROAMING_MOVE);
 
-    uint32 resetTimer = roll_chance_i(50) ? urand(5000, 10000) : urand(1000, 2000);
+    Movement::MoveSplineInit init(creature);
+    init.MoveTo(destX, destY, destZ);
+    init.SetWalk(true);
+    init.Launch();
 
-    if (!_path)
-    {
-        _path = std::make_unique<PathGenerator>(owner);
-        _path->SetPathLengthLimit(30.0f);
-    }
-
-    bool result = _path->CalculatePath(position.GetPositionX(), position.GetPositionY(), position.GetPositionZ());
-    if (!result || (_path->GetPathType() & PATHFIND_NOPATH) || (_path->GetPathType() & PATHFIND_SHORTCUT))
-    {
-        _timer.Reset(100);
-        return;
-    }
-
-    RemoveFlag(MOVEMENTGENERATOR_FLAG_TRANSITORY | MOVEMENTGENERATOR_FLAG_TIMED_PAUSED);
-
-    owner->AddUnitState(UNIT_STATE_ROAMING_MOVE);
-
-    bool walk = true;
-    switch (owner->GetMovementTemplate().GetRandom())
-    {
-        case CreatureRandomMovementType::CanRun:
-            walk = owner->IsWalking();
-            break;
-        case CreatureRandomMovementType::AlwaysRun:
-            walk = false;
-            break;
-        default:
-            break;
-    }
-
-    Movement::MoveSplineInit init(owner);
-    init.MovebyPath(_path->GetPath());
-    init.SetWalk(walk);
-    time_t traveltime = init.Launch();
-    _timer.Reset(traveltime + resetTimer);
-
-    // Call for creature group update
-    owner->SignalFormationMovement(position);
-}
-
-template<class T>
-bool RandomMovementGenerator<T>::DoUpdate(T*, uint32)
-{
-    return false;
+    //Call for creature group update
+    if (creature->GetFormation() && creature->GetFormation()->getLeader() == creature)
+        creature->GetFormation()->LeaderMoveTo(destX, destY, destZ);
 }
 
 template<>
-bool RandomMovementGenerator<Creature>::DoUpdate(Creature* owner, uint32 diff)
+void RandomMovementGenerator<Creature>::DoInitialize(Creature* creature)
 {
-    if (!owner || !owner->IsAlive())
-        return true;
+    if (!creature->IsAlive())
+        return;
 
-    if (HasFlag(MOVEMENTGENERATOR_FLAG_FINALIZED | MOVEMENTGENERATOR_FLAG_PAUSED))
-        return true;
+    if (!wander_distance)
+        wander_distance = creature->GetRespawnRadius();
 
-    if (owner->HasUnitState(UNIT_STATE_NOT_MOVE) || owner->IsMovementPreventedByCasting())
+    creature->AddUnitState(UNIT_STATE_ROAMING | UNIT_STATE_ROAMING_MOVE);
+    _setRandomLocation(creature);
+}
+
+template<>
+void RandomMovementGenerator<Creature>::DoReset(Creature* creature)
+{
+    DoInitialize(creature);
+}
+
+template<>
+void RandomMovementGenerator<Creature>::DoFinalize(Creature* creature)
+{
+    creature->ClearUnitState(UNIT_STATE_ROAMING|UNIT_STATE_ROAMING_MOVE);
+    creature->SetWalk(false);
+}
+
+template<>
+bool RandomMovementGenerator<Creature>::DoUpdate(Creature* creature, const uint32 diff)
+{
+    if (!creature || !creature->IsAlive())
+        return false;
+
+    if (creature->HasUnitState(UNIT_STATE_ROOT | UNIT_STATE_STUNNED | UNIT_STATE_DISTRACTED))
     {
-        AddFlag(MOVEMENTGENERATOR_FLAG_INTERRUPTED);
-        owner->StopMoving();
-        _path = nullptr;
+        i_nextMoveTime.Reset(0);  // Expire the timer
+        creature->ClearUnitState(UNIT_STATE_ROAMING_MOVE);
         return true;
     }
-    else
-        RemoveFlag(MOVEMENTGENERATOR_FLAG_INTERRUPTED);
 
-    _timer.Update(diff);
-    if ((HasFlag(MOVEMENTGENERATOR_FLAG_SPEED_UPDATE_PENDING) && !owner->movespline->Finalized()) || (_timer.Passed() && owner->movespline->Finalized()))
-        SetRandomLocation(owner);
-
+    if (creature->movespline->Finalized())
+    {
+        i_nextMoveTime.Update(diff);
+        if (i_nextMoveTime.Passed())
+            _setRandomLocation(creature);
+    }
     return true;
 }
 
-template<class T>
-void RandomMovementGenerator<T>::DoDeactivate(T*) { }
-
 template<>
-void RandomMovementGenerator<Creature>::DoDeactivate(Creature* owner)
+bool RandomMovementGenerator<Creature>::GetResetPos(Creature* creature, float& x, float& y, float& z)
 {
-    AddFlag(MOVEMENTGENERATOR_FLAG_DEACTIVATED);
-    owner->ClearUnitState(UNIT_STATE_ROAMING_MOVE);
-}
+    float radius;
+    creature->GetRespawnPosition(x, y, z, nullptr, &radius);
 
-template<class T>
-void RandomMovementGenerator<T>::DoFinalize(T*, bool, bool) { }
+    // use current if in range
+    if (creature->IsWithinDist2d(x, y, radius))
+        creature->GetPosition(x, y, z);
 
-template<>
-void RandomMovementGenerator<Creature>::DoFinalize(Creature* owner, bool active, bool/* movementInform*/)
-{
-    AddFlag(MOVEMENTGENERATOR_FLAG_FINALIZED);
-    if (active)
-    {
-        owner->ClearUnitState(UNIT_STATE_ROAMING_MOVE);
-        owner->StopMoving();
-
-        // TODO: Research if this modification is needed, which most likely isnt
-        owner->SetWalk(false);
-    }
+    return true;
 }

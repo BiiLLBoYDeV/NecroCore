@@ -29,6 +29,7 @@ EndScriptData */
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Pet.h"
+#include "PhasingHandler.h"
 #include "Player.h"
 #include "RBAC.h"
 #include "ReputationMgr.h"
@@ -52,8 +53,8 @@ public:
         };
         static std::vector<ChatCommand> modifyCommandTable =
         {
-            { "arenapoints",  rbac::RBAC_PERM_COMMAND_MODIFY_ARENAPOINTS,  false, &HandleModifyArenaCommand,         "" },
             { "bit",          rbac::RBAC_PERM_COMMAND_MODIFY_BIT,          false, &HandleModifyBitCommand,           "" },
+            { "currency",     rbac::RBAC_PERM_COMMAND_MODIFY_CURRENCY,     false, &HandleModifyCurrencyCommand,      "" },
             { "drunk",        rbac::RBAC_PERM_COMMAND_MODIFY_DRUNK,        false, &HandleModifyDrunkCommand,         "" },
             { "energy",       rbac::RBAC_PERM_COMMAND_MODIFY_ENERGY,       false, &HandleModifyEnergyCommand,        "" },
             { "faction",      rbac::RBAC_PERM_COMMAND_MODIFY_FACTION,      false, &HandleModifyFactionCommand,       "" },
@@ -557,19 +558,19 @@ public:
         if (handler->HasLowerSecurity(target, ObjectGuid::Empty))
             return false;
 
-        int32 moneyToAdd = 0;
+        int64 moneyToAdd = 0;
         if (strchr(args, 'g') || strchr(args, 's') || strchr(args, 'c'))
             moneyToAdd = MoneyStringToMoney(std::string(args));
         else
-            moneyToAdd = atoi(args);
+            moneyToAdd = atol(args);
 
-        uint32 targetMoney = target->GetMoney();
+        uint64 targetMoney = target->GetMoney();
 
         if (moneyToAdd < 0)
         {
-            int32 newmoney = int32(targetMoney) + moneyToAdd;
+            int64 newmoney = int64(targetMoney) + moneyToAdd;
 
-            TC_LOG_DEBUG("misc", handler->GetTrinityString(LANG_CURRENT_MONEY), targetMoney, moneyToAdd, newmoney);
+            TC_LOG_DEBUG("misc", handler->GetTrinityString(LANG_CURRENT_MONEY), uint32(targetMoney), int32(moneyToAdd), uint32(newmoney));
             if (newmoney <= 0)
             {
                 NotifyModification(handler, target, LANG_YOU_TAKE_ALL_MONEY, LANG_YOURS_ALL_MONEY_GONE);
@@ -577,28 +578,32 @@ public:
             }
             else
             {
-                if (newmoney > static_cast<int32>(MAX_MONEY_AMOUNT))
+                uint64 moneyToAddMsg = moneyToAdd * -1;
+                if (newmoney > static_cast<int64>(MAX_MONEY_AMOUNT))
                     newmoney = MAX_MONEY_AMOUNT;
 
-                handler->PSendSysMessage(LANG_YOU_TAKE_MONEY, abs(moneyToAdd), handler->GetNameLink(target).c_str());
+                handler->PSendSysMessage(LANG_YOU_TAKE_MONEY, moneyToAddMsg, handler->GetNameLink(target).c_str());
                 if (handler->needReportToTarget(target))
-                    ChatHandler(target->GetSession()).PSendSysMessage(LANG_YOURS_MONEY_TAKEN, handler->GetNameLink().c_str(), abs(moneyToAdd));
+                    ChatHandler(target->GetSession()).PSendSysMessage(LANG_YOURS_MONEY_TAKEN, handler->GetNameLink().c_str(), moneyToAddMsg);
                 target->SetMoney(newmoney);
             }
         }
         else
         {
-            handler->PSendSysMessage(LANG_YOU_GIVE_MONEY, moneyToAdd, handler->GetNameLink(target).c_str());
+            handler->PSendSysMessage(LANG_YOU_GIVE_MONEY, uint32(moneyToAdd), handler->GetNameLink(target).c_str());
             if (handler->needReportToTarget(target))
-                ChatHandler(target->GetSession()).PSendSysMessage(LANG_YOURS_MONEY_GIVEN, handler->GetNameLink().c_str(), moneyToAdd);
+                ChatHandler(target->GetSession()).PSendSysMessage(LANG_YOURS_MONEY_GIVEN, handler->GetNameLink().c_str(), uint32(moneyToAdd));
 
-            if (targetMoney >= MAX_MONEY_AMOUNT - moneyToAdd)
+            if (moneyToAdd >= int64(MAX_MONEY_AMOUNT))
+                moneyToAdd = MAX_MONEY_AMOUNT;
+
+            if (targetMoney >= uint64(MAX_MONEY_AMOUNT) - moneyToAdd)
                 moneyToAdd -= targetMoney;
 
             target->ModifyMoney(moneyToAdd);
         }
 
-        TC_LOG_DEBUG("misc", handler->GetTrinityString(LANG_NEW_MONEY), targetMoney, moneyToAdd, target->GetMoney());
+        TC_LOG_DEBUG("misc", handler->GetTrinityString(LANG_NEW_MONEY), uint32(targetMoney), int32(moneyToAdd), uint32(target->GetMoney()));
 
         return true;
     }
@@ -658,7 +663,7 @@ public:
         return true;
     }
 
-    static bool HandleModifyHonorCommand (ChatHandler* handler, char const* args)
+    static bool HandleModifyHonorCommand(ChatHandler* handler, char const* args)
     {
         if (!*args)
             return false;
@@ -677,9 +682,9 @@ public:
 
         int32 amount = (uint32)atoi(args);
 
-        target->ModifyHonorPoints(amount);
+        target->ModifyCurrency(CURRENCY_TYPE_HONOR_POINTS, amount, true, true);
 
-        handler->PSendSysMessage(LANG_COMMAND_MODIFY_HONOR, handler->GetNameLink(target).c_str(), target->GetHonorPoints());
+        handler->PSendSysMessage(LANG_COMMAND_MODIFY_HONOR, handler->GetNameLink(target).c_str(), target->GetCurrency(CURRENCY_TYPE_HONOR_POINTS, false));
 
         return true;
     }
@@ -777,7 +782,6 @@ public:
         }
 
         FactionEntry const* factionEntry = sFactionStore.LookupEntry(factionId);
-
         if (!factionEntry)
         {
             handler->PSendSysMessage(LANG_COMMAND_FACTION_UNKNOWN, factionId);
@@ -787,14 +791,14 @@ public:
 
         if (factionEntry->reputationListID < 0)
         {
-            handler->PSendSysMessage(LANG_COMMAND_FACTION_NOREP_ERROR, factionEntry->name[handler->GetSessionDbcLocale()], factionId);
+            handler->PSendSysMessage(LANG_COMMAND_FACTION_NOREP_ERROR, factionEntry->name, factionId);
             handler->SetSentErrorMessage(true);
             return false;
         }
 
         target->GetReputationMgr().SetOneFactionReputation(factionEntry, amount, false);
         target->GetReputationMgr().SendState(target->GetReputationMgr().GetState(factionEntry));
-        handler->PSendSysMessage(LANG_COMMAND_MODIFY_REP, factionEntry->name[handler->GetSessionDbcLocale()], factionId,
+        handler->PSendSysMessage(LANG_COMMAND_MODIFY_REP, factionEntry->name, factionId,
             handler->GetNameLink(target).c_str(), target->GetReputationMgr().GetReputation(factionEntry));
         return true;
     }
@@ -805,7 +809,7 @@ public:
         if (!*args)
             return false;
 
-        uint32 display_id = atoul(args);
+        uint32 display_id = (uint32)atoi((char*)args);
 
         Unit* target = handler->getSelectedUnit();
         if (!target)
@@ -820,23 +824,54 @@ public:
         return true;
     }
 
-    //set temporary phase mask for player
+    // Toggles a phaseid on a player
     static bool HandleModifyPhaseCommand(ChatHandler* handler, char const* args)
     {
         if (!*args)
             return false;
 
-        uint32 phasemask = (uint32)atoi((char*)args);
-
-        Unit* target = handler->getSelectedUnit();
-        if (!target)
-            target = handler->GetSession()->GetPlayer();
-
-        // check online security
-        else if (target->GetTypeId() == TYPEID_PLAYER && handler->HasLowerSecurity(target->ToPlayer(), ObjectGuid::Empty))
+        char* phaseText = strtok((char*)args, " ");
+        if (!phaseText)
             return false;
 
-        target->SetPhaseMask(phasemask, true);
+        uint32 phaseId = uint32(strtoul(phaseText, nullptr, 10));
+        uint32 visibleMapId = 0;
+
+        char* visibleMapIdText = strtok(nullptr, " ");
+        if (visibleMapIdText)
+            visibleMapId = uint32(strtoul(visibleMapIdText, nullptr, 10));
+
+        if (phaseId && !sPhaseStore.LookupEntry(phaseId))
+        {
+            handler->SendSysMessage(LANG_PHASE_NOTFOUND);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        Unit* target = handler->getSelectedUnit();
+        if (visibleMapId)
+        {
+            MapEntry const* visibleMap = sMapStore.LookupEntry(visibleMapId);
+            if (!visibleMap || visibleMap->rootPhaseMap != int32(target->GetMapId()))
+            {
+                handler->SendSysMessage(LANG_PHASE_NOTFOUND);
+                handler->SetSentErrorMessage(true);
+                return false;
+            }
+
+            if (!target->GetPhaseShift().HasVisibleMapId(visibleMapId))
+                PhasingHandler::AddVisibleMapId(target, visibleMapId);
+            else
+                PhasingHandler::RemoveVisibleMapId(target, visibleMapId);
+        }
+
+        if (phaseId)
+        {
+            if (!target->GetPhaseShift().HasPhase(phaseId))
+                PhasingHandler::AddPhase(target, phaseId, true);
+            else
+                PhasingHandler::RemovePhase(target, phaseId, true);
+        }
 
         return true;
     }
@@ -849,28 +884,6 @@ public:
 
         uint32 anim_id = atoi((char*)args);
         handler->GetSession()->GetPlayer()->SetUInt32Value(UNIT_NPC_EMOTESTATE, anim_id);
-
-        return true;
-    }
-
-    static bool HandleModifyArenaCommand(ChatHandler* handler, char const* args)
-    {
-        if (!*args)
-            return false;
-
-        Player* target = handler->getSelectedPlayerOrSelf();
-        if (!target)
-        {
-            handler->SendSysMessage(LANG_PLAYER_NOT_FOUND);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        int32 amount = (uint32)atoi(args);
-
-        target->ModifyArenaPoints(amount);
-
-        handler->PSendSysMessage(LANG_COMMAND_MODIFY_ARENA, handler->GetNameLink(target).c_str(), target->GetArenaPoints());
 
         return true;
     }
@@ -889,7 +902,7 @@ public:
             return false;
         }
 
-        PlayerInfo const* info = sObjectMgr->GetPlayerInfo(target->GetRace(), target->GetClass());
+        PlayerInfo const* info = sObjectMgr->GetPlayerInfo(target->getRace(), target->GetClass());
         if (!info)
             return false;
 
@@ -947,6 +960,33 @@ public:
             return false;
 
         target->DeMorph();
+
+        return true;
+    }
+
+    static bool HandleModifyCurrencyCommand(ChatHandler* handler, char const* args)
+    {
+        if (!*args)
+            return false;
+
+        Player* target = handler->getSelectedPlayer();
+        if (!target)
+        {
+            handler->PSendSysMessage(LANG_PLAYER_NOT_FOUND);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        uint32 currencyId = atoi(strtok((char*)args, " "));
+        const CurrencyTypesEntry* currencyType =  sCurrencyTypesStore.LookupEntry(currencyId);
+        if (!currencyType)
+            return false;
+
+        uint32 amount = atoi(strtok(nullptr, " "));
+        if (!amount)
+            return false;
+
+        target->ModifyCurrency(currencyId, amount, true, true);
 
         return true;
     }

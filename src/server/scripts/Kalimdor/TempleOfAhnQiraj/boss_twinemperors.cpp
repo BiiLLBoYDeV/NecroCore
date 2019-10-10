@@ -25,14 +25,11 @@ EndScriptData */
 
 #include "ScriptMgr.h"
 #include "InstanceScript.h"
-#include "Item.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
-#include "Spell.h"
 #include "SpellInfo.h"
 #include "temple_of_ahnqiraj.h"
-#include "WorldPacket.h"
 
 enum Spells
 {
@@ -67,11 +64,14 @@ enum Misc
     TELEPORTTIME                  = 30000
 };
 
-struct boss_twinemperorsAI : public BossAI
+
+
+struct boss_twinemperorsAI : public ScriptedAI
 {
-    boss_twinemperorsAI(Creature* creature): BossAI(creature, DATA_TWIN_EMPERORS)
+    boss_twinemperorsAI(Creature* creature): ScriptedAI(creature)
     {
         Initialize();
+        instance = creature->GetInstanceScript();
     }
 
     void Initialize()
@@ -87,6 +87,8 @@ struct boss_twinemperorsAI : public BossAI
         DontYellWhenDead = false;
         EnrageTimer = 15 * 60000;
     }
+
+    InstanceScript* instance;
 
     uint32 Heal_Timer;
     uint32 Teleport_Timer;
@@ -105,12 +107,11 @@ struct boss_twinemperorsAI : public BossAI
     {
         Initialize();
         me->ClearUnitState(UNIT_STATE_STUNNED);
-        _Reset();
     }
 
     Creature* GetOtherBoss()
     {
-        return instance->GetCreature(IAmVeklor() ? DATA_VEKNILASH : DATA_VEKLOR);
+        return ObjectAccessor::GetCreature(*me, instance->GetGuidData(IAmVeklor() ? DATA_VEKNILASH : DATA_VEKLOR));
     }
 
     void DamageTaken(Unit* /*done_by*/, uint32 &damage) override
@@ -142,7 +143,6 @@ struct boss_twinemperorsAI : public BossAI
         }
         if (!DontYellWhenDead)                              // I hope AI is not threaded
             DoPlaySoundToSet(me, IAmVeklor() ? SOUND_VL_DEATH : SOUND_VN_DEATH);
-        _JustDied();
     }
 
     void KilledUnit(Unit* /*victim*/) override
@@ -152,7 +152,7 @@ struct boss_twinemperorsAI : public BossAI
 
     void JustEngagedWith(Unit* who) override
     {
-        _JustEngagedWith();
+        DoZoneInCombat();
         Creature* pOtherBoss = GetOtherBoss();
         if (pOtherBoss)
         {
@@ -228,8 +228,8 @@ struct boss_twinemperorsAI : public BossAI
             thisPos.Relocate(me);
             Position otherPos;
             otherPos.Relocate(pOtherBoss);
-            pOtherBoss->UpdatePosition(thisPos);
-            me->UpdatePosition(otherPos);
+            pOtherBoss->SetPosition(thisPos);
+            me->SetPosition(otherPos);
 
             SetAfterTeleport();
             ENSURE_AI(boss_twinemperorsAI, pOtherBoss->AI())->SetAfterTeleport();
@@ -240,7 +240,7 @@ struct boss_twinemperorsAI : public BossAI
     {
         me->InterruptNonMeleeSpells(false);
         DoStopAttack();
-        ResetThreatList();
+        DoResetThreat();
         DoCast(me, SPELL_TWIN_TELEPORT_VISUAL);
         me->AddUnitState(UNIT_STATE_STUNNED);
         AfterTeleport = true;
@@ -269,7 +269,7 @@ struct boss_twinemperorsAI : public BossAI
                 {
                     //DoYell(nearu->GetName(), LANG_UNIVERSAL, 0);
                     AttackStart(nearu);
-                    AddThreat(nearu, 10000);
+                    me->AddThreat(nearu, 10000);
                 }
                 return true;
             }
@@ -383,13 +383,9 @@ struct boss_twinemperorsAI : public BossAI
             if (!me->IsNonMeleeSpellCast(true))
             {
                 DoCast(me, SPELL_BERSERK);
-                EnrageTimer = 60 * 60000;
-            }
-            else
-                EnrageTimer = 0;
-        }
-        else
-            EnrageTimer -= diff;
+                EnrageTimer = 60*60000;
+            } else EnrageTimer = 0;
+        } else EnrageTimer-=diff;
     }
 };
 
@@ -397,11 +393,6 @@ class boss_veknilash : public CreatureScript
 {
 public:
     boss_veknilash() : CreatureScript("boss_veknilash") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<boss_veknilashAI>(creature);
-    }
 
     struct boss_veknilashAI : public boss_twinemperorsAI
     {
@@ -433,7 +424,7 @@ public:
         void CastSpellOnBug(Creature* target) override
         {
             target->SetFaction(FACTION_MONSTER);
-            target->AI()->AttackStart(me->GetThreatManager().GetCurrentVictim());
+            target->AI()->AttackStart(me->getThreatManager().getHostilTarget());
             target->AddAura(SPELL_MUTATE_BUG, target);
             target->SetFullHealth();
         }
@@ -479,17 +470,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<boss_veknilashAI>(creature);
+    }
 };
 
 class boss_veklor : public CreatureScript
 {
 public:
     boss_veklor() : CreatureScript("boss_veklor") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetAQ40AI<boss_veklorAI>(creature);
-    }
 
     struct boss_veklorAI : public boss_twinemperorsAI
     {
@@ -546,7 +536,7 @@ public:
             if (ShadowBolt_Timer <= diff)
             {
                 if (!me->IsWithinDist(me->GetVictim(), 45.0f))
-                    me->GetMotionMaster()->MoveChase(me->GetVictim(), VEKLOR_DIST);
+                    me->GetMotionMaster()->MoveChase(me->GetVictim(), VEKLOR_DIST, 0);
                 else
                     DoCastVictim(SPELL_SHADOWBOLT);
                 ShadowBolt_Timer = 2000;
@@ -562,7 +552,7 @@ public:
 
             if (ArcaneBurst_Timer <= diff)
             {
-                if (Unit* mvic = SelectTarget(SELECT_TARGET_MINDISTANCE, 0, NOMINAL_MELEE_RANGE, true))
+                if (Unit* mvic = SelectTarget(SELECT_TARGET_NEAREST, 0, NOMINAL_MELEE_RANGE, true))
                 {
                     DoCast(mvic, SPELL_ARCANEBURST);
                     ArcaneBurst_Timer = 5000;
@@ -596,13 +586,17 @@ public:
                 // VL doesn't melee
                 if (me->Attack(who, false))
                 {
-                    me->GetMotionMaster()->MoveChase(who, VEKLOR_DIST);
-                    AddThreat(who, 0.0f);
+                    me->GetMotionMaster()->MoveChase(who, VEKLOR_DIST, 0);
+                    me->AddThreat(who, 0.0f);
                 }
             }
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetAQ40AI<boss_veklorAI>(creature);
+    }
 };
 
 void AddSC_boss_twinemperors()

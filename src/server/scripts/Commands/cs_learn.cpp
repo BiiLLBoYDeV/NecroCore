@@ -153,12 +153,8 @@ public:
             return true;
         uint32 family = classEntry->spellfamily;
 
-        for (uint32 i = 0; i < sSkillLineAbilityStore.GetNumRows(); ++i)
+        for (SkillLineAbilityEntry const* entry : sSkillLineAbilityStore)
         {
-            SkillLineAbilityEntry const* entry = sSkillLineAbilityStore.LookupEntry(i);
-            if (!entry)
-                continue;
-
             SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(entry->spellId);
             if (!spellInfo)
                 continue;
@@ -195,12 +191,8 @@ public:
         Player* player = handler->GetSession()->GetPlayer();
         uint32 classMask = player->GetClassMask();
 
-        for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
+        for (TalentEntry const* talentInfo : sTalentStore)
         {
-            TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
-            if (!talentInfo)
-                continue;
-
             TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
             if (!talentTabInfo)
                 continue;
@@ -272,12 +264,8 @@ public:
             return false;
         }
 
-        for (uint32 i = 0; i < sTalentStore.GetNumRows(); ++i)
+        for (TalentEntry const* talentInfo : sTalentStore)
         {
-            TalentEntry const* talentInfo = sTalentStore.LookupEntry(i);
-            if (!talentInfo)
-                continue;
-
             TalentTabEntry const* talentTabInfo = sTalentTabStore.LookupEntry(talentInfo->TalentTab);
             if (!talentTabInfo)
                 continue;
@@ -289,7 +277,7 @@ public:
             // search highest talent rank
             uint32 spellId = 0;
 
-            for (int8 rank = MAX_TALENT_RANK-1; rank >= 0; --rank)
+            for (int8 rank = MAX_TALENT_RANK - 1; rank >= 0; --rank)
             {
                 if (talentInfo->RankID[rank] != 0)
                 {
@@ -399,33 +387,14 @@ public:
                 !skillInfo->canLink)                            // only prof with recipes have set
                 continue;
 
-            int locale = handler->GetSessionDbcLocale();
-            name = skillInfo->name[locale];
+            name = skillInfo->name;
             if (name.empty())
                 continue;
 
             if (!Utf8FitTo(name, namePart))
-            {
-                locale = 0;
-                for (; locale < TOTAL_LOCALES; ++locale)
-                {
-                    if (locale == handler->GetSessionDbcLocale())
-                        continue;
+                continue;
 
-                    name = skillInfo->name[locale];
-                    if (name.empty())
-                        continue;
-
-                    if (Utf8FitTo(name, namePart))
-                        break;
-                }
-            }
-
-            if (locale < TOTAL_LOCALES)
-            {
-                targetSkillInfo = skillInfo;
-                break;
-            }
+            targetSkillInfo = skillInfo;
         }
 
         if (!targetSkillInfo)
@@ -443,12 +412,8 @@ public:
     {
         uint32 classmask = player->GetClassMask();
 
-        for (uint32 j = 0; j < sSkillLineAbilityStore.GetNumRows(); ++j)
+        for (SkillLineAbilityEntry const* skillLine : sSkillLineAbilityStore)
         {
-            SkillLineAbilityEntry const* skillLine = sSkillLineAbilityStore.LookupEntry(j);
-            if (!skillLine)
-                continue;
-
             // wrong skill
             if (skillLine->skillId != skillId)
                 continue;

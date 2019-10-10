@@ -52,7 +52,7 @@ class instance_blood_furnace : public InstanceMapScript
 
         struct instance_blood_furnace_InstanceMapScript : public InstanceScript
         {
-            instance_blood_furnace_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_blood_furnace_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -202,7 +202,6 @@ class instance_blood_furnace : public InstanceMapScript
             void ResetPrisoners(GuidSet& prisoners)
             {
                 for (GuidSet::const_iterator i = prisoners.begin(); i != prisoners.end();)
-                {
                     if (Creature * prisoner = instance->GetCreature(*i))
                     {
                         if (!prisoner->IsAlive())
@@ -212,17 +211,13 @@ class instance_blood_furnace : public InstanceMapScript
 
                         ResetPrisoner(prisoner);
                     }
-                    else
-                        ++i;
-                }
             }
 
             void ResetPrisoner(Creature* prisoner)
             {
                 if (!prisoner->IsAlive())
                     prisoner->Respawn(true);
-                prisoner->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                prisoner->SetImmuneToAll(true);
+                prisoner->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NON_ATTACKABLE);
             }
 
             void StorePrisoner(Creature* creature)
@@ -311,9 +306,8 @@ class instance_blood_furnace : public InstanceMapScript
                 for (GuidSet::const_iterator i = prisoners.begin(); i != prisoners.end(); ++i)
                     if (Creature* prisoner = instance->GetCreature(*i))
                     {
-                        prisoner->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                        prisoner->SetImmuneToAll(false);
-                        prisoner->AI()->DoZoneInCombat();
+                        prisoner->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC | UNIT_FLAG_NON_ATTACKABLE);
+                        prisoner->SetInCombatWithZone();
                     }
             }
 

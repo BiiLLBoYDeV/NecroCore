@@ -102,7 +102,7 @@ class npc_ioc_gunship_captain : public CreatureScript
                 if (action == ACTION_GUNSHIP_READY)
                 {
                     DoCast(me, SPELL_SIMPLE_TELEPORT);
-                    _events.ScheduleEvent(EVENT_TALK, 3s);
+                    _events.ScheduleEvent(EVENT_TALK, 3000);
                 }
             }
 
@@ -114,13 +114,13 @@ class npc_ioc_gunship_captain : public CreatureScript
                     switch (eventId)
                     {
                         case EVENT_TALK:
-                            _events.ScheduleEvent(EVENT_DESPAWN, 1s);
+                            _events.ScheduleEvent(EVENT_DESPAWN, 1000);
                             Talk(SAY_ONBOARD);
                             DoCast(me, SPELL_TELEPORT_VISUAL_ONLY);
                             break;
                         case EVENT_DESPAWN:
-                            if (BattlegroundMap* iocMap = me->GetMap()->ToBattlegroundMap())
-                                if (Battleground* bgIoC = iocMap->GetBG())
+                            if (me->GetMap()->ToBattlegroundMap())
+                                if (Battleground* bgIoC = me->GetMap()->ToBattlegroundMap()->GetBG())
                                     bgIoC->DelCreature(BG_IC_NPC_GUNSHIP_CAPTAIN_1);
                             break;
                         default:
@@ -192,7 +192,7 @@ class spell_ioc_parachute_ic : public SpellScriptLoader
             {
                 PreventDefaultAction();
                 if (Player* target = GetTarget()->ToPlayer())
-                    if (target->m_movementInfo.fallTime > 2000 && !target->GetTransport())
+                    if (target->m_movementInfo.GetFallTime() > 2000 && !target->GetTransport())
                         target->CastSpell(target, SPELL_PARACHUTE_IC, true);
             }
 
@@ -211,9 +211,7 @@ class spell_ioc_parachute_ic : public SpellScriptLoader
 class StartLaunchEvent : public BasicEvent
 {
     public:
-        StartLaunchEvent(Position const& pos, ObjectGuid::LowType lowGuid) : _pos(pos), _lowGuid(lowGuid)
-        {
-        }
+        StartLaunchEvent(Position const& pos, ObjectGuid::LowType lowGuid) : _pos(pos), _lowGuid(lowGuid) { }
 
         bool Execute(uint64 /*time*/, uint32 /*diff*/) override
         {

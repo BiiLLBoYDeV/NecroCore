@@ -84,8 +84,8 @@ class boss_bronjahm : public CreatureScript
             {
                 _Reset();
                 events.SetPhase(PHASE_1);
-                events.ScheduleEvent(EVENT_SHADOW_BOLT, 2s);
-                events.ScheduleEvent(EVENT_MAGIC_BANE, 8s, 20s);
+                events.ScheduleEvent(EVENT_SHADOW_BOLT, 2000);
+                events.ScheduleEvent(EVENT_MAGIC_BANE, urand(8000, 20000));
                 events.ScheduleEvent(EVENT_CORRUPT_SOUL, urand(25000, 35000), 0, PHASE_1);
             }
 
@@ -131,7 +131,7 @@ class boss_bronjahm : public CreatureScript
                 {
                     summons.Summon(summon);
                     summon->SetReactState(REACT_PASSIVE);
-                    summon->GetMotionMaster()->MoveFollow(me, me->GetCombatReach(), 0.0f);
+                    summon->GetMotionMaster()->MoveFollow(me, me->GetObjectSize(), 0.0f);
                     summon->CastSpell(summon, SPELL_PURPLE_BANISH_VISUAL, true);
                 }
             }
@@ -169,19 +169,19 @@ class boss_bronjahm : public CreatureScript
                     {
                         case EVENT_MAGIC_BANE:
                             DoCastAOE(SPELL_MAGIC_S_BANE);
-                            events.ScheduleEvent(EVENT_MAGIC_BANE, 8s, 20s);
+                            events.ScheduleEvent(EVENT_MAGIC_BANE, urand(8000, 20000));
                             break;
                         case EVENT_SHADOW_BOLT:
                             if (events.IsInPhase(PHASE_2))
                             {
                                 DoCastVictim(SPELL_SHADOW_BOLT);
-                                events.ScheduleEvent(EVENT_SHADOW_BOLT, 1s, 2s);
+                                events.ScheduleEvent(EVENT_SHADOW_BOLT, urand(1, 2) * IN_MILLISECONDS);
                             }
                             else
                             {
                                 if (!me->IsWithinMeleeRange(me->GetVictim()))
                                     DoCastVictim(SPELL_SHADOW_BOLT);
-                                events.ScheduleEvent(EVENT_SHADOW_BOLT, 2s);
+                                events.ScheduleEvent(EVENT_SHADOW_BOLT, 2 * IN_MILLISECONDS);
                             }
                             break;
                         case EVENT_CORRUPT_SOUL:
@@ -198,7 +198,7 @@ class boss_bronjahm : public CreatureScript
                             me->CastSpell(me, SPELL_SOULSTORM, false);
                             break;
                         case EVENT_FEAR:
-                            me->CastSpell(nullptr, SPELL_FEAR, { SPELLVALUE_MAX_TARGETS, 1 });
+                            me->CastCustomSpell(SPELL_FEAR, SPELLVALUE_MAX_TARGETS, 1, nullptr, false);
                             events.ScheduleEvent(EVENT_FEAR, urand(8000, 12000), 0, PHASE_2);
                             break;
                         default:
@@ -232,7 +232,7 @@ class npc_corrupted_soul_fragment : public CreatureScript
                 instance = me->GetInstanceScript();
             }
 
-            void IsSummonedBy(WorldObject* /*summoner*/) override
+            void IsSummonedBy(Unit* /*summoner*/) override
             {
                 if (Creature* bronjahm = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_BRONJAHM)))
                     bronjahm->AI()->JustSummoned(me);
@@ -269,19 +269,20 @@ class spell_bronjahm_magic_bane : public SpellScriptLoader
         {
             PrepareSpellScript(spell_bronjahm_magic_bane_SpellScript);
 
-            void RecalculateDamage(SpellEffIndex /*effIndex*/)
+            void RecalculateDamage()
             {
-                if (GetHitUnit()->GetPowerType() != POWER_MANA)
+                if (GetHitUnit()->getPowerType() != POWER_MANA)
                     return;
 
                 int32 const maxDamage = GetCaster()->GetMap()->IsHeroic() ? 15000 : 10000;
-                int32 newDamage = GetEffectValue() + (GetHitUnit()->GetMaxPower(POWER_MANA) / 2);
-                SetEffectValue(std::min<int32>(maxDamage, newDamage));
+                int32 newDamage = GetHitDamage() + (GetHitUnit()->GetMaxPower(POWER_MANA) / 2);
+
+                SetHitDamage(std::min<int32>(maxDamage, newDamage));
             }
 
             void Register() override
             {
-                OnEffectLaunchTarget += SpellEffectFn(spell_bronjahm_magic_bane_SpellScript::RecalculateDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+                OnHit += SpellHitFn(spell_bronjahm_magic_bane_SpellScript::RecalculateDamage);
             }
         };
 
@@ -338,6 +339,11 @@ class spell_bronjahm_soulstorm_visual : public SpellScriptLoader
         class spell_bronjahm_soulstorm_visual_AuraScript : public AuraScript
         {
             PrepareAuraScript(spell_bronjahm_soulstorm_visual_AuraScript);
+
+            bool Validate(SpellInfo const* /*spellInfo*/) override
+            {
+                return ValidateSpellInfo(SoulstormVisualSpells);
+            }
 
             void HandlePeriodicTick(AuraEffect const* aurEff)
             {

@@ -90,10 +90,13 @@ enum LootType : uint8
     LOOT_PROSPECTING            = 7,
     LOOT_MILLING                = 8,
 
+    LOOT_ARCHAEOLOGY            = 10,
+
     LOOT_FISHINGHOLE            = 20,                       // unsupported by client, sending LOOT_FISHING instead
     LOOT_INSIGNIA               = 21,                       // unsupported by client, sending LOOT_CORPSE instead
     LOOT_FISHING_JUNK           = 22                        // unsupported by client, sending LOOT_FISHING instead
 };
+
 
 enum LootError : uint8
 {
@@ -127,9 +130,9 @@ struct TC_GAME_API LootItem
     uint32  itemid;
     uint32  randomSuffix;
     int32   randomPropertyId;
-    ConditionContainer conditions;                          // additional loot condition
+    ConditionContainer conditions;                               // additional loot condition
     GuidSet allowedGUIDs;
-    ObjectGuid rollWinnerGUID;                              // Stores the guid of person who won loot, if his bags are full only he can see the item in loot list!
+    ObjectGuid rollWinnerGUID;                                   // Stores the guid of person who won loot, if his bags are full only he can see the item in loot list!
     uint8   count             : 8;
     bool    is_looted         : 1;
     bool    is_blocked        : 1;
@@ -166,12 +169,25 @@ struct NotNormalLootItem
         : index(_index), is_looted(_islooted) { }
 };
 
-struct Loot;
-class LootTemplate;
+struct LootCurrency
+{
+    uint8 index;
+    uint32 id;
+    uint32 count;
+    bool looted;
+
+    LootCurrency()
+        : index(0), id(0), count(0), looted(false) { }
+
+    LootCurrency(uint32 _id, uint32 _count)
+        : index(0), id(_id), count(_count), looted(false) { }
+};
 
 typedef std::vector<NotNormalLootItem> NotNormalLootItemList;
 typedef std::vector<LootItem> LootItemList;
 typedef std::unordered_map<ObjectGuid, NotNormalLootItemList*> NotNormalLootItemMap;
+
+//=====================================================
 
 class LootValidatorRef : public Reference<Loot, LootValidatorRef>
 {
@@ -195,6 +211,7 @@ class LootValidatorRefManager : public RefManager<Loot, LootValidatorRef>
 };
 
 //=====================================================
+
 struct LootView;
 
 ByteBuffer& operator<<(ByteBuffer& b, LootItem const& li);
@@ -210,8 +227,11 @@ struct TC_GAME_API Loot
 
     std::vector<LootItem> items;
     std::vector<LootItem> quest_items;
+    std::vector<LootCurrency> currencies;
+
     uint32 gold;
     uint8 unlootedCount;
+    uint8 unlootedCurrency;
     ObjectGuid roundRobinPlayer;                            // GUID of the player having the Round-Robin ownership for the loot. If 0, round robin owner has released.
     ObjectGuid lootOwnerGUID;
     LootType loot_type;                                     // required for achievement system
@@ -230,13 +250,38 @@ struct TC_GAME_API Loot
         i_LootValidatorRefManager.insertFirst(pLootValidatorRef);
     }
 
-    void clear();
+    // void clear();
+    void clear()
+    {
+        for (NotNormalLootItemMap::const_iterator itr = PlayerQuestItems.begin(); itr != PlayerQuestItems.end(); ++itr)
+            delete itr->second;
+        PlayerQuestItems.clear();
+
+        for (NotNormalLootItemMap::const_iterator itr = PlayerFFAItems.begin(); itr != PlayerFFAItems.end(); ++itr)
+            delete itr->second;
+        PlayerFFAItems.clear();
+
+        for (NotNormalLootItemMap::const_iterator itr = PlayerNonQuestNonFFAConditionalItems.begin(); itr != PlayerNonQuestNonFFAConditionalItems.end(); ++itr)
+            delete itr->second;
+        PlayerNonQuestNonFFAConditionalItems.clear();
+
+        PlayersLooting.clear();
+        items.clear();
+        quest_items.clear();
+        gold = 0;
+        unlootedCount = 0;
+        unlootedCurrency = 0;
+        roundRobinPlayer.Clear();
+        loot_type = LOOT_NONE;
+        i_LootValidatorRefManager.clearReferences();
+    }
 
     bool empty() const { return items.empty() && gold == 0; }
-    bool isLooted() const { return gold == 0 && unlootedCount == 0; }
+    bool isLooted() const { return gold == 0 && unlootedCount == 0 && unlootedCurrency == 0; }
 
     void NotifyItemRemoved(uint8 lootIndex);
     void NotifyQuestItemRemoved(uint8 questIndex);
+    void NotifyCurrencyRemoved(uint8 lootIndex);
     void NotifyMoneyRemoved();
     void AddLooter(ObjectGuid GUID) { PlayersLooting.insert(GUID); }
     void RemoveLooter(ObjectGuid GUID) { PlayersLooting.erase(GUID); }
@@ -252,6 +297,9 @@ struct TC_GAME_API Loot
     bool hasItemForAll() const;
     bool hasItemFor(Player* player) const;
     bool hasOverThresholdItem() const;
+
+    void AddCurrency(uint32 entry, uint32 min, uint32 max);
+    LootCurrency* LootCurrencyInSlot(uint32 lootSlot, Player* player);
 
     private:
         void FillNotNormalLootFor(Player* player, bool presentAtLooting);
@@ -274,7 +322,8 @@ struct LootView
     Player* viewer;
     PermissionTypes permission;
     LootView(Loot &_loot, Player* _viewer, PermissionTypes _permission = ALL_PERMISSION)
-        : loot(_loot), viewer(_viewer), permission(_permission) { }
+        : loot(_loot), viewer(_viewer), permission(_permission)
+    { }
 };
 
 #endif // Loot_h__

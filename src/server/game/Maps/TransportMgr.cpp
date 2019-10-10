@@ -23,6 +23,7 @@
 #include "MoveSplineInitArgs.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
+#include "PhasingHandler.h"
 #include "Spline.h"
 #include "Transport.h"
 
@@ -93,13 +94,11 @@ void TransportMgr::LoadTransportTemplates()
 
 void TransportMgr::LoadTransportAnimationAndRotation()
 {
-    for (uint32 i = 0; i < sTransportAnimationStore.GetNumRows(); ++i)
-        if (TransportAnimationEntry const* anim = sTransportAnimationStore.LookupEntry(i))
-            AddPathNodeToTransport(anim->TransportEntry, anim->TimeSeg, anim);
+    for (TransportAnimationEntry const* anim : sTransportAnimationStore)
+        AddPathNodeToTransport(anim->TransportEntry, anim->TimeSeg, anim);
 
-    for (uint32 i = 0; i < sTransportRotationStore.GetNumRows(); ++i)
-        if (TransportRotationEntry const* rot = sTransportRotationStore.LookupEntry(i))
-            AddPathRotationToTransport(rot->TransportEntry, rot->TimeSeg, rot);
+    for (TransportRotationEntry const* rot : sTransportRotationStore)
+        AddPathRotationToTransport(rot->TransportEntry, rot->TimeSeg, rot);
 }
 
 class SplineRawInitializer
@@ -363,7 +362,7 @@ void TransportMgr::AddPathNodeToTransport(uint32 transportEntry, uint32 timeSeg,
     animNode.Path[timeSeg] = node;
 }
 
-Transport* TransportMgr::CreateTransport(uint32 entry, ObjectGuid::LowType guid /*= 0*/, Map* map /*= nullptr*/)
+Transport* TransportMgr::CreateTransport(uint32 entry, ObjectGuid::LowType guid /*= 0*/, Map* map /*= nullptr*/, uint8 phaseUseFlags /*= 0*/, uint32 phaseId /*= 0*/, uint32 phaseGroupId /*= 0*/)
 {
     // instance case, execute GetGameObjectEntry hook
     if (map)
@@ -404,6 +403,8 @@ Transport* TransportMgr::CreateTransport(uint32 entry, ObjectGuid::LowType guid 
         return nullptr;
     }
 
+    PhasingHandler::InitDbPhaseShift(trans->GetPhaseShift(), phaseUseFlags, phaseId, phaseGroupId);
+
     if (MapEntry const* mapEntry = sMapStore.LookupEntry(mapId))
     {
         if (mapEntry->Instanceable() != tInfo->inInstance)
@@ -421,6 +422,7 @@ Transport* TransportMgr::CreateTransport(uint32 entry, ObjectGuid::LowType guid 
 
     // Passengers will be loaded once a player is near
     HashMapHolder<Transport>::Insert(trans);
+    HashMapHolder<Transport>::Insert(trans);
     trans->GetMap()->AddToMap<Transport>(trans);
     return trans;
 }
@@ -432,7 +434,7 @@ void TransportMgr::SpawnContinentTransports()
 
     uint32 oldMSTime = getMSTime();
 
-    QueryResult result = WorldDatabase.Query("SELECT guid, entry FROM transports");
+    QueryResult result = WorldDatabase.Query("SELECT guid, entry, phaseUseFlags, phaseid, phasegroup FROM transports");
 
     uint32 count = 0;
     if (result)
@@ -442,10 +444,50 @@ void TransportMgr::SpawnContinentTransports()
             Field* fields = result->Fetch();
             ObjectGuid::LowType guid = fields[0].GetUInt32();
             uint32 entry = fields[1].GetUInt32();
+            uint8 phaseUseFlags = fields[2].GetUInt8();
+            uint32 phaseId = fields[3].GetUInt32();
+            uint32 phaseGroupId = fields[4].GetUInt32();
+
+            if (phaseUseFlags & ~PHASE_USE_FLAGS_ALL)
+            {
+                TC_LOG_ERROR("sql.sql", "Table `transports` have transport (GUID: %u Entry: %u) with unknown `phaseUseFlags` set, removed unknown value.", guid, entry);
+                phaseUseFlags &= PHASE_USE_FLAGS_ALL;
+            }
+
+            if (phaseUseFlags & PHASE_USE_FLAGS_ALWAYS_VISIBLE && phaseUseFlags & PHASE_USE_FLAGS_INVERSE)
+            {
+                TC_LOG_ERROR("sql.sql", "Table `transports` have transport (GUID: %u Entry: %u) has both `phaseUseFlags` PHASE_USE_FLAGS_ALWAYS_VISIBLE and PHASE_USE_FLAGS_INVERSE,"
+                    " removing PHASE_USE_FLAGS_INVERSE.", guid, entry);
+                phaseUseFlags &= ~PHASE_USE_FLAGS_INVERSE;
+            }
+
+            if (phaseGroupId && phaseId)
+            {
+                TC_LOG_ERROR("sql.sql", "Table `transports` have transport (GUID: %u Entry: %u) with both `phaseid` and `phasegroup` set, `phasegroup` set to 0", guid, entry);
+                phaseGroupId = 0;
+            }
+
+            if (phaseId)
+            {
+                if (!sPhaseStore.LookupEntry(phaseId))
+                {
+                    TC_LOG_ERROR("sql.sql", "Table `transports` have transport (GUID: %u Entry: %u) with `phaseid` %u does not exist, set to 0", guid, entry, phaseId);
+                    phaseId = 0;
+                }
+            }
+
+            if (phaseGroupId)
+            {
+                if (!GetPhasesForGroup(phaseGroupId))
+                {
+                    TC_LOG_ERROR("sql.sql", "Table `transports` have transport (GUID: %u Entry: %u) with `phaseGroup` %u does not exist, set to 0", guid, entry, phaseGroupId);
+                    phaseGroupId = 0;
+                }
+            }
 
             if (TransportTemplate const* tInfo = GetTransportTemplate(entry))
                 if (!tInfo->inInstance)
-                    if (CreateTransport(entry, guid))
+                    if (CreateTransport(entry, guid, nullptr, phaseUseFlags, phaseId, phaseGroupId))
                         ++count;
 
         } while (result->NextRow());

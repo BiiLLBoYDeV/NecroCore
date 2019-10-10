@@ -17,8 +17,7 @@ if (SCRIPTS)
   list (FIND SCRIPTS_AVAILABLE_OPTIONS "${SCRIPTS}" SCRIPTS_INDEX)
   if (${SCRIPTS_INDEX} EQUAL -1)
     message(FATAL_ERROR "The value (${SCRIPTS}) of your SCRIPTS variable is invalid! "
-                        "Allowed values are: ${SCRIPTS_AVAILABLE_OPTIONS} if you still "
-                        "have problems search on forum for TCE00019.")
+                        "Allowed values are: ${SCRIPTS_AVAILABLE_OPTIONS}")
   endif()
 endif()
 
@@ -34,7 +33,6 @@ foreach(SCRIPT_MODULE ${SCRIPT_MODULE_LIST})
 endforeach()
 
 option(TOOLS            "Build map/vmap/mmap extraction/assembler tools"              1)
-option(ELUNA            "Build Eluna Lua Engine"                                      1)
 option(USE_SCRIPTPCH    "Use precompiled headers when compiling scripts"              1)
 option(USE_COREPCH      "Use precompiled headers when compiling servers"              1)
 option(WITH_DYNAMIC_LINKING "Enable dynamic library linking."                         0)
@@ -49,8 +47,7 @@ else()
 endif()
 option(WITH_WARNINGS    "Show all warnings during compile"                            0)
 option(WITH_COREDEBUG   "Include additional debug-code in core"                       0)
-option(WITH_STRICT_DATABASE_TYPE_CHECKS "Enable strict checking of database field value accessors" 0)
 set(WITH_SOURCE_TREE    "hierarchical" CACHE STRING "Build the source tree for IDE's.")
 set_property(CACHE WITH_SOURCE_TREE PROPERTY STRINGS no flat hierarchical hierarchical-folders)
 option(WITHOUT_GIT      "Disable the GIT testing routines"                            0)
-option(DISABLE_DRESSNPCS_CORESOUNDS "Disable server side 'missing sounds' workaround" 0)
+

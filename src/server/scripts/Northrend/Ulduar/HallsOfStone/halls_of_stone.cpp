@@ -271,9 +271,9 @@ class npc_brann_hos : public CreatureScript
 public:
     npc_brann_hos() : CreatureScript("npc_brann_hos") { }
 
-    struct npc_brann_hosAI : public EscortAI
+    struct npc_brann_hosAI : public npc_escortAI
     {
-        npc_brann_hosAI(Creature* creature) : EscortAI(creature)
+        npc_brann_hosAI(Creature* creature) : npc_escortAI(creature)
         {
             Initialize();
             instance = creature->GetInstanceScript();
@@ -301,6 +301,30 @@ public:
         bool bIsLowHP;
         bool brannSparklinNews;
 
+        bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+        {
+            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+            ClearGossipMenuFor(player);
+            if (action == GOSSIP_ACTION_INFO_DEF + 1 || action == GOSSIP_ACTION_INFO_DEF + 2)
+            {
+                CloseGossipMenuFor(player);
+                StartWP();
+            }
+
+            return true;
+        }
+
+        bool GossipHello(Player* player) override
+        {
+            if (me->IsQuestGiver())
+                player->PrepareQuestMenu(me->GetGUID());
+
+            AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_START, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+            SendGossipMenuFor(player, TEXT_ID_START, me->GetGUID());
+
+            return true;
+        }
+
         void Reset() override
         {
             if (!HasEscortState(STATE_ESCORT_ESCORTING))
@@ -326,7 +350,7 @@ public:
             lDwarfGUIDList.clear();
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             switch (waypointId)
             {
@@ -384,7 +408,7 @@ public:
         void JustSummoned(Creature* summoned) override
         {
             lDwarfGUIDList.push_back(summoned->GetGUID());
-            AddThreat(me, 0.0f, summoned);
+            summoned->AddThreat(me, 0.0f);
             summoned->AI()->AttackStart(me);
         }
 
@@ -555,7 +579,7 @@ public:
                         me->SetStandState(UNIT_STAND_STATE_STAND);
                         instance->HandleGameObject(instance->GetGuidData(DATA_GO_SKY_FLOOR), true);
                         if (Creature* temp = ObjectAccessor::GetCreature(*me, uiControllerGUID))
-                            temp->KillSelf();
+                            temp->DealDamage(temp, temp->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
                         bIsBattle = true;
                         SetEscortPaused(false);
                         JumpToNextStep(6500);
@@ -683,30 +707,6 @@ public:
                 return;
 
             DoMeleeAttackIfReady();
-        }
-
-        bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
-        {
-            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
-            ClearGossipMenuFor(player);
-            if (action == GOSSIP_ACTION_INFO_DEF + 1 || action == GOSSIP_ACTION_INFO_DEF + 2)
-            {
-                CloseGossipMenuFor(player);
-                StartWP();
-            }
-
-            return true;
-        }
-
-        bool GossipHello(Player* player) override
-        {
-            if (me->IsQuestGiver())
-                player->PrepareQuestMenu(me->GetGUID());
-
-            AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_START, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-            SendGossipMenuFor(player, TEXT_ID_START, me->GetGUID());
-
-            return true;
         }
     };
 

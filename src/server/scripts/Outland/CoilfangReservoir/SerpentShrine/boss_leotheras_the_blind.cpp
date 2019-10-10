@@ -129,10 +129,10 @@ public:
 
         void DamageTaken(Unit* done_by, uint32 &damage) override
         {
-            if (!done_by || (done_by->GetGUID() != victimGUID && done_by->GetGUID() != me->GetGUID()))
+            if (done_by->GetGUID() != victimGUID && done_by->GetGUID() != me->GetGUID())
             {
                 damage = 0;
-                ModifyThreatByPercent(done_by, -100);
+                DoModifyThreatPercent(done_by, -100);
             }
         }
 
@@ -150,15 +150,15 @@ public:
 
             if (me->EnsureVictim()->GetGUID() != victimGUID)
             {
-                ModifyThreatByPercent(me->GetVictim(), -100);
+                DoModifyThreatPercent(me->GetVictim(), -100);
                 Unit* owner = ObjectAccessor::GetUnit(*me, victimGUID);
                 if (owner && owner->IsAlive())
                 {
-                    AddThreat(owner, 999999);
+                    me->AddThreat(owner, 999999);
                     AttackStart(owner);
                 } else if (owner && owner->isDead())
                 {
-                    me->KillSelf();
+                    me->DealDamage(me, me->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
                     return;
                 }
             }
@@ -333,7 +333,7 @@ public:
                 if (instance->GetGuidData(DATA_LEOTHERAS_EVENT_STARTER))
                 {
                     if (Unit* victim = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_LEOTHERAS_EVENT_STARTER)))
-                        AddThreat(victim, 1);
+                        me->getThreatManager().addThreat(victim, 1);
                     StartEvent();
                 }
             }
@@ -385,7 +385,7 @@ public:
                         if (unit_target && unit_target->IsAlive())
                         {
                             unit->CastSpell(unit_target, SPELL_CONSUMING_MADNESS, true);
-                            ModifyThreatByPercent(unit_target, -100);
+                            DoModifyThreatPercent(unit_target, -100);
                         }
                     }
                 }
@@ -440,7 +440,7 @@ public:
                     Unit* newTarget = SelectTarget(SELECT_TARGET_RANDOM, 0);
                     if (newTarget)
                     {
-                        ResetThreatList();
+                        DoResetThreat();
                         me->GetMotionMaster()->Clear();
                         me->GetMotionMaster()->MovePoint(0, newTarget->GetPositionX(), newTarget->GetPositionY(), newTarget->GetPositionZ());
                     }
@@ -458,7 +458,7 @@ public:
                     Whirlwind_Timer =  15000;
 
                 NeedThreatReset = false;
-                ResetThreatList();
+                DoResetThreat();
                 me->GetMotionMaster()->Clear();
                 me->GetMotionMaster()->MoveChase(me->GetVictim());
             }
@@ -516,24 +516,24 @@ public:
                     if (me->IsWithinDist(me->GetVictim(), 30))
                     {
                         //DoCastVictim(SPELL_CHAOS_BLAST, true);
-                        me->CastSpell(me->GetVictim(), SPELL_CHAOS_BLAST, CastSpellExtraArgs().SetOriginalCaster(me->GetGUID()).AddSpellBP0(100));
+                        int damage = 100;
+                        me->CastCustomSpell(me->GetVictim(), SPELL_CHAOS_BLAST, &damage, nullptr, nullptr, false, nullptr, nullptr, me->GetGUID());
                     }
                     ChaosBlast_Timer = 3000;
                 } else ChaosBlast_Timer -= diff;
                 //Summon Inner Demon
                 if (InnerDemons_Timer <= diff)
                 {
-                    ThreatManager const& mgr = me->GetThreatManager();
-                    std::list<Unit*> TargetList;
-                    Unit* currentVictim = mgr.GetLastVictim();
-                    for (ThreatReference const* ref : mgr.GetSortedThreatList())
+                    ThreatContainer::StorageType const & ThreatList = me->getThreatManager().getThreatList();
+                    std::vector<Unit*> TargetList;
+                    for (ThreatContainer::StorageType::const_iterator itr = ThreatList.begin(); itr != ThreatList.end(); ++itr)
                     {
-                        if (Player* tempTarget = ref->GetVictim()->ToPlayer())
-                            if (tempTarget != currentVictim && TargetList.size()<5)
-                                TargetList.push_back(tempTarget);
+                        Unit* tempTarget = ObjectAccessor::GetUnit(*me, (*itr)->getUnitGuid());
+                        if (tempTarget && tempTarget->GetTypeId() == TYPEID_PLAYER && tempTarget->GetGUID() != me->EnsureVictim()->GetGUID() && TargetList.size()<5)
+                            TargetList.push_back(tempTarget);
                     }
                     //SpellInfo* spell = GET_SPELL(SPELL_INSIDIOUS_WHISPER);
-                    for (auto itr = TargetList.begin(), end = TargetList.end(); itr != end; ++itr)
+                    for (std::vector<Unit*>::const_iterator itr = TargetList.begin(); itr != TargetList.end(); ++itr)
                     {
                         if ((*itr) && (*itr)->IsAlive())
                         {
@@ -672,7 +672,8 @@ public:
                 if (me->IsWithinDist(me->GetVictim(), 30))
                 {
                     //DoCastVictim(SPELL_CHAOS_BLAST, true);
-                    me->CastSpell(me->GetVictim(), SPELL_CHAOS_BLAST, CastSpellExtraArgs().SetOriginalCaster(me->GetGUID()).AddSpellBP0(100));
+                    int damage = 100;
+                    me->CastCustomSpell(me->GetVictim(), SPELL_CHAOS_BLAST, &damage, nullptr, nullptr, false, nullptr, nullptr, me->GetGUID());
                     ChaosBlast_Timer = 3000;
                 }
              } else ChaosBlast_Timer -= diff;

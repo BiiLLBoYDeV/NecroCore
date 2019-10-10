@@ -16,8 +16,8 @@
  */
 
 #include "PlayerAI.h"
-#include "CommonHelpers.h"
 #include "Creature.h"
+#include "DBCStores.h"
 #include "Item.h"
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
@@ -28,6 +28,48 @@
 #include "SpellHistory.h"
 #include "SpellMgr.h"
 
+enum Specs
+{
+    SPEC_WARRIOR_ARMS = 0,
+    SPEC_WARRIOR_FURY = 1,
+    SPEC_WARRIOR_PROTECTION = 2,
+
+    SPEC_PALADIN_HOLY = 0,
+    SPEC_PALADIN_PROTECTION = 1,
+    SPEC_PALADIN_RETRIBUTION = 2,
+
+    SPEC_HUNTER_BEAST_MASTERY = 0,
+    SPEC_HUNTER_MARKSMANSHIP = 1,
+    SPEC_HUNTER_SURVIVAL = 2,
+
+    SPEC_ROGUE_ASSASSINATION = 0,
+    SPEC_ROGUE_COMBAT = 1,
+    SPEC_ROGUE_SUBLETY = 2,
+
+    SPEC_PRIEST_DISCIPLINE = 0,
+    SPEC_PRIEST_HOLY = 1,
+    SPEC_PRIEST_SHADOW = 2,
+
+    SPEC_DEATH_KNIGHT_BLOOD = 0,
+    SPEC_DEATH_KNIGHT_FROST = 1,
+    SPEC_DEATH_KNIGHT_UNHOLY = 2,
+
+    SPEC_SHAMAN_ELEMENTAL = 0,
+    SPEC_SHAMAN_ENHANCEMENT = 1,
+    SPEC_SHAMAN_RESTORATION = 2,
+
+    SPEC_MAGE_ARCANE = 0,
+    SPEC_MAGE_FIRE = 1,
+    SPEC_MAGE_FROST = 2,
+
+    SPEC_WARLOCK_AFFLICTION = 0,
+    SPEC_WARLOCK_DEMONOLOGY = 1,
+    SPEC_WARLOCK_DESTRUCTION = 2,
+
+    SPEC_DRUID_BALANCE = 0,
+    SPEC_DRUID_FERAL = 1,
+    SPEC_DRUID_RESTORATION = 2
+};
 enum Spells
 {
     /* Generic */
@@ -80,7 +122,7 @@ enum Spells
     SPELL_SPELL_REFLECTION  = 23920,
 
     /* Paladin - Generic */
-    SPELL_AURA_MASTERY          = 31821,
+    SPELL_AURA_MASTERY_PALADIN  = 31821,
     SPELL_LAY_ON_HANDS          = 48788,
     SPELL_BLESSING_OF_MIGHT     = 48932,
     SPELL_AVENGING_WRATH        = 31884,
@@ -393,32 +435,91 @@ enum Spells
 };
 
 PlayerAI::PlayerAI(Player* player) : UnitAI(player), me(player),
-    _selfSpec(Trinity::Helpers::Entity::GetPlayerSpecialization(player)),
-    _isSelfHealer(Trinity::Helpers::Entity::IsPlayerHealer(player)),
-    _isSelfRangedAttacker(Trinity::Helpers::Entity::IsPlayerRangedAttacker(player))
+    _selfSpec(PlayerAI::GetPlayerSpec(player)),
+    _isSelfHealer(PlayerAI::IsPlayerHealer(player)),
+    _isSelfRangedAttacker(PlayerAI::IsPlayerRangedAttacker(player))
 {
 }
 
 Creature* PlayerAI::GetCharmer() const
 {
-    if (me->GetCharmerGUID().IsCreature())
-        return ObjectAccessor::GetCreature(*me, me->GetCharmerGUID());
+    if (ObjectGuid charmerGUID = me->GetCharmerGUID())
+        if (charmerGUID.IsCreature())
+            return ObjectAccessor::GetCreature(*me, charmerGUID);
     return nullptr;
 }
 
-uint8 PlayerAI::GetSpec(Player const * who) const
+uint8 PlayerAI::GetPlayerSpec(Player const* who)
 {
-    return (!who || who == me) ? _selfSpec : Trinity::Helpers::Entity::GetPlayerSpecialization(who);
+    if (!who)
+        return 0;
+
+    uint32 tabId = who->GetPrimaryTalentTree(who->GetActiveSpec());
+    TalentTabEntry const* tabEntry = sTalentTabStore.LookupEntry(tabId);
+    if (!tabEntry)
+        return 0;
+
+    return tabEntry->tabpage;
 }
 
-bool PlayerAI::IsHealer(Player const * who) const
+bool PlayerAI::IsPlayerHealer(Player const* who)
 {
-    return (!who || who == me) ? _isSelfHealer : Trinity::Helpers::Entity::IsPlayerHealer(who);
+    if (!who)
+        return false;
+
+    switch (who->GetClass())
+    {
+        case CLASS_WARRIOR:
+        case CLASS_HUNTER:
+        case CLASS_ROGUE:
+        case CLASS_DEATH_KNIGHT:
+        case CLASS_MAGE:
+        case CLASS_WARLOCK:
+        default:
+            return false;
+        case CLASS_PALADIN:
+            return (PlayerAI::GetPlayerSpec(who) == SPEC_PALADIN_HOLY);
+        case CLASS_PRIEST:
+            return (PlayerAI::GetPlayerSpec(who) != SPEC_PRIEST_SHADOW);
+        case CLASS_SHAMAN:
+            return (PlayerAI::GetPlayerSpec(who) == SPEC_SHAMAN_RESTORATION);
+        case CLASS_DRUID:
+            return (PlayerAI::GetPlayerSpec(who) == SPEC_DRUID_RESTORATION);
+    }
 }
 
-bool PlayerAI::IsRangedAttacker(Player const * who) const
+bool PlayerAI::IsPlayerRangedAttacker(Player const* who)
 {
-    return (!who || who == me) ? _isSelfRangedAttacker : Trinity::Helpers::Entity::IsPlayerRangedAttacker(who);
+    if (!who)
+        return false;
+
+    switch (who->GetClass())
+    {
+        case CLASS_WARRIOR:
+        case CLASS_PALADIN:
+        case CLASS_ROGUE:
+        case CLASS_DEATH_KNIGHT:
+        default:
+            return false;
+        case CLASS_MAGE:
+        case CLASS_WARLOCK:
+            return true;
+        case CLASS_HUNTER:
+        {
+            // check if we have a ranged weapon equipped
+            Item const* rangedSlot = who->GetItemByPos(INVENTORY_SLOT_BAG_0, EQUIPMENT_SLOT_RANGED);
+            if (ItemTemplate const* rangedTemplate = rangedSlot ? rangedSlot->GetTemplate() : nullptr)
+                if ((1 << rangedTemplate->SubClass) & ITEM_SUBCLASS_MASK_WEAPON_RANGED)
+                    return true;
+            return false;
+        }
+        case CLASS_PRIEST:
+            return (PlayerAI::GetPlayerSpec(who) == SPEC_PRIEST_SHADOW);
+        case CLASS_SHAMAN:
+            return (PlayerAI::GetPlayerSpec(who) == SPEC_SHAMAN_ELEMENTAL);
+        case CLASS_DRUID:
+            return (PlayerAI::GetPlayerSpec(who) == SPEC_DRUID_BALANCE);
+    }
 }
 
 PlayerAI::TargetedSpell PlayerAI::VerifySpellCast(uint32 spellId, Unit* target)
@@ -519,7 +620,7 @@ void PlayerAI::DoCastAtTarget(TargetedSpell spell)
 {
     SpellCastTargets targets;
     targets.SetUnitTarget(spell.second);
-    spell.first->prepare(targets);
+    spell.first->prepare(&targets);
 }
 
 void PlayerAI::DoRangedAttackIfReady()
@@ -558,21 +659,7 @@ void PlayerAI::DoRangedAttackIfReady()
     if (!rangedAttackSpell)
         return;
 
-    SpellInfo const* spellInfo = sSpellMgr->GetSpellInfo(rangedAttackSpell);
-    if (!spellInfo)
-        return;
-
-    Spell* spell = new Spell(me, spellInfo, TRIGGERED_CAST_DIRECTLY);
-    if (spell->CheckPetCast(victim) != SPELL_CAST_OK)
-    {
-        delete spell;
-        return;
-    }
-
-    SpellCastTargets targets;
-    targets.SetUnitTarget(victim);
-    spell->prepare(targets);
-
+    me->CastSpell(victim, rangedAttackSpell, TRIGGERED_CAST_DIRECTLY);
     me->resetAttackTimer(RANGED_ATTACK);
 }
 
@@ -612,34 +699,18 @@ Unit* PlayerAI::SelectAttackTarget() const
     return me->GetCharmer() ? me->GetCharmer()->GetVictim() : nullptr;
 }
 
-struct ValidTargetSelectPredicate
+struct UncontrolledTargetSelectPredicate
 {
-    ValidTargetSelectPredicate(UnitAI const* ai) : _ai(ai) { }
-    UnitAI const* const _ai;
     bool operator()(Unit const* target) const
     {
-        return _ai->CanAIAttack(target);
+        return !target->HasBreakableByDamageCrowdControlAura();
     }
 };
-
-bool SimpleCharmedPlayerAI::CanAIAttack(Unit const* who) const
-{
-    if (!me->IsValidAttackTarget(who) || who->HasBreakableByDamageCrowdControlAura())
-        return false;
-    if (Unit* charmer = me->GetCharmer())
-        if (!charmer->IsValidAttackTarget(who))
-            return false;
-    return UnitAI::CanAIAttack(who);
-}
 
 Unit* SimpleCharmedPlayerAI::SelectAttackTarget() const
 {
     if (Unit* charmer = me->GetCharmer())
-    {
-        if (UnitAI* charmerAI = charmer->GetAI())
-            return charmerAI->SelectTarget(SELECT_TARGET_RANDOM, 0, ValidTargetSelectPredicate(this));
-        return charmer->GetVictim();
-    }
+        return charmer->IsAIEnabled ? charmer->GetAI()->SelectTarget(SELECT_TARGET_RANDOM, 0, UncontrolledTargetSelectPredicate()) : charmer->GetVictim();
     return nullptr;
 }
 
@@ -702,7 +773,7 @@ PlayerAI::TargetedSpell SimpleCharmedPlayerAI::SelectAppropriateCastForSpec()
             }
             break;
         case CLASS_PALADIN:
-            VerifyAndPushSpellCast(spells, SPELL_AURA_MASTERY, TARGET_NONE, 3);
+            VerifyAndPushSpellCast(spells, SPELL_AURA_MASTERY_PALADIN, TARGET_NONE, 3);
             VerifyAndPushSpellCast(spells, SPELL_LAY_ON_HANDS, TARGET_CHARMER, 8);
             VerifyAndPushSpellCast(spells, SPELL_BLESSING_OF_MIGHT, TARGET_CHARMER, 8);
             VerifyAndPushSpellCast(spells, SPELL_AVENGING_WRATH, TARGET_NONE, 5);
@@ -752,7 +823,7 @@ PlayerAI::TargetedSpell SimpleCharmedPlayerAI::SelectAppropriateCastForSpec()
             VerifyAndPushSpellCast(spells, SPELL_FREEZING_ARROW, TARGET_VICTIM, 2);
             VerifyAndPushSpellCast(spells, SPELL_RAPID_FIRE, TARGET_NONE, 10);
             VerifyAndPushSpellCast(spells, SPELL_KILL_SHOT, TARGET_VICTIM, 10);
-            if (me->GetVictim() && me->GetVictim()->GetPowerType() == POWER_MANA && !me->GetVictim()->GetAuraApplicationOfRankedSpell(SPELL_VIPER_STING, me->GetGUID()))
+            if (me->GetVictim() && me->GetVictim()->getPowerType() == POWER_MANA && !me->GetVictim()->GetAuraApplicationOfRankedSpell(SPELL_VIPER_STING, me->GetGUID()))
                 VerifyAndPushSpellCast(spells, SPELL_VIPER_STING, TARGET_VICTIM, 5);
 
             switch (GetSpec())
@@ -814,7 +885,7 @@ PlayerAI::TargetedSpell SimpleCharmedPlayerAI::SelectAppropriateCastForSpec()
                 if (victim->HasUnitState(UNIT_STATE_CASTING))
                     VerifyAndPushSpellCast(spells, SPELL_KICK, TARGET_VICTIM, 25);
 
-                uint8 const cp = me->GetComboPoints(victim);
+                uint8 const cp = (me->GetComboTarget() == victim->GetGUID()) ? me->GetComboPoints() : 0;
                 if (cp >= 4)
                     VerifyAndPushSpellCast(spells, finisher, TARGET_VICTIM, 10);
                 if (cp <= 4)
@@ -1126,7 +1197,7 @@ PlayerAI::TargetedSpell SimpleCharmedPlayerAI::SelectAppropriateCastForSpec()
                     VerifyAndPushSpellCast(spells, SPELL_DASH, TARGET_NONE, 5);
                     if (Unit* victim = me->GetVictim())
                     {
-                        uint8 const cp = me->GetComboPoints(victim);
+                        uint8 const cp = (me->GetComboTarget() == victim->GetGUID()) ? me->GetComboPoints() : 0;
                         if (victim->HasUnitState(UNIT_STATE_CASTING) && cp >= 1)
                             VerifyAndPushSpellCast(spells, SPELL_MAIM, TARGET_VICTIM, 25);
                         if (!me->IsWithinMeleeRange(victim))
@@ -1152,48 +1223,32 @@ PlayerAI::TargetedSpell SimpleCharmedPlayerAI::SelectAppropriateCastForSpec()
 }
 
 static const float CASTER_CHASE_DISTANCE = 28.0f;
-void SimpleCharmedPlayerAI::UpdateAI(uint32 diff)
+void SimpleCharmedPlayerAI::UpdateAI(const uint32 diff)
 {
     Creature* charmer = GetCharmer();
     if (!charmer)
         return;
 
-    // kill self if charm aura has infinite duration
+    //kill self if charm aura has infinite duration
     if (charmer->IsInEvadeMode())
     {
         Player::AuraEffectList const& auras = me->GetAuraEffectsByType(SPELL_AURA_MOD_CHARM);
         for (Player::AuraEffectList::const_iterator iter = auras.begin(); iter != auras.end(); ++iter)
-        {
             if ((*iter)->GetCasterGUID() == charmer->GetGUID() && (*iter)->GetBase()->IsPermanent())
             {
                 me->KillSelf();
                 return;
             }
-        }
     }
 
-    if (charmer->IsEngaged())
+    if (charmer->IsInCombat())
     {
         Unit* target = me->GetVictim();
-        if (!target || !CanAIAttack(target))
+        if (!target || !charmer->IsValidAttackTarget(target) || target->HasBreakableByDamageCrowdControlAura())
         {
             target = SelectAttackTarget();
-            if (!target || !CanAIAttack(target))
-            {
-                if (!_isFollowing)
-                {
-                    _isFollowing = true;
-                    me->AttackStop();
-                    me->CastStop();
-
-                    if (me->HasUnitState(UNIT_STATE_CHASE))
-                        me->GetMotionMaster()->Remove(CHASE_MOTION_TYPE);
-
-                    me->GetMotionMaster()->MoveFollow(charmer, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
-                }
+            if (!target)
                 return;
-            }
-            _isFollowing = false;
 
             if (IsRangedAttacker())
             {
@@ -1210,7 +1265,7 @@ void SimpleCharmedPlayerAI::UpdateAI(uint32 diff)
 
         if (me->IsStopped() && !me->HasUnitState(UNIT_STATE_CANNOT_TURN))
         {
-            float targetAngle = me->GetAbsoluteAngle(target);
+            float targetAngle = me->GetAngle(target);
             if (_forceFacing || fabs(me->GetOrientation() - targetAngle) > 0.4f)
             {
                 me->SetFacingTo(targetAngle);
@@ -1224,8 +1279,8 @@ void SimpleCharmedPlayerAI::UpdateAI(uint32 diff)
                 _castCheckTimer = 0;
             else
             {
-                if (IsRangedAttacker()) // chase to zero if the target isn't in line of sight
-                {
+                if (IsRangedAttacker())
+                { // chase to zero if the target isn't in line of sight
                     bool inLOS = me->IsWithinLOSInMap(target);
                     if (_chaseCloser != !inLOS)
                     {
@@ -1246,36 +1301,32 @@ void SimpleCharmedPlayerAI::UpdateAI(uint32 diff)
 
         DoAutoAttackIfReady();
     }
-    else if (!_isFollowing)
+    else
     {
-        _isFollowing = true;
         me->AttackStop();
         me->CastStop();
-
-        if (me->HasUnitState(UNIT_STATE_CHASE))
-            me->GetMotionMaster()->Remove(CHASE_MOTION_TYPE);
-
+        me->StopMoving();
+        me->GetMotionMaster()->Clear();
         me->GetMotionMaster()->MoveFollow(charmer, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
     }
 }
 
-void SimpleCharmedPlayerAI::OnCharmed(bool isNew)
+void SimpleCharmedPlayerAI::OnCharmed(bool apply)
 {
-    if (me->IsCharmed())
+    if (apply)
     {
         me->CastStop();
         me->AttackStop();
-
-        if (me->GetMotionMaster()->Size() <= 1) // if there is no current movement (we dont want to erase/overwrite any existing stuff)
-            me->GetMotionMaster()->MovePoint(0, me->GetPosition(), false); // force re-sync of current position for all clients
+        me->StopMoving();
+        me->GetMotionMaster()->Clear();
+        me->GetMotionMaster()->MovePoint(0, me->GetPosition(), false); // force re-sync of current position for all clients
     }
     else
     {
         me->CastStop();
         me->AttackStop();
-
-        me->GetMotionMaster()->Clear(MOTION_PRIORITY_NORMAL);
+        // @todo only voluntary movement (don't cancel stuff like death grip or charge mid-animation)
+        me->GetMotionMaster()->Clear();
+        me->StopMoving();
     }
-
-    PlayerAI::OnCharmed(isNew);
 }

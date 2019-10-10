@@ -15,6 +15,7 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+
 #include "MySQLConnection.h"
 #include "Common.h"
 #include "DatabaseWorker.h"
@@ -34,12 +35,10 @@
 MySQLConnectionInfo::MySQLConnectionInfo(std::string const& infoString)
 {
     Tokenizer tokens(infoString, ';');
-
     if (tokens.size() != 5)
         return;
 
     uint8 i = 0;
-
     host.assign(tokens[i++]);
     port_or_socket.assign(tokens[i++]);
     user.assign(tokens[i++]);
@@ -392,8 +391,8 @@ int MySQLConnection::ExecuteTransaction(SQLTransaction& transaction)
                     RollbackTransaction();
                     return errorCode;
                 }
+                break;
             }
-            break;
             case SQL_ELEMENT_RAW:
             {
                 char const* sql = data.element.query;
@@ -405,8 +404,8 @@ int MySQLConnection::ExecuteTransaction(SQLTransaction& transaction)
                     RollbackTransaction();
                     return errorCode;
                 }
+                break;
             }
-            break;
         }
     }
 
@@ -514,8 +513,9 @@ bool MySQLConnection::_HandleMySQLErrno(uint32 errNo, uint8 attempts /*= 5*/)
                 mysql_close(GetHandle());
                 m_Mysql = nullptr;
             }
+
+            /*no break*/
         }
-        /* fallthrough */
         case CR_CONN_HOST_ERROR:
         {
             TC_LOG_INFO("sql.sql", "Attempting to reconnect to the MySQL server...");

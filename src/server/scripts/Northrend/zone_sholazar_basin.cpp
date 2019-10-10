@@ -55,9 +55,9 @@ class npc_engineer_helice : public CreatureScript
 public:
     npc_engineer_helice() : CreatureScript("npc_engineer_helice") { }
 
-    struct npc_engineer_heliceAI : public EscortAI
+    struct npc_engineer_heliceAI : public npc_escortAI
     {
-        npc_engineer_heliceAI(Creature* creature) : EscortAI(creature)
+        npc_engineer_heliceAI(Creature* creature) : npc_escortAI(creature)
         {
             Initialize();
         }
@@ -69,7 +69,7 @@ public:
 
         uint32 m_uiChatTimer;
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             Player* player = GetPlayerForEscort();
 
@@ -80,7 +80,7 @@ public:
                     break;
                 case 1:
                     Talk(SAY_WP_3);
-                    me->CastSpell({ 5918.33f, 5372.91f, -98.770f }, SPELL_EXPLODE_CRYSTAL, true);
+                    me->CastSpell(5918.33f, 5372.91f, -98.770f, SPELL_EXPLODE_CRYSTAL, true);
                     me->SummonGameObject(184743, 5918.33f, 5372.91f, -98.770f, 0, QuaternionData(), TEMPSUMMON_MANUAL_DESPAWN);     //approx 3 to 4 seconds
                     me->HandleEmoteCommand(EMOTE_ONESHOT_LAUGH);
                     break;
@@ -91,7 +91,7 @@ public:
                     Talk(SAY_WP_5);
                     break;
                 case 8:
-                    me->CastSpell({ 5887.37f, 5379.39f, -91.289f }, SPELL_EXPLODE_CRYSTAL, true);
+                    me->CastSpell(5887.37f, 5379.39f, -91.289f, SPELL_EXPLODE_CRYSTAL, true);
                     me->SummonGameObject(184743, 5887.37f, 5379.39f, -91.289f, 0, QuaternionData(), TEMPSUMMON_MANUAL_DESPAWN);      //approx 3 to 4 seconds
                     me->HandleEmoteCommand(EMOTE_ONESHOT_LAUGH);
                     break;
@@ -124,7 +124,7 @@ public:
 
         void UpdateAI(uint32 uiDiff) override
         {
-            EscortAI::UpdateAI(uiDiff);
+            npc_escortAI::UpdateAI(uiDiff);
 
             if (HasEscortState(STATE_ESCORT_ESCORTING))
             {
@@ -137,7 +137,7 @@ public:
             }
         }
 
-        void QuestAccept(Player* player, Quest const* quest) override
+        void QuestAccept(Player* player, const Quest* quest) override
         {
             if (quest->GetQuestId() == QUEST_DISASTER)
             {
@@ -515,13 +515,12 @@ public:
 
                         bird->KillSelf();
                         crunchy->GetMotionMaster()->MovePoint(0, bird->GetPositionX(), bird->GetPositionY(),
-                            bird->GetMap()->GetWaterOrGroundLevel(bird->GetPhaseMask(), bird->GetPositionX(), bird->GetPositionY(), bird->GetPositionZ()));
+                            bird->GetMap()->GetWaterOrGroundLevel(bird->GetPhaseShift(), bird->GetPositionX(), bird->GetPositionY(), bird->GetPositionZ()));
                         /// @todo Make crunchy perform emote eat when he reaches the bird
 
                         break;
                     }
                 }
-                /* fallthrough */
                 case EVENT_MISS:
                 {
                     shooter->CastSpell(wilhelm, SPELL_MISS_APPLE);

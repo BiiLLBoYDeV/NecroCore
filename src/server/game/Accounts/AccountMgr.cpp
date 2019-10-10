@@ -160,7 +160,7 @@ AccountOpResult AccountMgr::ChangeUsername(uint32 accountId, std::string newUser
     if (utf8length(newUsername) > MAX_ACCOUNT_STR)
         return AccountOpResult::AOR_NAME_TOO_LONG;
 
-    if (utf8length(newPassword) > MAX_PASS_STR)
+    if (utf8length(newPassword) > MAX_ACCOUNT_STR)
         return AccountOpResult::AOR_PASS_TOO_LONG;
 
     Utf8ToUpperOnlyLatin(newUsername);
@@ -187,7 +187,7 @@ AccountOpResult AccountMgr::ChangePassword(uint32 accountId, std::string newPass
         return AccountOpResult::AOR_NAME_NOT_EXIST;                          // account doesn't exist
     }
 
-    if (utf8length(newPassword) > MAX_PASS_STR)
+    if (utf8length(newPassword) > MAX_ACCOUNT_STR)
     {
         sScriptMgr->OnFailedPasswordChange(accountId);
         return AccountOpResult::AOR_PASS_TOO_LONG;
@@ -250,10 +250,7 @@ AccountOpResult AccountMgr::ChangeRegEmail(uint32 accountId, std::string newEmai
     std::string username;
 
     if (!GetName(accountId, username))
-    {
-        sScriptMgr->OnFailedEmailChange(accountId);
         return AccountOpResult::AOR_NAME_NOT_EXIST;                          // account doesn't exist
-    }
 
     if (utf8length(newEmail) > MAX_EMAIL_STR)
     {
@@ -506,7 +503,7 @@ void AccountMgr::LoadRBAC()
 
 void AccountMgr::UpdateAccountAccess(rbac::RBACData* rbac, uint32 accountId, uint8 securityLevel, int32 realmId)
 {
-    if (rbac && securityLevel != rbac->GetSecurityLevel())
+    if (rbac && securityLevel == rbac->GetSecurityLevel())
         rbac->SetSecurityLevel(securityLevel);
 
     SQLTransaction trans = LoginDatabase.BeginTransaction();

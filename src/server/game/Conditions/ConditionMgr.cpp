@@ -26,6 +26,7 @@
 #include "LootMgr.h"
 #include "Map.h"
 #include "ObjectMgr.h"
+#include "PhasingHandler.h"
 #include "Player.h"
 #include "Pet.h"
 #include "ReputationMgr.h"
@@ -116,14 +117,11 @@ ConditionMgr::ConditionTypeInfo const ConditionMgr::StaticConditionTypeData[COND
     { "On Taxi",                  false, false, false },
     { "Quest state mask",          true, true,  false },
     { "Quest objective progress",  true, true,   true },
-    { "Map difficulty",            true, false, false },
-    { "Is Gamemaster",             true, false, false },
-    { "Object Entry or Guid",      true, true,  true  },
-    { "Object TypeMask",           true, false, false }
+    { "Is Gamemaster",             true, false, false }
 };
 
 // Checks if object meets the condition
-// Can have CONDITION_SOURCE_TYPE_NONE && !mReferenceId if called from a special event (ie: eventAI)
+// Can have CONDITION_SOURCE_TYPE_NONE && !mReferenceId if called from a special event (ie: SmartAI)
 bool Condition::Meets(ConditionSourceInfo& sourceInfo) const
 {
     ASSERT(ConditionTarget < MAX_CONDITION_TARGETS);
@@ -410,9 +408,9 @@ bool Condition::Meets(ConditionSourceInfo& sourceInfo) const
             condMeets = ConditionValue2 == sWorld->getWorldState(ConditionValue1);
             break;
         }
-        case CONDITION_PHASEMASK:
+        case CONDITION_PHASEID:
         {
-            condMeets = (object->GetPhaseMask() & ConditionValue1) != 0;
+            condMeets = object->GetPhaseShift().HasPhase(ConditionValue1);
             break;
         }
         case CONDITION_TITLE:
@@ -438,10 +436,15 @@ bool Condition::Meets(ConditionSourceInfo& sourceInfo) const
                 condMeets = creature->GetCreatureTemplate()->type == ConditionValue1;
             break;
         }
+        case CONDITION_TERRAIN_SWAP:
+        {
+            condMeets = object->GetPhaseShift().HasVisibleMapId(ConditionValue1);
+            break;
+        }
         case CONDITION_REALM_ACHIEVEMENT:
         {
             AchievementEntry const* achievement = sAchievementMgr->GetAchievement(ConditionValue1);
-            if (achievement && sAchievementMgr->IsRealmCompleted(achievement))
+            if (achievement && sAchievementMgr->IsRealmCompleted(achievement, std::numeric_limits<uint32>::max()))
                 condMeets = true;
             break;
         }
@@ -517,11 +520,7 @@ bool Condition::Meets(ConditionSourceInfo& sourceInfo) const
             }
             break;
         }
-        case CONDITION_DIFFICULTY_ID:
-        {
-            condMeets = object->GetMap()->GetDifficulty() == ConditionValue1;
-            break;
-        }
+
         case CONDITION_GAMEMASTER:
         {
             if (Player* player = object->ToPlayer())
@@ -643,6 +642,9 @@ uint32 Condition::GetSearcherTypeMaskForCondition() const
                 case TYPEID_CORPSE:
                     mask |= GRID_MAP_TYPE_MASK_CORPSE;
                     break;
+                case TYPEID_AREATRIGGER:
+                    mask |= GRID_MAP_TYPE_MASK_AREATRIGGER;
+                    break;
                 default:
                     break;
             }
@@ -656,6 +658,8 @@ uint32 Condition::GetSearcherTypeMaskForCondition() const
                 mask |= GRID_MAP_TYPE_MASK_GAMEOBJECT;
             if (ConditionValue1 & TYPEMASK_CORPSE)
                 mask |= GRID_MAP_TYPE_MASK_CORPSE;
+            if (ConditionValue1 & TYPEMASK_AREATRIGGER)
+                mask |= GRID_MAP_TYPE_MASK_AREATRIGGER;
             break;
         case CONDITION_RELATION_TO:
             mask |= GRID_MAP_TYPE_MASK_CREATURE | GRID_MAP_TYPE_MASK_PLAYER;
@@ -678,7 +682,7 @@ uint32 Condition::GetSearcherTypeMaskForCondition() const
         case CONDITION_WORLD_STATE:
             mask |= GRID_MAP_TYPE_MASK_ALL;
             break;
-        case CONDITION_PHASEMASK:
+        case CONDITION_PHASEID:
             mask |= GRID_MAP_TYPE_MASK_ALL;
             break;
         case CONDITION_TITLE:
@@ -695,6 +699,9 @@ uint32 Condition::GetSearcherTypeMaskForCondition() const
             break;
         case CONDITION_CREATURE_TYPE:
             mask |= GRID_MAP_TYPE_MASK_CREATURE;
+            break;
+        case CONDITION_TERRAIN_SWAP:
+            mask |= GRID_MAP_TYPE_MASK_ALL;
             break;
         case CONDITION_REALM_ACHIEVEMENT:
             mask |= GRID_MAP_TYPE_MASK_ALL;
@@ -722,9 +729,6 @@ uint32 Condition::GetSearcherTypeMaskForCondition() const
             break;
         case CONDITION_QUEST_OBJECTIVE_PROGRESS:
             mask |= GRID_MAP_TYPE_MASK_PLAYER;
-            break;
-        case CONDITION_DIFFICULTY_ID:
-            mask |= GRID_MAP_TYPE_MASK_ALL;
             break;
         case CONDITION_GAMEMASTER:
             mask |= GRID_MAP_TYPE_MASK_PLAYER;
@@ -919,7 +923,8 @@ bool ConditionMgr::CanHaveSourceGroupSet(ConditionSourceType sourceType)
             sourceType == CONDITION_SOURCE_TYPE_SPELL_IMPLICIT_TARGET ||
             sourceType == CONDITION_SOURCE_TYPE_SPELL_CLICK_EVENT ||
             sourceType == CONDITION_SOURCE_TYPE_SMART_EVENT ||
-            sourceType == CONDITION_SOURCE_TYPE_NPC_VENDOR);
+            sourceType == CONDITION_SOURCE_TYPE_NPC_VENDOR ||
+            sourceType == CONDITION_SOURCE_TYPE_PHASE);
 }
 
 bool ConditionMgr::CanHaveSourceIdSet(ConditionSourceType sourceType)
@@ -1075,7 +1080,10 @@ void ConditionMgr::LoadConditions(bool isReload)
 
         TC_LOG_INFO("misc", "Re-Loading `gossip_menu_option` Table for Conditions!");
         sObjectMgr->LoadGossipMenuItems();
+
         sSpellMgr->UnloadSpellInfoImplicitTargetConditionLists();
+
+        sObjectMgr->UnloadPhaseConditions();
     }
 
     QueryResult result = WorldDatabase.Query("SELECT SourceTypeOrReferenceId, SourceGroup, SourceEntry, SourceId, ElseGroup, ConditionTypeOrReference, ConditionTarget, "
@@ -1083,7 +1091,7 @@ void ConditionMgr::LoadConditions(bool isReload)
 
     if (!result)
     {
-        TC_LOG_INFO("server.loading", ">> Loaded 0 conditions. DB table `conditions` is empty!");
+        TC_LOG_ERROR("server.loading", ">> Loaded 0 conditions. DB table `conditions` is empty!");
         return;
     }
 
@@ -1273,6 +1281,9 @@ void ConditionMgr::LoadConditions(bool isReload)
                     ++count;
                     continue;
                 }
+                case CONDITION_SOURCE_TYPE_PHASE:
+                    valid = addToPhases(cond);
+                    break;
                 default:
                     break;
             }
@@ -1464,6 +1475,47 @@ bool ConditionMgr::addToSpellImplicitTargetConditions(Condition* cond) const
         }
     }
     return true;
+}
+
+bool ConditionMgr::addToPhases(Condition* cond) const
+{
+    if (!cond->SourceEntry)
+    {
+        if (PhaseInfoStruct const* phaseInfo = sObjectMgr->GetPhaseInfo(cond->SourceGroup))
+        {
+            bool found = false;
+            for (uint32 areaId : phaseInfo->Areas)
+            {
+                if (std::vector<PhaseAreaInfo>* phases = const_cast<std::vector<PhaseAreaInfo>*>(sObjectMgr->GetPhasesForArea(areaId)))
+                {
+                    for (PhaseAreaInfo& phase : *phases)
+                    {
+                        if (phase.PhaseInfo->Id == cond->SourceGroup)
+                        {
+                            phase.Conditions.push_back(cond);
+                            found = true;
+                        }
+                    }
+                }
+            }
+            if (found)
+                return true;
+        }
+    }
+    else if (std::vector<PhaseAreaInfo>* phases = const_cast<std::vector<PhaseAreaInfo>*>(sObjectMgr->GetPhasesForArea(cond->SourceEntry)))
+    {
+        for (PhaseAreaInfo& phase : *phases)
+        {
+            if (phase.PhaseInfo->Id == cond->SourceGroup)
+            {
+                phase.Conditions.push_back(cond);
+                return true;
+            }
+        }
+    }
+
+    TC_LOG_ERROR("sql.sql", "%s Area %u does not have phase %u.", cond->ToString().c_str(), cond->SourceGroup, cond->SourceEntry);
+    return false;
 }
 
 bool ConditionMgr::isSourceTypeValid(Condition* cond) const
@@ -1710,7 +1762,6 @@ bool ConditionMgr::isSourceTypeValid(Condition* cond) const
                     case TARGET_SELECT_CATEGORY_NEARBY:
                     case TARGET_SELECT_CATEGORY_CONE:
                     case TARGET_SELECT_CATEGORY_AREA:
-                    case TARGET_SELECT_CATEGORY_TRAJ:
                         continue;
                     default:
                         break;
@@ -1721,7 +1772,6 @@ bool ConditionMgr::isSourceTypeValid(Condition* cond) const
                     case TARGET_SELECT_CATEGORY_NEARBY:
                     case TARGET_SELECT_CATEGORY_CONE:
                     case TARGET_SELECT_CATEGORY_AREA:
-                    case TARGET_SELECT_CATEGORY_TRAJ:
                         continue;
                     default:
                         break;
@@ -1756,6 +1806,12 @@ bool ConditionMgr::isSourceTypeValid(Condition* cond) const
             break;
         }
         case CONDITION_SOURCE_TYPE_QUEST_AVAILABLE:
+            if (!sObjectMgr->GetQuestTemplate(cond->SourceEntry))
+            {
+                TC_LOG_ERROR("sql.sql", "CONDITION_SOURCE_TYPE_QUEST_AVAILABLE specifies non-existing quest (%u), skipped", cond->SourceEntry);
+                return false;
+            }
+            break;
             if (!sObjectMgr->GetQuestTemplate(cond->SourceEntry))
             {
                 TC_LOG_ERROR("sql.sql", "%s SourceEntry specifies non-existing quest, skipped.", cond->ToString().c_str());
@@ -1805,23 +1861,34 @@ bool ConditionMgr::isSourceTypeValid(Condition* cond) const
         }
         case CONDITION_SOURCE_TYPE_TERRAIN_SWAP:
         {
-            TC_LOG_ERROR("sql.sql", "CONDITION_SOURCE_TYPE_TERRAIN_SWAP: is only for master branch, skipped");
-            return false;
+            if (!sMapStore.LookupEntry(cond->SourceEntry))
+            {
+                TC_LOG_ERROR("sql.sql", "%s SourceEntry in `condition` table, does not exist in Map.dbc, ignoring.", cond->ToString().c_str());
+                return false;
+            }
+            break;
         }
         case CONDITION_SOURCE_TYPE_PHASE:
         {
-            TC_LOG_ERROR("sql.sql", "CONDITION_SOURCE_TYPE_PHASE: is only for master branch, skipped");
-            return false;
-        }
-        case CONDITION_SOURCE_TYPE_GRAVEYARD:
-        {
-            TC_LOG_ERROR("sql.sql", "CONDITION_SOURCE_TYPE_GRAVEYARD: is only for master branch, skipped");
-            return false;
+            if (cond->SourceEntry && !sAreaTableStore.LookupEntry(cond->SourceEntry))
+            {
+                TC_LOG_ERROR("sql.sql", "%s SourceEntry in `condition` table, does not exist in AreaTable.dbc, ignoring.", cond->ToString().c_str());
+                return false;
+            }
+            break;
         }
         case CONDITION_SOURCE_TYPE_GOSSIP_MENU:
         case CONDITION_SOURCE_TYPE_GOSSIP_MENU_OPTION:
         case CONDITION_SOURCE_TYPE_SMART_EVENT:
         case CONDITION_SOURCE_TYPE_NONE:
+            break;
+        case CONDITION_SOURCE_TYPE_GRAVEYARD:
+            if (!sWorldSafeLocsStore.LookupEntry(cond->SourceEntry))
+            {
+                TC_LOG_ERROR("sql.sql", "%s SourceEntry in `condition` table, does not exist in WorldSafeLocs, ignoring.", cond->ToString().c_str());
+                return false;
+            }
+            break;
         default:
             break;
     }
@@ -1943,7 +2010,7 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond) const
                 TC_LOG_ERROR("sql.sql", "%s has invalid state mask (%u), skipped.", cond->ToString(true).c_str(), cond->ConditionValue2);
                 return false;
             }
-            /* fallthrough */
+            // intentional missing break
         case CONDITION_QUESTREWARDED:
         case CONDITION_QUESTTAKEN:
         case CONDITION_QUEST_NONE:
@@ -2224,6 +2291,23 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond) const
             }
             break;
         }
+        case CONDITION_PHASEID:
+        {
+            if (!sPhaseStore.LookupEntry(cond->ConditionValue1))
+            {
+                TC_LOG_ERROR("sql.sql", "Phase condition has nonexistent phaseid in value1 (%u), skipped", cond->ConditionValue1);
+                return false;
+            }
+            break;
+        }
+        case CONDITION_TERRAIN_SWAP:
+        {
+            if (cond->ConditionValue2)
+                TC_LOG_ERROR("sql.sql", "Terrain swap condition has useless data in value2 (%u)!", cond->ConditionValue2);
+            if (cond->ConditionValue3)
+                TC_LOG_ERROR("sql.sql", "Terrain swap condition has useless data in value3 (%u)!", cond->ConditionValue3);
+            break;
+        }
         case CONDITION_TITLE:
         {
             CharTitlesEntry const* titleEntry = sCharTitlesStore.LookupEntry(cond->ConditionValue1);
@@ -2263,7 +2347,6 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond) const
         }
         case CONDITION_INSTANCE_INFO:
         case CONDITION_AREAID:
-        case CONDITION_PHASEMASK:
         case CONDITION_ALIVE:
             break;
         case CONDITION_REALM_ACHIEVEMENT:
@@ -2276,9 +2359,6 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond) const
             }
             break;
         }
-        case CONDITION_TERRAIN_SWAP:
-            TC_LOG_ERROR("sql.sql", "%s is not valid for this branch, skipped.", cond->ToString(true).c_str());
-            return false;
         case CONDITION_STAND_STATE:
         {
             bool valid = false;
@@ -2336,13 +2416,6 @@ bool ConditionMgr::isConditionTypeValid(Condition* cond) const
             }
             break;
         }
-        case CONDITION_DIFFICULTY_ID:
-            if (cond->ConditionValue1 >= MAX_DIFFICULTY)
-            {
-                TC_LOG_ERROR("sql.sql", "%s has non existing difficulty in value1 (%u), skipped.", cond->ToString(true).c_str(), cond->ConditionValue1);
-                return false;
-            }
-            break;
         case CONDITION_IN_WATER:
         case CONDITION_CHARMED:
         case CONDITION_TAXI:

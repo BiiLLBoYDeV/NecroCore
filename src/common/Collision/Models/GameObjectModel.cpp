@@ -30,12 +30,11 @@ using G3D::AABox;
 
 struct GameobjectModelData
 {
-    GameobjectModelData(char const* name_, uint32 nameLength, Vector3 const& lowBound, Vector3 const& highBound, bool isWmo_) :
-        bound(lowBound, highBound), name(name_, nameLength), isWmo(isWmo_) { }
+    GameobjectModelData(const std::string& name_, const AABox& box) :
+        bound(box), name(name_) { }
 
     AABox bound;
     std::string name;
-    bool isWmo;
 };
 
 typedef std::unordered_map<uint32, GameobjectModelData> ModelList;
@@ -54,17 +53,7 @@ void LoadGameObjectModelList(std::string const& dataPath)
         return;
     }
 
-    char magic[8];
-    if (fread(magic, 1, 8, model_list_file) != 8
-        || memcmp(magic, VMAP::VMAP_MAGIC, 8) != 0)
-    {
-        TC_LOG_ERROR("misc", "File '%s' has wrong header, expected %s.", VMAP::GAMEOBJECT_MODELS, VMAP::VMAP_MAGIC);
-        fclose(model_list_file);
-        return;
-    }
-
     uint32 name_length, displayId;
-    uint8 isWmo;
     char buff[500];
     while (true)
     {
@@ -73,8 +62,7 @@ void LoadGameObjectModelList(std::string const& dataPath)
             if (feof(model_list_file))  // EOF flag is only set after failed reading attempt
                 break;
 
-        if (fread(&isWmo, sizeof(uint8), 1, model_list_file) != 1
-            || fread(&name_length, sizeof(uint32), 1, model_list_file) != 1
+        if (fread(&name_length, sizeof(uint32), 1, model_list_file) != 1
             || name_length >= sizeof(buff)
             || fread(&buff, sizeof(char), name_length, model_list_file) != name_length
             || fread(&v1, sizeof(Vector3), 1, model_list_file) != 1
@@ -90,7 +78,10 @@ void LoadGameObjectModelList(std::string const& dataPath)
             continue;
         }
 
-        model_list.emplace(std::piecewise_construct, std::forward_as_tuple(displayId), std::forward_as_tuple(&buff[0], name_length, v1, v2, isWmo != 0));
+        model_list.insert
+        (
+            ModelList::value_type(displayId, GameobjectModelData(std::string(buff, name_length), AABox(v1, v2)))
+        );
     }
 
     fclose(model_list_file);
@@ -124,7 +115,6 @@ bool GameObjectModel::initialize(std::unique_ptr<GameObjectModelOwnerBase> model
 
     name = it->second.name;
     iPos = modelOwner->GetPosition();
-    phasemask = modelOwner->GetPhaseMask();
     iScale = modelOwner->GetScale();
     iInvScale = 1.f / iScale;
 
@@ -162,9 +152,12 @@ GameObjectModel* GameObjectModel::Create(std::unique_ptr<GameObjectModelOwnerBas
     return mdl;
 }
 
-bool GameObjectModel::intersectRay(const G3D::Ray& ray, float& MaxDist, bool StopAtFirstHit, uint32 ph_mask, VMAP::ModelIgnoreFlags ignoreFlags) const
+bool GameObjectModel::intersectRay(G3D::Ray const& ray, float& maxDist, bool stopAtFirstHit, PhaseShift const& phaseShift, VMAP::ModelIgnoreFlags ignoreFlags) const
 {
-    if (!(phasemask & ph_mask) || !owner->IsSpawned())
+    if (!isCollisionEnabled() || !owner->IsSpawned())
+        return false;
+
+    if (!owner->IsInPhase(phaseShift))
         return false;
 
     float time = ray.intersectionTime(iBound);
@@ -174,12 +167,12 @@ bool GameObjectModel::intersectRay(const G3D::Ray& ray, float& MaxDist, bool Sto
     // child bounds are defined in object space:
     Vector3 p = iInvRot * (ray.origin() - iPos) * iInvScale;
     Ray modRay(p, iInvRot * ray.direction());
-    float distance = MaxDist * iInvScale;
-    bool hit = iModel->IntersectRay(modRay, distance, StopAtFirstHit, ignoreFlags);
+    float distance = maxDist * iInvScale;
+    bool hit = iModel->IntersectRay(modRay, distance, stopAtFirstHit, ignoreFlags);
     if (hit)
     {
         distance *= iScale;
-        MaxDist = distance;
+        maxDist = distance;
     }
     return hit;
 }

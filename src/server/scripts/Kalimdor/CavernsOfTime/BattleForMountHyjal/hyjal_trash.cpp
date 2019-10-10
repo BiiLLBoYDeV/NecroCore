@@ -16,7 +16,6 @@
  */
 
 #include "ScriptMgr.h"
-#include "hyjal.h"
 #include "hyjal_trash.h"
 #include "hyjalAI.h"
 #include "InstanceScript.h"
@@ -176,7 +175,7 @@ float HordeOverrunWP[21][3]=//waypoints in the horde base used in the end in the
     {5429.91f, -2718.44f, 1493.42f}//20 end 2
 };
 
-hyjal_trashAI::hyjal_trashAI(Creature* creature) : EscortAI(creature)
+hyjal_trashAI::hyjal_trashAI(Creature* creature) : npc_escortAI(creature)
 {
     instance = creature->GetInstanceScript();
     IsEvent = false;
@@ -194,7 +193,7 @@ hyjal_trashAI::hyjal_trashAI(Creature* creature) : EscortAI(creature)
 
 void hyjal_trashAI::DamageTaken(Unit* done_by, uint32 &damage)
 {
-    if (!done_by || done_by->GetTypeId() == TYPEID_PLAYER || done_by->IsPet())
+    if (done_by->GetTypeId() == TYPEID_PLAYER || done_by->IsPet())
     {
         damageTaken += damage;
         instance->SetData(DATA_RAIDDAMAGE, damage);//store raid's damage
@@ -443,15 +442,15 @@ public:
 
         void JustEngagedWith(Unit* /*who*/) override { }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 0 && !IsOverrun)
             {
                 if (instance->GetData(DATA_ALLIANCE_RETREAT))//2.alliance boss down, attack thrall
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
             }
         }
@@ -461,10 +460,8 @@ public:
             if (Delay <= diff)
             {
                 Delay=0;
-            }
-            else
-            {
-                Delay -= diff;
+            }else{
+                Delay-=diff;
                 return;
             }
             if (!meteor)
@@ -487,9 +484,9 @@ public:
                     CanMove = true;
                     if (instance->GetData(DATA_ALLIANCE_RETREAT) && !instance->GetData(DATA_HORDE_RETREAT))
                     {
-                        Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                        Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                         if (target && target->IsAlive())
-                            AddThreat(target, 0.0f);
+                            me->AddThreat(target, 0.0f);
                     } else if (instance->GetData(DATA_ALLIANCE_RETREAT) && instance->GetData(DATA_HORDE_RETREAT)){
                         //do overrun
                     }
@@ -498,7 +495,7 @@ public:
             if (!CanMove)return;
             hyjal_trashAI::UpdateAI(diff);
             if (IsEvent || IsOverrun)
-                EscortAI::UpdateAI(diff);
+                npc_escortAI::UpdateAI(diff);
             if (IsEvent)
             {
                 if (!go)
@@ -515,7 +512,7 @@ public:
             if (!imol)
             {
                 DoCast(me, SPELL_IMMOLATION);
-                imol = true;
+                imol=true;
             }
             if (FlameBuffetTimer <= diff)
             {
@@ -537,11 +534,6 @@ class npc_abomination : public CreatureScript
 public:
     npc_abomination() : CreatureScript("npc_abomination") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_abominationAI>(creature);
-    }
-
     struct npc_abominationAI : public hyjal_trashAI
     {
         npc_abominationAI(Creature* creature) : hyjal_trashAI(creature)
@@ -558,28 +550,29 @@ public:
             KnockDownTimer = 10000;
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7 && !IsOverrun)
             {
                 if (instance->GetData(DATA_ALLIANCE_RETREAT))//2.alliance boss down, attack thrall
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
                 else
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
             }
             if (waypointId == LastOverronPos && IsOverrun)
             {
                 if ((faction == 0 && LastOverronPos == 17) || (faction == 1 && LastOverronPos == 21))
                 {
-                    me->DespawnOrUnsummon();
+                    me->setDeathState(DEAD);
+                    me->RemoveCorpse();
                 }
             }
         }
@@ -590,7 +583,7 @@ public:
         {
             hyjal_trashAI::UpdateAI(diff);
             if (IsEvent || IsOverrun)
-                EscortAI::UpdateAI(diff);
+                npc_escortAI::UpdateAI(diff);
             if (IsEvent)
             {
                 if (!go)
@@ -624,17 +617,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_abominationAI>(creature);
+    }
 };
 
 class npc_ghoul : public CreatureScript
 {
 public:
     npc_ghoul() : CreatureScript("npc_ghoul") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_ghoulAI>(creature);
-    }
 
     struct npc_ghoulAI : public hyjal_trashAI
     {
@@ -656,21 +648,21 @@ public:
             RandomMove = false;
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7 && !IsOverrun)
             {
                 if (instance->GetData(DATA_ALLIANCE_RETREAT))//2.alliance boss down, attack thrall
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
                 else
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
             }
             if (waypointId == LastOverronPos && IsOverrun)
@@ -678,7 +670,8 @@ public:
                 me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_ATTACK_UNARMED);
                 if ((faction == 0 && LastOverronPos == 17) || (faction == 1 && LastOverronPos == 21))
                 {
-                    me->DespawnOrUnsummon();
+                    me->setDeathState(DEAD);
+                    me->RemoveCorpse();
                 }
             }
         }
@@ -689,7 +682,7 @@ public:
         {
             hyjal_trashAI::UpdateAI(diff);
             if (IsEvent || IsOverrun)
-                EscortAI::UpdateAI(diff);
+                npc_escortAI::UpdateAI(diff);
             if (IsEvent)
             {
                 if (!go)
@@ -722,17 +715,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_ghoulAI>(creature);
+    }
 };
 
 class npc_necromancer : public CreatureScript
 {
 public:
     npc_necromancer() : CreatureScript("npc_necromancer") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_necromancerAI>(creature);
-    }
 
     struct npc_necromancerAI : public hyjal_trashAI
     {
@@ -766,21 +758,21 @@ public:
             summons.Despawn(summon);
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7 && !IsOverrun)
             {
                 if (instance->GetData(DATA_ALLIANCE_RETREAT))//2.alliance boss down, attack thrall
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
                 else
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
             }
         }
@@ -810,7 +802,7 @@ public:
             hyjal_trashAI::UpdateAI(diff);
 
             if (IsEvent || IsOverrun)
-                EscortAI::UpdateAI(diff);
+                npc_escortAI::UpdateAI(diff);
 
             if (IsEvent)
             {
@@ -846,17 +838,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_necromancerAI>(creature);
+    }
 };
 
 class npc_banshee : public CreatureScript
 {
 public:
     npc_banshee() : CreatureScript("npc_banshee") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_bansheeAI>(creature);
-    }
 
     struct npc_bansheeAI : public hyjal_trashAI
     {
@@ -879,21 +870,21 @@ public:
             ShellTimer = 50000 + rand32() % 10000;
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7 && !IsOverrun)
             {
                 if (instance->GetData(DATA_ALLIANCE_RETREAT))//2.alliance boss down, attack thrall
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
                 else
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
             }
         }
@@ -904,7 +895,7 @@ public:
         {
             hyjal_trashAI::UpdateAI(diff);
             if (IsEvent || IsOverrun)
-                EscortAI::UpdateAI(diff);
+                npc_escortAI::UpdateAI(diff);
             if (IsEvent)
             {
                 if (!go)
@@ -946,17 +937,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_bansheeAI>(creature);
+    }
 };
 
 class npc_crypt_fiend : public CreatureScript
 {
 public:
     npc_crypt_fiend() : CreatureScript("npc_crypt_fiend") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_crypt_fiendAI>(creature);
-    }
 
     struct npc_crypt_fiendAI : public hyjal_trashAI
     {
@@ -975,21 +965,21 @@ public:
             WebTimer = 20000 + rand32() % 5000;
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7 && !IsOverrun)
             {
                 if (instance->GetData(DATA_ALLIANCE_RETREAT))//2.alliance boss down, attack thrall
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
                 else
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
             }
         }
@@ -1000,7 +990,7 @@ public:
         {
             hyjal_trashAI::UpdateAI(diff);
             if (IsEvent || IsOverrun)
-                EscortAI::UpdateAI(diff);
+                npc_escortAI::UpdateAI(diff);
             if (IsEvent)
             {
                 if (!go)
@@ -1032,17 +1022,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_crypt_fiendAI>(creature);
+    }
 };
 
 class npc_fel_stalker : public CreatureScript
 {
 public:
     npc_fel_stalker() : CreatureScript("npc_fel_stalker") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_fel_stalkerAI>(creature);
-    }
 
     struct npc_fel_stalkerAI : public hyjal_trashAI
     {
@@ -1061,21 +1050,21 @@ public:
             ManaBurnTimer = 9000 + rand32() % 5000;
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7 && !IsOverrun)
             {
                 if (instance->GetData(DATA_ALLIANCE_RETREAT))//2.alliance boss down, attack thrall
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
                 else
                 {
-                    Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
+                    Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
                     if (target && target->IsAlive())
-                        AddThreat(target, 0.0f);
+                        me->AddThreat(target, 0.0f);
                 }
             }
         }
@@ -1086,7 +1075,7 @@ public:
         {
             hyjal_trashAI::UpdateAI(diff);
             if (IsEvent || IsOverrun)
-                EscortAI::UpdateAI(diff);
+                npc_escortAI::UpdateAI(diff);
             if (IsEvent)
             {
                 if (!go)
@@ -1118,17 +1107,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_fel_stalkerAI>(creature);
+    }
 };
 
 class npc_frost_wyrm : public CreatureScript
 {
 public:
     npc_frost_wyrm() : CreatureScript("npc_frost_wyrm") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_frost_wyrmAI>(creature);
-    }
 
     struct npc_frost_wyrmAI : public hyjal_trashAI
     {
@@ -1155,14 +1143,14 @@ public:
             me->SetDisableGravity(true);
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 2 && !IsOverrun)
             {
-                Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                 if (target && target->IsAlive())
                 {
-                    AddThreat(target, 0.0f);
+                    me->AddThreat(target, 0.0f);
                     DoCast(target, SPELL_FROST_BREATH, true);
                 }
             }
@@ -1177,7 +1165,7 @@ public:
             me->GetPosition(x, y, z);
             me->UpdateGroundPositionZ(x, y, z);
             me->GetMotionMaster()->MovePoint(0, x, y, z);
-            me->UpdatePosition(x, y, z, 0);
+            me->SetPosition(x, y, z, 0);
         }
 
         void JustEngagedWith(Unit* /*who*/) override { }
@@ -1188,8 +1176,8 @@ public:
 
             if (IsEvent || IsOverrun)
             {
-                ENSURE_AI(hyjal_trashAI, me->AI())->SetActiveAttacker(false);
-                EscortAI::UpdateAI(diff);
+                ENSURE_AI(hyjal_trashAI, me->AI())->SetCanAttack(false);
+                npc_escortAI::UpdateAI(diff);
             }
 
             if (IsEvent)
@@ -1223,9 +1211,7 @@ public:
                 {
                     me->GetMotionMaster()->MoveChase(me->GetVictim());
                     MoveTimer = 2000;
-                }
-                else
-                    MoveTimer -= diff;
+                } else MoveTimer-=diff;
             }
 
             if (FrostBreathTimer <= diff)
@@ -1237,22 +1223,20 @@ public:
                     me->GetMotionMaster()->Clear();
                     FrostBreathTimer = 4000;
                 }
-            }
-            else
-                FrostBreathTimer -= diff;
+            } else FrostBreathTimer -= diff;
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_frost_wyrmAI>(creature);
+    }
 };
 
 class npc_gargoyle : public CreatureScript
 {
 public:
     npc_gargoyle() : CreatureScript("npc_gargoyle") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_gargoyleAI>(creature);
-    }
 
     struct npc_gargoyleAI : public hyjal_trashAI
     {
@@ -1280,14 +1264,14 @@ public:
             me->SetDisableGravity(true);
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 2 && !IsOverrun)
             {
-                Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                 if (target && target->IsAlive())
                 {
-                    AddThreat(target, 0.0f);
+                    me->AddThreat(target, 0.0f);
                     DoCast(target, SPELL_GARGOYLE_STRIKE, true);
                 }
             }
@@ -1299,7 +1283,7 @@ public:
             me->GetPosition(x, y, z);
             me->UpdateGroundPositionZ(x, y, z);
             me->GetMotionMaster()->MovePoint(0, x, y, z);
-            me->UpdatePosition(x, y, z, 0);
+            me->SetPosition(x, y, z, 0);
             hyjal_trashAI::JustDied(killer);
         }
 
@@ -1309,8 +1293,8 @@ public:
 
             if (IsEvent || IsOverrun)
             {
-                ENSURE_AI(hyjal_trashAI, me->AI())->SetActiveAttacker(false);
-                EscortAI::UpdateAI(diff);
+                ENSURE_AI(hyjal_trashAI, me->AI())->SetCanAttack(false);
+                npc_escortAI::UpdateAI(diff);
             }
 
             if (IsEvent)
@@ -1339,7 +1323,7 @@ public:
                 {
                     if (StrikeTimer <= diff)
                     {
-                        me->CastSpell({ DummyTarget[0], DummyTarget[1], DummyTarget[2] }, SPELL_GARGOYLE_STRIKE, false);
+                        me->CastSpell(DummyTarget[0], DummyTarget[1], DummyTarget[2], SPELL_GARGOYLE_STRIKE, false);
                         StrikeTimer = 2000 + rand32() % 1000;
                     } else StrikeTimer -= diff;
                     }
@@ -1360,14 +1344,12 @@ public:
                 {
                     float x, y, z;
                     me->EnsureVictim()->GetPosition(x, y, z);
-                    me->GetMotionMaster()->MovePoint(0, x, y, z + Zpos);
+                    me->GetMotionMaster()->MovePoint(0, x, y, z+Zpos);
                     Zpos -= 1.0f;
                     if (Zpos <= 0)
                         Zpos = 0;
                     MoveTimer = 2000;
-                }
-                else
-                    MoveTimer -= diff;
+                } else MoveTimer-=diff;
             }
 
             if (StrikeTimer <= diff)
@@ -1378,25 +1360,21 @@ public:
                     me->StopMoving();
                     me->GetMotionMaster()->Clear();
                     StrikeTimer = 2000 + rand32() % 1000;
-                }
-                else
-                    StrikeTimer = 0;
-            }
-            else
-                StrikeTimer -= diff;
+                } else StrikeTimer=0;
+            } else StrikeTimer -= diff;
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_gargoyleAI>(creature);
+    }
 };
 
 class alliance_rifleman : public CreatureScript
 {
 public:
     alliance_rifleman() : CreatureScript("alliance_rifleman") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<alliance_riflemanAI>(creature);
-    }
 
     struct alliance_riflemanAI : public ScriptedAI
     {
@@ -1452,15 +1430,18 @@ public:
                     EnterEvadeMode();
                     return;
                 }
-                CastSpellExtraArgs args;
-                args.AddSpellMod(SPELLVALUE_BASE_POINT0, 500 + rand32() % 700);
-                me->CastSpell(me->GetVictim(), SPELL_EXPLODING_SHOT, args);
+                int dmg = 500 + rand32() % 700;
+                me->CastCustomSpell(me->GetVictim(), SPELL_EXPLODING_SHOT, &dmg, 0, 0, false);
                 ExplodeTimer = 5000 + rand32() % 5000;
             } else ExplodeTimer -= diff;
             DoMeleeAttackIfReady();
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<alliance_riflemanAI>(creature);
+    }
 };
 
 void AddSC_hyjal_trash()

@@ -184,8 +184,7 @@ void AppenderConsole::_write(LogMessage const* message)
             case LOG_LEVEL_FATAL:
                index = 0;
                break;
-            case LOG_LEVEL_ERROR:
-                /* fallthrough */
+            case LOG_LEVEL_ERROR: // No break on purpose
             default:
                index = 1;
                break;

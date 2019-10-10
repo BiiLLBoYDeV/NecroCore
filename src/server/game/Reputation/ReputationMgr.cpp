@@ -21,6 +21,7 @@
 #include "DBCStores.h"
 #include "Log.h"
 #include "ObjectMgr.h"
+#include "Opcodes.h"
 #include "Player.h"
 #include "ScriptMgr.h"
 #include "World.h"
@@ -106,9 +107,10 @@ int32 ReputationMgr::GetBaseReputation(FactionEntry const* factionEntry) const
     {
         if ((factionEntry->BaseRepRaceMask[i] & raceMask  ||
             (factionEntry->BaseRepRaceMask[i] == 0  &&
-             factionEntry->BaseRepClassMask[i] != 0)) &&
+            factionEntry->BaseRepClassMask[i] != 0)) &&
             (factionEntry->BaseRepClassMask[i] & classMask ||
-             factionEntry->BaseRepClassMask[i] == 0))
+            (factionEntry->BaseRepClassMask[i] == 0 &&
+            factionEntry->BaseRepValue[i] != 0)))
 
             return factionEntry->BaseRepValue[i];
     }
@@ -220,7 +222,7 @@ void ReputationMgr::SendState(FactionState const* faction)
 
 void ReputationMgr::SendInitialReputations()
 {
-    uint8 count = 128;
+    uint16 count = 256;
     WorldPacket data(SMSG_INITIALIZE_FACTIONS, 4 + count * 5);
     data << uint32(count);
 
@@ -254,13 +256,13 @@ void ReputationMgr::SendInitialReputations()
     _player->SendDirectMessage(&data);
 }
 
-void ReputationMgr::SendVisible(FactionState const* faction) const
+void ReputationMgr::SendVisible(FactionState const* faction, bool visible /* = true*/) const
 {
     if (_player->GetSession()->PlayerLoading())
         return;
 
-    // make faction visible in reputation list at client
-    WorldPacket data(SMSG_SET_FACTION_VISIBLE, 4);
+    // make faction visible/not visible in reputation list at client
+    WorldPacket data(visible ? SMSG_SET_FACTION_VISIBLE : SMSG_SET_FACTION_NOT_VISIBLE, 4);
     data << faction->ReputationListID;
     _player->SendDirectMessage(&data);
 }
@@ -303,7 +305,7 @@ bool ReputationMgr::SetReputation(FactionEntry const* factionEntry, int32 standi
     sScriptMgr->OnPlayerReputationChange(_player, factionEntry->ID, standing, incremental);
     bool res = false;
     // if spillover definition exists in DB, override DBC
-    if (RepSpilloverTemplate const* repTemplate = sObjectMgr->GetRepSpilloverTemplate(factionEntry->ID))
+    if (const RepSpilloverTemplate* repTemplate = sObjectMgr->GetRepSpilloverTemplate(factionEntry->ID))
     {
         for (uint32 i = 0; i < MAX_SPILLOVER_FACTIONS; ++i)
         {

@@ -37,7 +37,6 @@ EndContentData */
 #include "ScriptedGossip.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
-#include "Vehicle.h"
 
 /*#####
 # npc_commander_eligor_dawnbringer
@@ -166,8 +165,8 @@ class npc_commander_eligor_dawnbringer : public CreatureScript
                 for (ObjectGuid& guid : imageList)
                     guid.Clear();
 
-                _events.ScheduleEvent(EVENT_GET_TARGETS, 5s);
-                _events.ScheduleEvent(EVENT_START_RANDOM, 20s);
+                _events.ScheduleEvent(EVENT_GET_TARGETS, 5000);
+                _events.ScheduleEvent(EVENT_START_RANDOM, 20000);
             }
 
             void MovementInform(uint32 type, uint32 id) override
@@ -235,7 +234,7 @@ class npc_commander_eligor_dawnbringer : public CreatureScript
                             }
                             break;
                         case 5: // Home
-                            _events.ScheduleEvent(EVENT_START_RANDOM, 30s);
+                            _events.ScheduleEvent(EVENT_START_RANDOM, 30000);
                             break;
                         }
                     }
@@ -279,7 +278,7 @@ class npc_commander_eligor_dawnbringer : public CreatureScript
                     creature->SetEntry(entry);
                     creature->SetDisplayId(model);
                     creature->CastSpell(creature, SPELL_HEROIC_IMAGE_CHANNEL);
-                    _events.ScheduleEvent(EVENT_TALK_COMPLETE, 40s);
+                    _events.ScheduleEvent(EVENT_TALK_COMPLETE, 40000);
                 }
             }
 
@@ -303,7 +302,7 @@ class npc_commander_eligor_dawnbringer : public CreatureScript
                         case EVENT_START_RANDOM:
                             talkWing = urand (0, 4);
                             Talk(talkWing);
-                            _events.ScheduleEvent(EVENT_MOVE_TO_POINT, 8s);
+                            _events.ScheduleEvent(EVENT_MOVE_TO_POINT, 8000);
                             break;
                         case EVENT_MOVE_TO_POINT:
                             me->SetWalk(true);
@@ -313,7 +312,7 @@ class npc_commander_eligor_dawnbringer : public CreatureScript
                         case EVENT_TALK_COMPLETE:
                             talkWing = 5;
                             Talk(talkWing);
-                            _events.ScheduleEvent(EVENT_MOVE_TO_POINT, 5s);
+                            _events.ScheduleEvent(EVENT_MOVE_TO_POINT, 5000);
                             break;
                         case EVENT_GET_TARGETS:
                             StoreTargets();
@@ -510,6 +509,22 @@ class npc_wyrmrest_defender : public CreatureScript
 
             uint32 RenewRecoveryChecker;
 
+            bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
+            {
+                if (menuId == MENU_ID && gossipListId == GOSSIP_OPTION_ID)
+                {
+                    // Makes player cast trigger spell for 49207 on self
+                    player->CastSpell(player, SPELL_CHARACTER_SCRIPT, true);
+                    CloseGossipMenuFor(player);
+                }
+                return true;
+            }
+
+            void OnCharmed(bool /*apply*/) override
+            {
+                me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
+            }
+
             void Reset() override
             {
                 Initialize();
@@ -546,8 +561,8 @@ class npc_wyrmrest_defender : public CreatureScript
                 {
                     case SPELL_WYRMREST_DEFENDER_MOUNT:
                         Talk(WHISPER_MOUNTED, me->GetCharmerOrOwner());
-                        me->SetImmuneToAll(false);
-                        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PLAYER_CONTROLLED);
+                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
+                        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_PVP_ATTACKABLE);
                         break;
                     // Both below are for checking low hp warning
                     case SPELL_DEFENDER_ON_LOW_HEALTH_EMOTE:
@@ -560,22 +575,6 @@ class npc_wyrmrest_defender : public CreatureScript
                         renewRecoveryCanCheck = true;
                         break;
                 }
-            }
-
-            bool GossipSelect(Player* player, uint32 menuId, uint32 gossipListId) override
-            {
-                if (menuId == MENU_ID && gossipListId == GOSSIP_OPTION_ID)
-                {
-                    // Makes player cast trigger spell for 49207 on self
-                    player->CastSpell(player, SPELL_CHARACTER_SCRIPT, true);
-                    CloseGossipMenuFor(player);
-                }
-                return true;
-            }
-            
-            void OnCharmed(bool /*apply*/) override
-            {
-                me->RemoveFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_GOSSIP);
             }
         };
 
@@ -619,8 +618,8 @@ class npc_torturer_lecraft : public CreatureScript
 
             void JustEngagedWith(Unit* who) override
             {
-                _events.ScheduleEvent(EVENT_HEMORRHAGE, 5s, 8s);
-                _events.ScheduleEvent(EVENT_KIDNEY_SHOT, 12s, 15s);
+                _events.ScheduleEvent(EVENT_HEMORRHAGE, urand(5000, 8000));
+                _events.ScheduleEvent(EVENT_KIDNEY_SHOT, urand(12000, 15000));
 
                 if (Player* player = who->ToPlayer())
                     Talk (SAY_AGGRO, player);
@@ -668,7 +667,7 @@ class npc_torturer_lecraft : public CreatureScript
                             break;
                         case EVENT_KIDNEY_SHOT:
                             DoCastVictim(SPELL_KIDNEY_SHOT);
-                            _events.ScheduleEvent(EVENT_KIDNEY_SHOT, 20s, 26s);
+                            _events.ScheduleEvent(EVENT_KIDNEY_SHOT, urand(20000, 26000));
                             break;
                         default:
                             break;

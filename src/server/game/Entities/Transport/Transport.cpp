@@ -17,7 +17,6 @@
  */
 
 #include "Transport.h"
-#include "Cell.h"
 #include "CellImpl.h"
 #include "Common.h"
 #include "DBCStores.h"
@@ -25,13 +24,13 @@
 #include "Log.h"
 #include "MapManager.h"
 #include "ObjectMgr.h"
+#include "PhasingHandler.h"
+#include "Player.h"
 #include "ScriptMgr.h"
 #include "Spline.h"
-#include "Player.h"
 #include "Totem.h"
 #include "UpdateData.h"
 #include "Vehicle.h"
-#include <G3D/Vector3.h>
 
 Transport::Transport() : GameObject(),
     _transportInfo(nullptr), _isMoving(true), _pendingStop(false),
@@ -85,10 +84,10 @@ bool Transport::Create(ObjectGuid::LowType guidlow, uint32 entry, uint32 mapid, 
     _triggeredArrivalEvent = false;
     _triggeredDepartureEvent = false;
 
-    if (GameObjectOverride const* goOverride = GetGameObjectOverride())
+    if (m_goTemplateAddon)
     {
-        SetFaction(goOverride->Faction);
-        SetUInt32Value(GAMEOBJECT_FLAGS, goOverride->Flags);
+        SetFaction(m_goTemplateAddon->faction);
+        SetUInt32Value(GAMEOBJECT_FLAGS, m_goTemplateAddon->flags);
     }
 
     m_goValue.Transport.PathProgress = 0;
@@ -100,7 +99,7 @@ bool Transport::Create(ObjectGuid::LowType guidlow, uint32 entry, uint32 mapid, 
     SetGoType(GAMEOBJECT_TYPE_MO_TRANSPORT);
     SetGoAnimProgress(animprogress);
     SetName(goinfo->name);
-    SetLocalRotation(0.0f, 0.0f, 0.0f, 1.0f);
+    SetWorldRotation(0.0f, 0.0f, 0.0f, 1.0f);
     SetParentRotation(QuaternionData());
 
     m_model = CreateModel();
@@ -255,7 +254,6 @@ void Transport::AddPassenger(WorldObject* passenger)
     if (_passengers.insert(passenger).second)
     {
         passenger->SetTransport(this);
-        passenger->m_movementInfo.AddMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
         passenger->m_movementInfo.transport.guid = GetGUID();
         TC_LOG_DEBUG("entities.transport", "Object %s boarded transport %s.", passenger->GetName().c_str(), GetName().c_str());
 
@@ -285,7 +283,6 @@ void Transport::RemovePassenger(WorldObject* passenger)
     if (erased || _staticPassengers.erase(passenger)) // static passenger can remove itself in case of grid unload
     {
         passenger->SetTransport(nullptr);
-        passenger->m_movementInfo.RemoveMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
         passenger->m_movementInfo.transport.Reset();
         TC_LOG_DEBUG("entities.transport", "Object %s removed from transport %s.", passenger->GetName().c_str(), GetName().c_str());
 
@@ -300,12 +297,9 @@ void Transport::RemovePassenger(WorldObject* passenger)
 Creature* Transport::CreateNPCPassenger(ObjectGuid::LowType guid, CreatureData const* data)
 {
     Map* map = GetMap();
-    if (map->GetCreatureRespawnTime(guid))
-        return nullptr;
-
     Creature* creature = new Creature();
 
-    if (!creature->LoadFromDB(guid, map, false, false))
+    if (!creature->LoadFromDB(guid, map, false, true))
     {
         delete creature;
         return nullptr;
@@ -315,7 +309,6 @@ Creature* Transport::CreateNPCPassenger(ObjectGuid::LowType guid, CreatureData c
     data->spawnPoint.GetPosition(x, y, z, o);
 
     creature->SetTransport(this);
-    creature->AddUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
     creature->m_movementInfo.transport.guid = GetGUID();
     creature->m_movementInfo.transport.pos.Relocate(x, y, z, o);
     CalculatePassengerPosition(x, y, z, &o);
@@ -334,6 +327,9 @@ Creature* Transport::CreateNPCPassenger(ObjectGuid::LowType guid, CreatureData c
         return nullptr;
     }
 
+    PhasingHandler::InitDbPhaseShift(creature->GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
+    PhasingHandler::InitDbVisibleMapId(creature->GetPhaseShift(), data->terrainSwapMap);
+
     if (!map->AddToMap(creature))
     {
         delete creature;
@@ -348,9 +344,6 @@ Creature* Transport::CreateNPCPassenger(ObjectGuid::LowType guid, CreatureData c
 GameObject* Transport::CreateGOPassenger(ObjectGuid::LowType guid, GameObjectData const* data)
 {
     Map* map = GetMap();
-    if (map->GetGORespawnTime(guid))
-        return nullptr;
-
     GameObject* go = new GameObject();
 
     if (!go->LoadFromDB(guid, map, false))
@@ -377,6 +370,9 @@ GameObject* Transport::CreateGOPassenger(ObjectGuid::LowType guid, GameObjectDat
         delete go;
         return nullptr;
     }
+
+    PhasingHandler::InitDbPhaseShift(go->GetPhaseShift(), data->phaseUseFlags, data->phaseId, data->phaseGroup);
+    PhasingHandler::InitDbVisibleMapId(go->GetPhaseShift(), data->terrainSwapMap);
 
     if (!map->AddToMap(go))
     {
@@ -442,10 +438,6 @@ TempSummon* Transport::SummonPassenger(uint32 entry, Position const& pos, TempSu
         }
     }
 
-    uint32 phase = PHASEMASK_NORMAL;
-    if (summoner)
-        phase = summoner->GetPhaseMask();
-
     TempSummon* summon = nullptr;
     switch (mask)
     {
@@ -470,16 +462,17 @@ TempSummon* Transport::SummonPassenger(uint32 entry, Position const& pos, TempSu
     pos.GetPosition(x, y, z, o);
     CalculatePassengerPosition(x, y, z, &o);
 
-    if (!summon->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, phase, entry, { x, y, z, o }, nullptr, vehId))
+    if (!summon->Create(map->GenerateLowGuid<HighGuid::Unit>(), map, 0, entry, { x, y, z, o }, nullptr, vehId))
     {
         delete summon;
         return nullptr;
     }
 
+    PhasingHandler::InheritPhaseShift(summon, summoner ? static_cast<WorldObject*>(summoner) : static_cast<WorldObject*>(this));
+
     summon->SetUInt32Value(UNIT_CREATED_BY_SPELL, spellId);
 
     summon->SetTransport(this);
-    summon->AddUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
     summon->m_movementInfo.transport.guid = GetGUID();
     summon->m_movementInfo.transport.pos.Relocate(pos);
     summon->Relocate(x, y, z, o);
@@ -512,6 +505,7 @@ void Transport::UpdatePosition(float x, float y, float z, float o)
     Cell oldCell(GetPositionX(), GetPositionY());
 
     Relocate(x, y, z, o);
+    m_stationaryPosition.SetOrientation(o);
     UpdateModelPosition();
 
     UpdatePassengerPositions(_passengers);
@@ -624,6 +618,8 @@ bool Transport::TeleportTransport(uint32 newMapid, float x, float y, float z, fl
     }
     else
     {
+        UpdatePosition(x, y, z, o);
+
         // Teleport players, they need to know it
         for (PassengerSet::iterator itr = _passengers.begin(); itr != _passengers.end(); ++itr)
         {
@@ -638,12 +634,10 @@ bool Transport::TeleportTransport(uint32 newMapid, float x, float y, float z, fl
                 (*itr)->m_movementInfo.transport.pos.GetPosition(destX, destY, destZ, destO);
                 TransportBase::CalculatePassengerPosition(destX, destY, destZ, &destO, x, y, z, o);
 
-                (*itr)->ToPlayer()->TeleportTo(newMapid, destX, destY, destZ, destO,
-                    TELE_TO_NOT_LEAVE_TRANSPORT | TELE_TO_NOT_LEAVE_COMBAT | TELE_TO_NOT_UNSUMMON_PET | TELE_TO_TRANSPORT_TELEPORT);
+                (*itr)->ToUnit()->NearTeleportTo(destX, destY, destZ, destO);
             }
         }
 
-        UpdatePosition(x, y, z, o);
         return false;
     }
 }

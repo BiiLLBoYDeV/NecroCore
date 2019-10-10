@@ -64,11 +64,10 @@ class TC_GAME_API Corpse : public WorldObject, public GridObject<Corpse>
         void DeleteFromDB(SQLTransaction& trans);
         static void DeleteFromDB(ObjectGuid const& ownerGuid, SQLTransaction& trans);
 
-        ObjectGuid GetOwnerGUID() const override { return GetGuidValue(CORPSE_FIELD_OWNER); }
-        uint32 GetFaction() const override;
+        ObjectGuid GetOwnerGUID() const { return GetGuidValue(CORPSE_FIELD_OWNER); }
 
         time_t const& GetGhostTime() const { return m_time; }
-        void ResetGhostTime();
+        void ResetGhostTime() { m_time = time(nullptr); }
         CorpseType GetType() const { return m_type; }
 
         CellCoord const& GetCellCoord() const { return _cellCoord; }
@@ -76,6 +75,7 @@ class TC_GAME_API Corpse : public WorldObject, public GridObject<Corpse>
 
         Loot loot;                                          // remove insignia ONLY at BG
         Player* lootRecipient;
+        bool lootForBody;
 
         bool IsExpired(time_t t) const;
 

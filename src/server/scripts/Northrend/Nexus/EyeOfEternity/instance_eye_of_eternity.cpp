@@ -42,7 +42,7 @@ public:
 
     struct instance_eye_of_eternity_InstanceMapScript : public InstanceScript
     {
-        instance_eye_of_eternity_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_eye_of_eternity_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             SetBossNumber(MAX_ENCOUNTER);
@@ -181,20 +181,26 @@ public:
         {
             if (Creature* malygos = instance->GetCreature(malygosGUID))
             {
+                ThreatContainer::StorageType const& threatList = malygos->getThreatManager().getThreatList();
                 for (GuidList::const_iterator itr_vortex = vortexTriggers.begin(); itr_vortex != vortexTriggers.end(); ++itr_vortex)
                 {
+                    if (threatList.empty())
+                        return;
+
                     uint8 counter = 0;
                     if (Creature* trigger = instance->GetCreature(*itr_vortex))
                     {
                         // each trigger have to cast the spell to 5 players.
-                        for (auto* ref : malygos->GetThreatManager().GetUnsortedThreatList())
+                        for (ThreatContainer::StorageType::const_iterator itr = threatList.begin(); itr != threatList.end(); ++itr)
                         {
                             if (counter >= 5)
                                 break;
 
-                            if (Player* player = ref->GetVictim()->ToPlayer())
+                            if (Unit* target = (*itr)->getTarget())
                             {
-                                if (player->IsGameMaster() || player->HasAura(SPELL_VORTEX_4))
+                                Player* player = target->ToPlayer();
+
+                                if (!player || player->IsGameMaster() || player->HasAura(SPELL_VORTEX_4))
                                     continue;
 
                                 player->CastSpell(trigger, SPELL_VORTEX_4, true);

@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -40,6 +40,7 @@ struct MovementInfo
             seat = -1;
             time = 0;
             time2 = 0;
+            vehicleId = 0;
         }
 
         ObjectGuid guid;
@@ -47,21 +48,22 @@ struct MovementInfo
         int8 seat;
         uint32 time;
         uint32 time2;
+        uint32 vehicleId;
     } transport;
 
     // swimming/flying
     float pitch;
-
-    // falling
-    uint32 fallTime;
 
     // jumping
     struct JumpInfo
     {
         void Reset()
         {
+            fallTime = 0;
             zspeed = sinAngle = cosAngle = xyspeed = 0.0f;
         }
+
+        uint32 fallTime;
 
         float zspeed, sinAngle, cosAngle, xyspeed;
 
@@ -71,7 +73,7 @@ struct MovementInfo
     float splineElevation;
 
     MovementInfo() :
-        guid(), flags(0), flags2(0), time(0), pitch(0.0f), fallTime(0), splineElevation(0.0f)
+        flags(0), flags2(0), time(0), pitch(0.0f), splineElevation(0.0f)
     {
         pos.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
         transport.Reset();
@@ -85,10 +87,23 @@ struct MovementInfo
     bool HasMovementFlag(uint32 flag) const { return (flags & flag) != 0; }
 
     uint16 GetExtraMovementFlags() const { return flags2; }
+    void SetExtraMovementFlags(uint16 flag) { flags2 = flag; }
     void AddExtraMovementFlag(uint16 flag) { flags2 |= flag; }
+    void RemoveExtraMovementFlag(uint16 flag) { flags2 &= ~flag; }
     bool HasExtraMovementFlag(uint16 flag) const { return (flags2 & flag) != 0; }
 
-    void SetFallTime(uint32 val) { fallTime = val; }
+    uint32 GetFallTime() const { return jump.fallTime; }
+    void SetFallTime(uint32 time) { jump.fallTime = time; }
+
+    void ResetTransport()
+    {
+        transport.Reset();
+    }
+
+    void ResetJump()
+    {
+        jump.Reset();
+    }
 
     void OutDebug();
 };

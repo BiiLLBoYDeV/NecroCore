@@ -22,6 +22,12 @@
 #include "Map.h"
 #include "scarlet_monastery.h"
 
+DoorData const doorData[] =
+{
+    { GO_HIGH_INQUISITORS_DOOR, DATA_MOGRAINE_AND_WHITE_EVENT, DOOR_TYPE_ROOM },
+    { 0,                        0,                             DOOR_TYPE_ROOM } // END
+};
+
 class instance_scarlet_monastery : public InstanceMapScript
 {
     public:
@@ -29,23 +35,36 @@ class instance_scarlet_monastery : public InstanceMapScript
 
         struct instance_scarlet_monastery_InstanceMapScript : public InstanceScript
         {
-            instance_scarlet_monastery_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_scarlet_monastery_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
+                LoadDoorData(doorData);
+
+                HorsemanAdds.clear();
             }
 
             void OnGameObjectCreate(GameObject* go) override
             {
-                InstanceScript::OnGameObjectCreate(go);
-
                 switch (go->GetEntry())
                 {
                     case GO_PUMPKIN_SHRINE:
                         PumpkinShrineGUID = go->GetGUID();
                         break;
                     case GO_HIGH_INQUISITORS_DOOR:
-                        HighInquistorDoorGUID = go->GetGUID();
+                        AddDoor(go, true);
+                        break;
+                    default:
+                        break;
+                }
+            }
+
+            void OnGameObjectRemove(GameObject* go) override
+            {
+                switch (go->GetEntry())
+                {
+                    case GO_HIGH_INQUISITORS_DOOR:
+                        AddDoor(go, false);
                         break;
                     default:
                         break;
@@ -121,16 +140,12 @@ class instance_scarlet_monastery : public InstanceMapScript
             {
                 switch (type)
                 {
-                    /// Creatures
                     case DATA_MOGRAINE:
                         return MograineGUID;
                     case DATA_WHITEMANE:
                         return WhitemaneGUID;
                     case DATA_VORREL:
                         return VorrelGUID;
-                    /// GameObjects
-                    case GO_HIGH_INQUISITORS_DOOR:
-                        return HighInquistorDoorGUID;
                     default:
                         break;
                 }
@@ -138,16 +153,12 @@ class instance_scarlet_monastery : public InstanceMapScript
             }
 
         protected:
-            /// Creatures
+            ObjectGuid PumpkinShrineGUID;
             ObjectGuid HorsemanGUID;
             ObjectGuid HeadGUID;
             ObjectGuid MograineGUID;
             ObjectGuid WhitemaneGUID;
             ObjectGuid VorrelGUID;
-
-            /// GameObjects
-            ObjectGuid PumpkinShrineGUID;
-            ObjectGuid HighInquistorDoorGUID;
 
             GuidSet HorsemanAdds;
         };

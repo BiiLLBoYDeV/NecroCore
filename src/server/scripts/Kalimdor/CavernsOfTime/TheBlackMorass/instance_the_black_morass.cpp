@@ -24,11 +24,11 @@ Category: Caverns of Time, The Black Morass
 */
 
 #include "ScriptMgr.h"
-#include "EventMap.h"
 #include "InstanceScript.h"
 #include "Log.h"
 #include "Map.h"
 #include "Player.h"
+#include "ScriptedCreature.h"
 #include "SpellInfo.h"
 #include "TemporarySummon.h"
 #include "the_black_morass.h"
@@ -75,14 +75,9 @@ class instance_the_black_morass : public InstanceMapScript
 public:
     instance_the_black_morass() : InstanceMapScript(TBMScriptName, 269) { }
 
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_the_black_morass_InstanceMapScript(map);
-    }
-
     struct instance_the_black_morass_InstanceMapScript : public InstanceScript
     {
-        instance_the_black_morass_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_the_black_morass_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             Clear();
@@ -182,7 +177,7 @@ public:
                         {
                             if (medivh->IsAlive())
                             {
-                                medivh->KillSelf();
+                                medivh->DealDamage(medivh, medivh->GetHealth(), nullptr, DIRECT_DAMAGE, SPELL_SCHOOL_MASK_NORMAL, nullptr, false);
                                 m_auiEncounter[0] = FAIL;
                                 m_auiEncounter[1] = NOT_STARTED;
                             }
@@ -272,7 +267,7 @@ public:
             Position pos = me->GetRandomNearPosition(10.0f);
 
             //normalize Z-level if we can, if rift is not at ground level.
-            pos.m_positionZ = std::max(me->GetMap()->GetHeight(pos.m_positionX, pos.m_positionY, MAX_HEIGHT), me->GetMap()->GetWaterLevel(pos.m_positionX, pos.m_positionY));
+            pos.m_positionZ = std::max(me->GetMap()->GetHeight(me->GetPhaseShift(), pos.m_positionX, pos.m_positionY, MAX_HEIGHT), me->GetMap()->GetWaterLevel(me->GetPhaseShift(), pos.m_positionX, pos.m_positionY));
 
             if (Creature* summon = me->SummonCreature(entry, pos, TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, 600000))
                 return summon;
@@ -305,10 +300,10 @@ public:
                     if (Creature* boss = SummonedPortalBoss(temp))
                     {
                         if (boss->GetEntry() == NPC_AEONUS)
-                            boss->GetThreatManager().AddThreat(medivh, 0.0f);
+                            boss->AddThreat(medivh, 0.0f);
                         else
                         {
-                            boss->GetThreatManager().AddThreat(temp, 0.0f);
+                            boss->AddThreat(temp, 0.0f);
                             temp->CastSpell(boss, SPELL_RIFT_CHANNEL, false);
                         }
                     }
@@ -349,6 +344,10 @@ public:
             EventMap Events;
     };
 
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_the_black_morass_InstanceMapScript(map);
+    }
 };
 
 void AddSC_instance_the_black_morass()

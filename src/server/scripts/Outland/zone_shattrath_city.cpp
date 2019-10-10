@@ -74,12 +74,12 @@ public:
         return new npc_kservantAI(creature);
     }
 
-    struct npc_kservantAI : public EscortAI
+    struct npc_kservantAI : public npc_escortAI
     {
     public:
-        npc_kservantAI(Creature* creature) : EscortAI(creature) { }
+        npc_kservantAI(Creature* creature) : npc_escortAI(creature) { }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             Player* player = GetPlayerForEscort();
             if (!player)

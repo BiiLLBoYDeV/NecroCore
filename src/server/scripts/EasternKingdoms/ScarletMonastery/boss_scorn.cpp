@@ -52,10 +52,10 @@ class boss_scorn : public CreatureScript
             void JustEngagedWith(Unit* /*who*/) override
             {
                 _JustEngagedWith();
-                events.ScheduleEvent(EVENT_LICH_SLAP, 45s);
-                events.ScheduleEvent(EVENT_FROSTBOLT_VOLLEY, 30s);
-                events.ScheduleEvent(EVENT_MIND_FLAY, 30s);
-                events.ScheduleEvent(EVENT_FROST_NOVA, 30s);
+                events.ScheduleEvent(EVENT_LICH_SLAP, 45000);
+                events.ScheduleEvent(EVENT_FROSTBOLT_VOLLEY, 30000);
+                events.ScheduleEvent(EVENT_MIND_FLAY, 30000);
+                events.ScheduleEvent(EVENT_FROST_NOVA, 30000);
             }
 
             void JustDied(Unit* /*killer*/) override
@@ -69,19 +69,19 @@ class boss_scorn : public CreatureScript
                 {
                     case EVENT_LICH_SLAP:
                         DoCastVictim(SPELL_LICHSLAP);
-                        events.ScheduleEvent(EVENT_LICH_SLAP, 45s);
+                        events.ScheduleEvent(EVENT_LICH_SLAP, 45000);
                         break;
                     case EVENT_FROSTBOLT_VOLLEY:
                         DoCastVictim(SPELL_FROSTBOLT_VOLLEY);
-                        events.ScheduleEvent(EVENT_FROSTBOLT_VOLLEY, 20s);
+                        events.ScheduleEvent(EVENT_FROSTBOLT_VOLLEY, 20000);
                         break;
                     case EVENT_MIND_FLAY:
                         DoCastVictim(SPELL_MINDFLAY);
-                        events.ScheduleEvent(EVENT_MIND_FLAY, 20s);
+                        events.ScheduleEvent(EVENT_MIND_FLAY, 20000);
                         break;
                     case EVENT_FROST_NOVA:
                         DoCastVictim(SPELL_FROSTNOVA);
-                        events.ScheduleEvent(EVENT_FROST_NOVA, 15s);
+                        events.ScheduleEvent(EVENT_FROST_NOVA, 15000);
                         break;
                     default:
                         break;

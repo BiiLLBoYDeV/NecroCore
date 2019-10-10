@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -37,24 +37,24 @@ class TC_GAME_API MapObject
     friend class Map; //map for moving creatures
     friend class ObjectGridLoader; //grid loader for loading creatures
 
-protected:
-    MapObject() : _moveState(MAP_OBJECT_CELL_MOVE_NONE)
-    {
-        _newPosition.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
-    }
+    protected:
+        MapObject() : _moveState(MAP_OBJECT_CELL_MOVE_NONE)
+        {
+            _newPosition.Relocate(0.0f, 0.0f, 0.0f, 0.0f);
+        }
 
-private:
-    Cell _currentCell;
-    Cell const& GetCurrentCell() const { return _currentCell; }
-    void SetCurrentCell(Cell const& cell) { _currentCell = cell; }
+    private:
+        Cell _currentCell;
+        Cell const& GetCurrentCell() const { return _currentCell; }
+        void SetCurrentCell(Cell const& cell) { _currentCell = cell; }
 
-    MapObjectCellMoveState _moveState;
-    Position _newPosition;
-    void SetNewCellPosition(float x, float y, float z, float o)
-    {
-        _moveState = MAP_OBJECT_CELL_MOVE_ACTIVE;
-        _newPosition.Relocate(x, y, z, o);
-    }
+        MapObjectCellMoveState _moveState;
+        Position _newPosition;
+        void SetNewCellPosition(float x, float y, float z, float o)
+        {
+            _moveState = MAP_OBJECT_CELL_MOVE_ACTIVE;
+            _newPosition.Relocate(x, y, z, o);
+        }
 };
 
 #endif // MapObject_h__

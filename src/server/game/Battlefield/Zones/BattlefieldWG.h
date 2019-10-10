@@ -20,14 +20,6 @@
 
 #include "Battlefield.h"
 
-namespace WorldPackets
-{
-    namespace WorldState
-    {
-        class InitWorldStates;
-    }
-}
-
 class Group;
 class BattlefieldWG;
 class WintergraspCapturePoint;
@@ -81,7 +73,7 @@ enum WintergraspSpells
     // Other spells
     SPELL_WINTERGRASP_WATER                     = 36444,
     SPELL_ESSENCE_OF_WINTERGRASP                = 58045,
-    SPELL_WINTERGRASP_RESTRICTED_FLIGHT_AREA    = 58730,
+    SPELL_WINTERGRASP_RESTRICTED_FLIGHT_AREA    = 91604,
 
     // Phasing spells
     SPELL_HORDE_CONTROLS_FACTORY_PHASE_SHIFT    = 56618, // ADDS PHASE 16
@@ -373,7 +365,7 @@ class TC_GAME_API BattlefieldWG : public Battlefield
 
         void SendInitWorldStatesTo(Player* player);
         void SendInitWorldStatesToAll() override;
-        void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override;
+        void FillInitialWorldStates(WorldPacket& data) override;
 
         void HandleKill(Player* killer, Unit* victim) override;
         void OnUnitDeath(Unit* unit) override;
@@ -395,10 +387,10 @@ class TC_GAME_API BattlefieldWG : public Battlefield
 
         WorkshopVect Workshops;
 
-        GuidVector DefenderPortalList[PVP_TEAMS_COUNT];
+        GuidVector DefenderPortalList[BG_TEAMS_COUNT];
         GameObjectBuildingVect BuildingsInZone;
 
-        GuidUnorderedSet m_vehicles[PVP_TEAMS_COUNT];
+        GuidUnorderedSet m_vehicles[BG_TEAMS_COUNT];
         GuidVector CanonList;
 
         TeamId m_tenacityTeam;
@@ -565,11 +557,11 @@ private:
     StaticWintergraspTowerInfo const* _staticTowerInfo;
 
     // GameObject associations
-    GuidVector m_GameObjectList[PVP_TEAMS_COUNT];
+    GuidVector m_GameObjectList[BG_TEAMS_COUNT];
 
     // Creature associations
-    GuidVector m_CreatureBottomList[PVP_TEAMS_COUNT];
-    GuidVector m_CreatureTopList[PVP_TEAMS_COUNT];
+    GuidVector m_CreatureBottomList[BG_TEAMS_COUNT];
+    GuidVector m_CreatureTopList[BG_TEAMS_COUNT];
     GuidVector m_TowerCannonBottomList;
     GuidVector m_TurretTopList;
 
@@ -592,7 +584,7 @@ public:
 
     void UpdateTurretAttack(bool disable);
 
-    void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet);
+    void FillInitialWorldStates(WorldPacket& data);
 
     void Save();
 };
@@ -619,7 +611,7 @@ public:
 
     void UpdateGraveyardAndWorkshop();
 
-    void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet);
+    void FillInitialWorldStates(WorldPacket& data);
 
     void Save();
 };

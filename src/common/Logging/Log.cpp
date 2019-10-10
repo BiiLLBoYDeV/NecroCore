@@ -274,7 +274,7 @@ std::string Log::GetTimestampStr()
 bool Log::SetLogLevel(std::string const& name, char const* newLevelc, bool isLogger /* = true */)
 {
     LogLevel newLevel = LogLevel(atoi(newLevelc));
-    if (newLevel < 0)
+    if (static_cast<int>(newLevel) < 0)
         return false;
 
     if (isLogger)

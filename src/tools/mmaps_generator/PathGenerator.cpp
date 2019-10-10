@@ -16,26 +16,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "PathCommon.h"
 #include "Banner.h"
 #include "DBCFileLoader.h"
 #include "MapBuilder.h"
-#include "PathCommon.h"
 #include "Timer.h"
-#include <boost/filesystem.hpp>
+#include "VMapFactory.h"
+#include "VMapManager2.h"
+#include <boost/filesystem/operations.hpp>
 #include <unordered_map>
 
 using namespace MMAP;
-
-namespace
-{
-    std::unordered_map<uint32, uint8> _liquidTypes;
-}
-
-uint32 GetLiquidFlags(uint32 liquidId)
-{
-    auto itr = _liquidTypes.find(liquidId);
-    return itr != _liquidTypes.end() ? (1 << itr->second) : 0;
-}
 
 bool checkDirectories(bool debugOutput)
 {
@@ -48,6 +39,13 @@ bool checkDirectories(bool debugOutput)
     }
 
     dirFiles.clear();
+    if (getDirContents(dirFiles, "dbc") == LISTFILE_DIRECTORY_NOT_FOUND || dirFiles.empty())
+    {
+        printf("'dbc' directory is empty or does not exist\n");
+        return false;
+    }
+
+    dirFiles.clear();
     if (getDirContents(dirFiles, "vmaps", "*.vmtree") == LISTFILE_DIRECTORY_NOT_FOUND || dirFiles.empty())
     {
         printf("'vmaps' directory is empty or does not exist\n");
@@ -56,15 +54,24 @@ bool checkDirectories(bool debugOutput)
 
     dirFiles.clear();
     if (getDirContents(dirFiles, "mmaps") == LISTFILE_DIRECTORY_NOT_FOUND)
-        return boost::filesystem::create_directory("mmaps");
+    {
+        if (!boost::filesystem::create_directory("mmaps"))
+        {
+            printf("'mmaps' directory does not exist and failed to create it\n");
+            return false;
+        }
+    }
 
     dirFiles.clear();
     if (debugOutput)
     {
         if (getDirContents(dirFiles, "meshes") == LISTFILE_DIRECTORY_NOT_FOUND)
         {
-            printf("'meshes' directory does not exist (no place to put debugOutput files)\n");
-            return false;
+            if (!boost::filesystem::create_directory("meshes"))
+            {
+                printf("'meshes' directory does not exist and failed to create it (no place to put debugOutput files)\n");
+                return false;
+            }
         }
     }
 
@@ -251,23 +258,6 @@ int finish(char const* message, int returnValue)
     return returnValue;
 }
 
-std::unordered_map<uint32, uint8> LoadLiquid()
-{
-    DBCFileLoader liquidDbc;
-    std::unordered_map<uint32, uint8> liquidData;
-    // format string doesnt matter as long as it has correct length (only used for mapping to structures in worldserver)
-    if (liquidDbc.Load((boost::filesystem::path("dbc") / "LiquidType.dbc").string().c_str(), "nxxixixxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"))
-    {
-        for (uint32 x = 0; x < liquidDbc.GetNumRows(); ++x)
-        {
-            DBCFileLoader::Record record = liquidDbc.getRecord(x);
-            liquidData[record.getUInt(0)] = record.getUInt(3);
-        }
-    }
-
-    return liquidData;
-}
-
 int main(int argc, char** argv)
 {
     Trinity::Banner::Show("MMAP generator", [](char const* text) { printf("%s\n", text); }, nullptr);
@@ -306,12 +296,31 @@ int main(int argc, char** argv)
             return 0;
     }
 
+
     if (!checkDirectories(debugOutput))
         return silent ? -3 : finish("Press ENTER to close...", -3);
 
-    _liquidTypes = LoadLiquid();
-    if (_liquidTypes.empty())
-        return silent ? -5 : finish("Failed to load LiquidType.dbc", -5);
+    std::string mapPath = (boost::filesystem::path("dbc") / "Map.dbc").string();
+
+    std::unordered_map<uint32, std::vector<uint32>> mapData;
+    {
+        DBCFileLoader* loader = new DBCFileLoader();
+        char const* mapFmt = "nxxxxxxxxxxxxxxxxxxi";
+        if (!loader->Load(mapPath.c_str(), mapFmt))
+        {
+            delete loader;
+            return silent ? -4 : finish("Failed to load Map.dbc", -4);
+        }
+        for (uint32 x = 0; x < loader->GetNumRows(); ++x)
+        {
+            mapData.emplace(std::piecewise_construct, std::forward_as_tuple(loader->getRecord(x).getUInt(0)), std::forward_as_tuple());
+            int16 parentMapId = int16(loader->getRecord(x).getUInt(19));
+            if (parentMapId != -1)
+                mapData[parentMapId].push_back(loader->getRecord(x).getUInt(0));
+        }
+
+        static_cast<VMAP::VMapManager2*>(VMAP::VMapFactory::createOrGetVMapManager())->InitializeThreadUnsafe(mapData);
+    }
 
     MapBuilder builder(maxAngle, skipLiquid, skipContinents, skipJunkMaps,
                        skipBattlegrounds, debugOutput, bigBaseUnit, mapnum, offMeshInputPath);
@@ -325,6 +334,8 @@ int main(int argc, char** argv)
         builder.buildMap(uint32(mapnum));
     else
         builder.buildAllMaps(threads);
+
+    VMAP::VMapFactory::clear();
 
     if (!silent)
         printf("Finished. MMAPS were built in %u ms!\n", GetMSTimeDiffToNow(start));

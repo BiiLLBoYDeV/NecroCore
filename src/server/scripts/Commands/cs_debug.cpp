@@ -28,28 +28,23 @@ EndScriptData */
 #include "BattlegroundMgr.h"
 #include "CellImpl.h"
 #include "Chat.h"
-#include "GameTime.h"
 #include "GossipDef.h"
 #include "GridNotifiersImpl.h"
-#include "InstanceScript.h"
 #include "Language.h"
 #include "Log.h"
-#include "M2Stores.h"
 #include "MapManager.h"
-#include "ObjectAccessor.h"
+#include "M2Stores.h"
 #include "ObjectMgr.h"
-#include "PoolMgr.h"
-#include "QuestPools.h"
+#include "PhasingHandler.h"
 #include "RBAC.h"
-#include "SpellMgr.h"
 #include "Transport.h"
 #include "World.h"
+#include "WorldSession.h"
 #include <fstream>
 #include <limits>
 #include <map>
 #include <set>
 
-using namespace Trinity::ChatCommands;
 class debug_commandscript : public CommandScript
 {
 public:
@@ -87,7 +82,6 @@ public:
         {
             { "setbit",        rbac::RBAC_PERM_COMMAND_DEBUG_SETBIT,        false, &HandleDebugSet32BitCommand,         "" },
             { "threat",        rbac::RBAC_PERM_COMMAND_DEBUG_THREAT,        false, &HandleDebugThreatListCommand,       "" },
-            { "threatinfo",    rbac::RBAC_PERM_COMMAND_DEBUG_THREATINFO,    false, &HandleDebugThreatInfoCommand,       "" },
             { "combat",        rbac::RBAC_PERM_COMMAND_DEBUG_COMBAT,        false, &HandleDebugCombatListCommand,       "" },
             { "anim",          rbac::RBAC_PERM_COMMAND_DEBUG_ANIM,          false, &HandleDebugAnimCommand,             "" },
             { "arena",         rbac::RBAC_PERM_COMMAND_DEBUG_ARENA,         true,  &HandleDebugArenaCommand,            "" },
@@ -112,15 +106,14 @@ public:
             { "los",           rbac::RBAC_PERM_COMMAND_DEBUG_LOS,           false, &HandleDebugLoSCommand,              "" },
             { "moveflags",     rbac::RBAC_PERM_COMMAND_DEBUG_MOVEFLAGS,     false, &HandleDebugMoveflagsCommand,        "" },
             { "transport",     rbac::RBAC_PERM_COMMAND_DEBUG_TRANSPORT,     false, &HandleDebugTransportCommand,        "" },
+            { "phase",         rbac::RBAC_PERM_COMMAND_DEBUG_PHASE,         false, &HandleDebugPhaseCommand,            "" },
             { "loadcells",     rbac::RBAC_PERM_COMMAND_DEBUG_LOADCELLS,     false, &HandleDebugLoadCellsCommand,        "" },
             { "boundary",      rbac::RBAC_PERM_COMMAND_DEBUG_BOUNDARY,      false, &HandleDebugBoundaryCommand,         "" },
             { "raidreset",     rbac::RBAC_PERM_COMMAND_INSTANCE_UNBIND,     false, &HandleDebugRaidResetCommand,        "" },
             { "neargraveyard", rbac::RBAC_PERM_COMMAND_NEARGRAVEYARD,       false, &HandleDebugNearGraveyard,           "" },
-            { "instancespawn", rbac::RBAC_PERM_COMMAND_DEBUG_INSTANCESPAWN, false, &HandleDebugInstanceSpawns,          "" },
             { "dummy",         rbac::RBAC_PERM_COMMAND_DEBUG_DUMMY,         false, &HandleDebugDummyCommand,            "" },
             { "asan",          rbac::RBAC_PERM_COMMAND_DEBUG_ASAN,          true,  nullptr,                             "", debugAsanCommandTable },
             { "guidlimits",    rbac::RBAC_PERM_COMMAND_DEBUG,               true,  &HandleDebugGuidLimitsCommand,       "" },
-            { "questreset",    rbac::RBAC_PERM_COMMAND_DEBUG_QUESTRESET,    true,  &HandleDebugQuestResetCommand,       "" }
         };
         static std::vector<ChatCommand> commandTable =
         {
@@ -150,7 +143,6 @@ public:
             handler->SetSentErrorMessage(true);
             return false;
         }
-
 
         // Dump camera locations
         if (std::vector<FlyByCamera> const* flyByCameras = GetFlyByCameras(cineSeq->cinematicCamera))
@@ -194,7 +186,7 @@ public:
 
     static bool HandleDebugPlaySoundCommand(ChatHandler* handler, char const* args)
     {
-        // USAGE: .debug play sound #soundId
+        // USAGE: .debug playsound #soundId
         // #soundId - ID decimal number from SoundEntries.dbc (1st column)
         if (!*args)
         {
@@ -305,7 +297,7 @@ public:
             return false;
 
         SellResult msg = SellResult(atoi(args));
-        handler->GetSession()->GetPlayer()->SendSellError(msg, nullptr, ObjectGuid::Empty, 0);
+        handler->GetSession()->GetPlayer()->SendSellError(msg, nullptr, ObjectGuid::Empty);
         return true;
     }
 
@@ -379,7 +371,7 @@ public:
         uint32 opcode;
         parsedStream >> opcode;
 
-        WorldPacket data(opcode, 0);
+        WorldPacket data(Opcodes(opcode), 0);
 
         while (!parsedStream.eof())
         {
@@ -485,7 +477,7 @@ public:
         }
         TC_LOG_DEBUG("network", "Sending opcode %u", data.GetOpcode());
         data.hexlike();
-        player->SendDirectMessage(&data);
+        player->GetSession()->SendPacket(&data, true);
         handler->PSendSysMessage(LANG_COMMAND_OPCODESENT, data.GetOpcode(), unit->GetName().c_str());
         return true;
     }
@@ -565,7 +557,7 @@ public:
         if (!target)
             return false;
 
-        handler->PSendSysMessage("Loot recipient for creature %s (GUID %u, SpawnID %u) is %s",
+        handler->PSendSysMessage("Loot recipient for creature %s (GUID %u, DB GUID %u) is %s",
             target->GetName().c_str(), target->GetGUID().GetCounter(), target->GetSpawnId(),
             target->hasLootRecipient() ? (target->GetLootRecipient() ? target->GetLootRecipient()->GetName().c_str() : "offline") : "no loot recipient");
         return true;
@@ -713,7 +705,7 @@ public:
 
                     if (updateQueue[qp] == nullptr)
                     {
-                        handler->PSendSysMessage("The item with slot %d and guid %d has its queuepos (%d) pointing to NULL in the queue!", item->GetSlot(), item->GetGUID().GetCounter(), qp);
+                        handler->PSendSysMessage("The item with slot %d and guid %d has its queuepos (%d) pointing to nullptr in the queue!", item->GetSlot(), item->GetGUID().GetCounter(), qp);
                         error = true;
                         continue;
                     }
@@ -781,7 +773,7 @@ public:
 
                             if (updateQueue[qp] == nullptr)
                             {
-                                handler->PSendSysMessage("The item in bag %d at slot %d having guid %d has a queuepos (%d) that points to NULL in the queue!", bag->GetSlot(), item2->GetSlot(), item2->GetGUID().GetCounter(), qp);
+                                handler->PSendSysMessage("The item in bag %d at slot %d having guid %d has a queuepos (%d) that points to nullptr in the queue!", bag->GetSlot(), item2->GetSlot(), item2->GetGUID().GetCounter(), qp);
                                 error = true;
                                 continue;
                             }
@@ -863,161 +855,23 @@ public:
 
     static bool HandleDebugThreatListCommand(ChatHandler* handler, char const* /*args*/)
     {
-        Unit* target = handler->getSelectedUnit();
-        if (!target)
-            target = handler->GetSession()->GetPlayer();
-
-        ThreatManager& mgr = target->GetThreatManager();
-        if (!target->IsAlive())
-        {
-            handler->PSendSysMessage("%s (GUID %u) is not alive.%s", target->GetName().c_str(), target->GetGUID().GetCounter(), target->IsEngaged() ? " (It is, however, engaged. Huh?)" : "");
-            return true;
-        }
-
-        uint32 count = 0;
-        auto const& threatenedByMe = target->GetThreatManager().GetThreatenedByMeList();
-        if (threatenedByMe.empty())
-            handler->PSendSysMessage("%s (GUID %u) does not threaten any units.", target->GetName().c_str(), target->GetGUID().GetCounter());
-        else
-        {
-            handler->PSendSysMessage("List of units threatened by %s (GUID %u)", target->GetName().c_str(), target->GetGUID().GetCounter());
-            for (auto const& pair : threatenedByMe)
-            {
-                Unit* unit = pair.second->GetOwner();
-                handler->PSendSysMessage("   %u.   %s   (GUID %u, SpawnID %u)  - threat %f", ++count, unit->GetName().c_str(), unit->GetGUID().GetCounter(), unit->GetTypeId() == TYPEID_UNIT ? unit->ToCreature()->GetSpawnId() : 0, pair.second->GetThreat());
-            }
-            handler->SendSysMessage("End of threatened-by-me list.");
-        }
-
-        if (mgr.CanHaveThreatList())
-        {
-            if (!mgr.IsThreatListEmpty(true))
-            {
-                if (target->IsEngaged())
-                    handler->PSendSysMessage("Threat list of %s (GUID %u, SpawnID %u):", target->GetName().c_str(), target->GetGUID().GetCounter(), target->GetTypeId() == TYPEID_UNIT ? target->ToCreature()->GetSpawnId() : 0);
-                else
-                    handler->PSendSysMessage("%s (GUID %u, SpawnID %u) is not engaged, but still has a threat list? Well, here it is:", target->GetName().c_str(), target->GetGUID().GetCounter(), target->GetTypeId() == TYPEID_UNIT ? target->ToCreature()->GetSpawnId() : 0);
-
-                count = 0;
-                Unit* fixateVictim = mgr.GetFixateTarget();
-                for (ThreatReference const* ref : mgr.GetSortedThreatList())
-                {
-                    Unit* unit = ref->GetVictim();
-                    char const* onlineStr;
-                    switch (ref->GetOnlineState())
-                    {
-                        case ThreatReference::ONLINE_STATE_SUPPRESSED:
-                            onlineStr = " [SUPPRESSED]";
-                            break;
-                        case ThreatReference::ONLINE_STATE_OFFLINE:
-                            onlineStr = " [OFFLINE]";
-                            break;
-                        default:
-                            onlineStr = "";
-                    }
-                    char const* tauntStr;
-                    if (unit == fixateVictim)
-                        tauntStr = " [FIXATE]";
-                    else
-                        switch (ref->GetTauntState())
-                        {
-                            case ThreatReference::TAUNT_STATE_TAUNT:
-                                tauntStr = " [TAUNT]";
-                                break;
-                            case ThreatReference::TAUNT_STATE_DETAUNT:
-                                tauntStr = " [DETAUNT]";
-                                break;
-                            default:
-                                tauntStr = "";
-                        }
-                    handler->PSendSysMessage("   %u.   %s   (GUID %u)  - threat %f%s%s", ++count, unit->GetName().c_str(), unit->GetGUID().GetCounter(), ref->GetThreat(), tauntStr, onlineStr);
-                }
-                handler->SendSysMessage("End of threat list.");
-            }
-            else if (!target->IsEngaged())
-                handler->PSendSysMessage("%s (GUID %u, SpawnID %u) is not currently engaged.", target->GetName().c_str(), target->GetGUID().GetCounter(), target->GetTypeId() == TYPEID_UNIT ? target->ToCreature()->GetSpawnId() : 0);
-            else
-                handler->PSendSysMessage("%s (GUID %u, SpawnID %u) seems to be engaged, but does not have a threat list??", target->GetName().c_str(), target->GetGUID().GetCounter(), target->GetTypeId() == TYPEID_UNIT ? target->ToCreature()->GetSpawnId() : 0);
-        }
-        else if (target->IsEngaged())
-            handler->PSendSysMessage("%s (GUID %u) is currently engaged. (This unit cannot have a threat list.)", target->GetName().c_str(), target->GetGUID().GetCounter());
-        else
-            handler->PSendSysMessage("%s (GUID %u) is not currently engaged. (This unit cannot have a threat list.)", target->GetName().c_str(), target->GetGUID().GetCounter());
-        return true;
-    }
-
-    static bool HandleDebugThreatInfoCommand(ChatHandler* handler, char const* /*args*/)
-    {
-        Unit* target = handler->getSelectedUnit();
-        if (!target)
-        {
-            handler->SendSysMessage(LANG_SELECT_CHAR_OR_CREATURE);
-            handler->SetSentErrorMessage(true);
+        Creature* target = handler->getSelectedCreature();
+        if (!target || target->IsTotem() || target->IsPet())
             return false;
-        }
 
-        handler->PSendSysMessage("Threat info for %s (%s):", target->GetName(), target->GetGUID().ToString().c_str());
-
-        ThreatManager const& mgr = target->GetThreatManager();
-
-        // _singleSchoolModifiers
+        ThreatContainer::StorageType const& threatList = target->getThreatManager().getThreatList();
+        ThreatContainer::StorageType::const_iterator itr;
+        uint32 count = 0;
+        handler->PSendSysMessage("Threat list of %s (guid %u)", target->GetName().c_str(), target->GetGUID().GetCounter());
+        for (itr = threatList.begin(); itr != threatList.end(); ++itr)
         {
-            auto& mods = mgr._singleSchoolModifiers;
-            handler->SendSysMessage(" - Single-school threat modifiers:");
-            handler->PSendSysMessage(" |-- Physical: %.2f%%", mods[SPELL_SCHOOL_NORMAL]*100.0f);
-            handler->PSendSysMessage(" |-- Holy    : %.2f%%", mods[SPELL_SCHOOL_HOLY]*100.0f);
-            handler->PSendSysMessage(" |-- Fire    : %.2f%%", mods[SPELL_SCHOOL_FIRE]*100.0f);
-            handler->PSendSysMessage(" |-- Nature  : %.2f%%", mods[SPELL_SCHOOL_NATURE]*100.0f);
-            handler->PSendSysMessage(" |-- Frost   : %.2f%%", mods[SPELL_SCHOOL_FROST]*100.0f);
-            handler->PSendSysMessage(" |-- Shadow  : %.2f%%", mods[SPELL_SCHOOL_SHADOW]*100.0f);
-            handler->PSendSysMessage(" |-- Arcane  : %.2f%%", mods[SPELL_SCHOOL_ARCANE]*100.0f);
+            Unit* unit = (*itr)->getTarget();
+            if (!unit)
+                continue;
+            ++count;
+            handler->PSendSysMessage("   %u.   %s   (guid %u)  - threat %f", count, unit->GetName().c_str(), unit->GetGUID().GetCounter(), (*itr)->getThreat());
         }
-
-        // _multiSchoolModifiers
-        {
-            auto& mods = mgr._multiSchoolModifiers;
-            handler->PSendSysMessage("- Multi-school threat modifiers (%zu entries):", mods.size());
-            for (auto const& pair : mods)
-                handler->PSendSysMessage(" |-- Mask 0x%x: %.2f%%", uint32(pair.first), pair.second);
-        }
-
-        // _redirectInfo
-        {
-            auto const& redirectInfo = mgr._redirectInfo;
-            if (redirectInfo.empty())
-                handler->SendSysMessage(" - No redirects being applied");
-            else
-            {
-                handler->PSendSysMessage(" - %02zu redirects being applied:", redirectInfo.size());
-                for (auto const& pair : redirectInfo)
-                {
-                    Unit* unit = ObjectAccessor::GetUnit(*target, pair.first);
-                    handler->PSendSysMessage(" |-- %02u%% to %s", pair.second, unit ? unit->GetName().c_str() : pair.first.ToString().c_str());
-                }
-            }
-        }
-
-        // _redirectRegistry
-        {
-            auto const& redirectRegistry = mgr._redirectRegistry;
-            if (redirectRegistry.empty())
-                handler->SendSysMessage(" - No redirects are registered");
-            else
-            {
-                handler->PSendSysMessage(" - %02zu spells may have redirects registered", redirectRegistry.size());
-                for (auto const& outerPair : redirectRegistry) // (spellId, (guid, pct))
-                {
-                    SpellInfo const* const spell = sSpellMgr->GetSpellInfo(outerPair.first);
-                    handler->PSendSysMessage(" |-- #%06u %s (%zu entries):", outerPair.first, spell ? spell->SpellName[0] : "<unknown>", outerPair.second.size());
-                    for (auto const& innerPair : outerPair.second) // (guid, pct)
-                    {
-                        Unit* unit = ObjectAccessor::GetUnit(*target, innerPair.first);
-                        handler->PSendSysMessage("   |-- %02u%% to %s", innerPair.second, unit ? unit->GetName().c_str() : innerPair.first.ToString().c_str());
-                    }
-                }
-            }
-        }
-
+        handler->SendSysMessage("End of threat list.");
         return true;
     }
 
@@ -1026,18 +880,19 @@ public:
         Unit* target = handler->getSelectedUnit();
         if (!target)
             target = handler->GetSession()->GetPlayer();
-
-        handler->PSendSysMessage("Combat refs: (Combat state: %d | Manager state: %d)", target->IsInCombat(), target->GetCombatManager().HasCombat());
-        for (auto const& ref : target->GetCombatManager().GetPvPCombatRefs())
+        HostileReference* ref = target->getHostileRefManager().getFirst();
+        uint32 count = 0;
+        handler->PSendSysMessage("Hostil reference list of %s (guid %u)", target->GetName().c_str(), target->GetGUID().GetCounter());
+        while (ref)
         {
-            Unit* unit = ref.second->GetOther(target);
-            handler->PSendSysMessage("[PvP] %s (SpawnID %u)", unit->GetName().c_str(), unit->GetTypeId() == TYPEID_UNIT ? unit->ToCreature()->GetSpawnId() : 0);
+            if (Unit* unit = ref->GetSource()->GetOwner())
+            {
+                ++count;
+                handler->PSendSysMessage("   %u.   %s   (current guid %u, DB guid %u)  - threat %f", count, unit->GetName().c_str(), unit->GetGUID().GetCounter(), unit->GetTypeId() == TYPEID_UNIT ? unit->ToCreature()->GetSpawnId() : 0, ref->getThreat());
+            }
+            ref = ref->next();
         }
-        for (auto const& ref : target->GetCombatManager().GetPvECombatRefs())
-        {
-            Unit* unit = ref.second->GetOther(target);
-            handler->PSendSysMessage("[PvE] %s (SpawnID %u)", unit->GetName().c_str(), unit->GetTypeId() == TYPEID_UNIT ? unit->ToCreature()->GetSpawnId() : 0);
-        }
+        handler->SendSysMessage("End of hostil reference list.");
         return true;
     }
 
@@ -1109,7 +964,7 @@ public:
         uint32 entry = (uint32)atoi(e);
 
         float x, y, z, o = handler->GetSession()->GetPlayer()->GetOrientation();
-        handler->GetSession()->GetPlayer()->GetClosePoint(x, y, z, handler->GetSession()->GetPlayer()->GetCombatReach());
+        handler->GetSession()->GetPlayer()->GetClosePoint(x, y, z, handler->GetSession()->GetPlayer()->GetObjectSize());
 
         if (!i)
             return handler->GetSession()->GetPlayer()->SummonCreature(entry, x, y, z, o) != nullptr;
@@ -1129,12 +984,13 @@ public:
         Creature* v = new Creature();
 
         Map* map = handler->GetSession()->GetPlayer()->GetMap();
-
         if (!v->Create(map->GenerateLowGuid<HighGuid::Vehicle>(), map, handler->GetSession()->GetPlayer()->GetPhaseMask(), entry, { x, y, z, o }, nullptr, id))
         {
             delete v;
             return false;
         }
+
+        PhasingHandler::InheritPhaseShift(v, handler->GetSession()->GetPlayer());
 
         map->AddToMap(v->ToCreature());
 
@@ -1156,8 +1012,27 @@ public:
         if (!*args)
             return false;
 
-        uint32 PhaseShift = atoi(args);
-        handler->GetSession()->SendSetPhaseShift(PhaseShift);
+        char* t = strtok((char*)args, " ");
+        char* p = strtok(nullptr, " ");
+        char* m = strtok(nullptr, " ");
+
+        if (!t)
+            return false;
+
+        PhaseShift phaseShift;
+
+        if (uint32 ut = (uint32)atoi(t))
+            phaseShift.AddVisibleMapId(ut, nullptr);
+
+        if (p)
+            if (uint32 up = (uint32)atoi(p))
+                phaseShift.AddPhase(up, PhaseFlags::None, nullptr);
+
+        if (m)
+            if (uint32 um = (uint32)atoi(m))
+                phaseShift.AddUiWorldMapAreaIdSwap(um);
+
+        PhasingHandler::SendToPlayer(handler->GetSession()->GetPlayer(), phaseShift);
         return true;
     }
 
@@ -1522,35 +1397,9 @@ public:
             char* mask2 = strtok(nullptr, " \n");
 
             uint32 moveFlags = (uint32)atoi(mask1);
+            target->SetUnitMovementFlags(moveFlags);
 
-            static uint32 const FlagsWithHandlers = MOVEMENTFLAG_MASK_HAS_PLAYER_STATUS_OPCODE |
-                                                    MOVEMENTFLAG_WALKING | MOVEMENTFLAG_SWIMMING |
-                                                    MOVEMENTFLAG_SPLINE_ENABLED;
-
-            bool unhandledFlag = ((moveFlags ^ target->GetUnitMovementFlags()) & ~FlagsWithHandlers) != 0;
-
-            target->SetWalk((moveFlags & MOVEMENTFLAG_WALKING) != 0);
-            target->SetDisableGravity((moveFlags & MOVEMENTFLAG_DISABLE_GRAVITY) != 0);
-            target->SetSwim((moveFlags & MOVEMENTFLAG_SWIMMING) != 0);
-            target->SetCanFly((moveFlags & MOVEMENTFLAG_CAN_FLY) != 0);
-            target->SetWaterWalking((moveFlags & MOVEMENTFLAG_WATERWALKING) != 0);
-            target->SetFeatherFall((moveFlags & MOVEMENTFLAG_FALLING_SLOW) != 0);
-            target->SetHover((moveFlags & MOVEMENTFLAG_HOVER) != 0);
-
-            if (moveFlags & (MOVEMENTFLAG_DISABLE_GRAVITY | MOVEMENTFLAG_CAN_FLY))
-                moveFlags &= ~MOVEMENTFLAG_FALLING;
-
-            if (moveFlags & MOVEMENTFLAG_ROOT)
-            {
-                target->SetControlled(true, UNIT_STATE_ROOT);
-                moveFlags &= ~MOVEMENTFLAG_MASK_MOVING;
-            }
-
-            if (target->HasUnitMovementFlag(MOVEMENTFLAG_SPLINE_ENABLED) && !(moveFlags & MOVEMENTFLAG_SPLINE_ENABLED))
-                target->StopMoving();
-
-            if (unhandledFlag)
-                target->SetUnitMovementFlags(moveFlags);
+            /// @fixme: port master's HandleDebugMoveflagsCommand; flags need different handling
 
             if (mask2)
             {
@@ -1558,8 +1407,14 @@ public:
                 target->SetExtraUnitMovementFlags(moveFlagsExtra);
             }
 
-            if (mask2 || unhandledFlag)
-                target->SendMovementFlagUpdate();
+            if (target->GetTypeId() != TYPEID_PLAYER)
+                target->DestroyForNearbyPlayers();  // Force new SMSG_UPDATE_OBJECT:CreateObject
+            else
+            {
+                WorldPacket data(SMSG_PLAYER_MOVE);
+                target->WriteMovementInfo(data);
+                target->SendMessageToSet(&data, true);
+            }
 
             handler->PSendSysMessage(LANG_MOVEFLAGS_SET, target->GetUnitMovementFlags(), target->GetExtraUnitMovementFlags());
         }
@@ -1603,6 +1458,24 @@ public:
         return true;
     }
 
+    static bool HandleDebugPhaseCommand(ChatHandler* handler, char const* /*args*/)
+    {
+        Unit* target = handler->getSelectedUnit();
+
+        if (!target)
+        {
+            handler->SendSysMessage(LANG_SELECT_CREATURE);
+            handler->SetSentErrorMessage(true);
+            return false;
+        }
+
+        std::stringstream phases;
+
+        PhasingHandler::PrintToChat(handler, target->GetPhaseShift());
+
+        return true;
+    }
+
     static bool HandleDebugLoadCellsCommand(ChatHandler* handler, char const* args)
     {
         Player* player = handler->GetSession()->GetPlayer();
@@ -1631,8 +1504,10 @@ public:
         if (!player)
             return false;
         Creature* target = handler->getSelectedCreature();
-        if (!target || !target->IsAIEnabled())
+        if (!target || !target->IsAIEnabled || !target->AI())
+        {
             return false;
+        }
 
         char* fill_str = args ? strtok((char*)args, " ") : nullptr;
         char* duration_str = args ? strtok(nullptr, " ") : nullptr;
@@ -1703,42 +1578,6 @@ public:
         return true;
     }
 
-    static bool HandleDebugQuestResetCommand(ChatHandler* handler, std::string arg)
-    {
-        if (!Utf8ToUpperOnlyLatin(arg))
-            return false;
-
-        bool daily = false, weekly = false, monthly = false;
-        if (arg == "ALL")
-            daily = weekly = monthly = true;
-        else if (arg == "DAILY")
-            daily = true;
-        else if (arg == "WEEKLY")
-            weekly = true;
-        else if (arg == "MONTHLY")
-            monthly = true;
-        else
-            return false;
-
-        if (daily)
-        {
-            sWorld->ResetDailyQuests();
-            handler->PSendSysMessage("Daily quests have been reset. Next scheduled reset: %s", TimeToHumanReadable(sWorld->getWorldState(WS_DAILY_QUEST_RESET_TIME)).c_str());
-        }
-        if (weekly)
-        {
-            sWorld->ResetWeeklyQuests();
-            handler->PSendSysMessage("Weekly quests have been reset. Next scheduled reset: %s", TimeToHumanReadable(sWorld->getWorldState(WS_WEEKLY_QUEST_RESET_TIME)).c_str());
-        }
-        if (monthly)
-        {
-            sWorld->ResetMonthlyQuests();
-            handler->PSendSysMessage("Monthly quests have been reset. Next scheduled reset: %s", TimeToHumanReadable(sWorld->getWorldState(WS_MONTHLY_QUEST_RESET_TIME)).c_str());
-        }
-
-        return true;
-    }
-
     static bool HandleDebugNearGraveyard(ChatHandler* handler, char const* args)
     {
         Player* player = handler->GetSession()->GetPlayer();
@@ -1753,7 +1592,7 @@ public:
                 if (Battlefield* bf = sBattlefieldMgr->GetBattlefieldToZoneId(player->GetZoneId()))
                     nearestLoc = bf->GetClosestGraveyard(player);
                 else
-                    nearestLoc = sObjectMgr->GetClosestGraveyard(player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetMapId(), player->GetTeam());
+                    nearestLoc = sObjectMgr->GetClosestGraveyard(*player, player->GetTeam(), player);
             }
         }
         else
@@ -1783,115 +1622,6 @@ public:
         else
             handler->PSendSysMessage(LANG_COMMAND_NEARGRAVEYARD_NOTFOUND);
 
-        return true;
-    }
-
-    static bool HandleDebugInstanceSpawns(ChatHandler* handler, char const* args)
-    {
-        Player const* const player = handler->GetSession()->GetPlayer();
-        if (!player)
-            return false;
-
-        bool explain = false;
-        uint32 groupID = 0;
-        if (!stricmp(args, "explain"))
-            explain = true;
-        else
-            groupID = atoi(args);
-
-        if (groupID && !sObjectMgr->GetSpawnGroupData(groupID))
-        {
-            handler->PSendSysMessage("There is no spawn group with ID %u.", groupID);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        Map const* const map = player->GetMap();
-        char const* const mapName = map->GetMapName();
-        InstanceScript const* const instance = player->GetInstanceScript();
-        if (!instance)
-        {
-            handler->PSendSysMessage("%s has no instance script.", mapName);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-        if (!instance->_instanceSpawnGroups || instance->_instanceSpawnGroups->empty())
-        {
-            handler->PSendSysMessage("%s's instance script does not manage any spawn groups.", mapName);
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-        auto const& spawnGroups = *instance->_instanceSpawnGroups;
-        std::map<uint32, std::set<std::tuple<bool, uint8, uint8>>> store;
-        for (InstanceSpawnGroupInfo const& info : spawnGroups)
-        {
-            if (groupID && info.SpawnGroupId != groupID)
-                continue;
-
-            bool isSpawn;
-            if (info.Flags & InstanceSpawnGroupInfo::FLAG_BLOCK_SPAWN)
-                isSpawn = false;
-            else if (info.Flags & InstanceSpawnGroupInfo::FLAG_ACTIVATE_SPAWN)
-                isSpawn = true;
-            else
-                continue;
-
-            store[info.SpawnGroupId].emplace(isSpawn, info.BossStateId, info.BossStates);
-        }
-
-        if (groupID && store.find(groupID) == store.end())
-        {
-            handler->PSendSysMessage("%s's instance script does not manage group '%s'.", mapName, sObjectMgr->GetSpawnGroupData(groupID)->name.c_str());
-            handler->SetSentErrorMessage(true);
-            return false;
-        }
-
-        if (!groupID)
-            handler->PSendSysMessage("Spawn groups managed by %s (%u):", mapName, map->GetId());
-
-        for (auto const& pair : store)
-        {
-            SpawnGroupTemplateData const* groupData = sObjectMgr->GetSpawnGroupData(pair.first);
-            ASSERT(groupData); // checked by objectmgr on load
-            if (explain)
-            {
-                handler->PSendSysMessage(" |-- '%s' (%u)", groupData->name, pair.first);
-                bool isBlocked = false, isSpawned = false;
-                for (auto const& tuple : pair.second)
-                {
-                    bool const isSpawn = std::get<0>(tuple);
-                    uint8 const bossStateId = std::get<1>(tuple);
-                    EncounterState const actualState = instance->GetBossState(bossStateId);
-                    if (std::get<2>(tuple) & (1 << actualState))
-                    {
-                        if (isSpawn)
-                        {
-                            isSpawned = true;
-                            if (isBlocked)
-                                handler->PSendSysMessage(" | |-- '%s' would be allowed to spawn by boss state %u being %s, but this is overruled", groupData->name, bossStateId, InstanceScript::GetBossStateName(actualState));
-                            else
-                                handler->PSendSysMessage(" | |-- '%s' is allowed to spawn because boss state %u is %s.", groupData->name, bossStateId, InstanceScript::GetBossStateName(bossStateId));
-                        }
-                        else
-                        {
-                            isBlocked = true;
-                            handler->PSendSysMessage(" | |-- '%s' is blocked from spawning because boss state %u is %s.", groupData->name, bossStateId, InstanceScript::GetBossStateName(bossStateId));
-                        }
-                    }
-                    else
-                        handler->PSendSysMessage(" | |-- '%s' could've been %s if boss state %u matched mask 0x%02x; but it is %s -> 0x%02x, which does not match.",
-                            groupData->name, isSpawn ? "allowed to spawn" : "blocked from spawning", bossStateId, std::get<2>(tuple), InstanceScript::GetBossStateName(actualState), (1 << actualState));
-                }
-                if (isBlocked)
-                    handler->PSendSysMessage(" | |=> '%s' is not active due to a blocking rule being matched", groupData->name);
-                else if (isSpawned)
-                    handler->PSendSysMessage(" | |=> '%s' is active due to a spawn rule being matched", groupData->name);
-                else
-                    handler->PSendSysMessage(" | |=> '%s' is not active due to none of its rules being matched", groupData->name);
-            }
-            else
-                handler->PSendSysMessage(" - '%s' (%u) is %sactive", groupData->name, pair.first, map->IsSpawnGroupActive(pair.first) ? "" : "not ");
-        }
         return true;
     }
 

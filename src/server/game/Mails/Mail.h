@@ -110,10 +110,10 @@ class TC_GAME_API MailReceiver
         MailReceiver(Player* receiver, ObjectGuid::LowType receiver_lowguid);
     public:                                                 // Accessors
         Player* GetPlayer() const { return m_receiver; }
-        ObjectGuid::LowType GetPlayerGUIDLow() const { return m_receiver_lowguid; }
+        ObjectGuid::LowType  GetPlayerGUIDLow() const { return m_receiver_lowguid; }
     private:
         Player* m_receiver;
-        ObjectGuid::LowType m_receiver_lowguid;
+        ObjectGuid::LowType  m_receiver_lowguid;
 };
 
 class TC_GAME_API MailDraft
@@ -129,13 +129,13 @@ class TC_GAME_API MailDraft
     public:                                                 // Accessors
         uint16 GetMailTemplateId() const { return m_mailTemplateId; }
         std::string const& GetSubject() const { return m_subject; }
-        uint32 GetMoney() const { return m_money; }
-        uint32 GetCOD() const { return m_COD; }
+        uint64 GetMoney() const { return m_money; }
+        uint64 GetCOD() const { return m_COD; }
         std::string const& GetBody() const { return m_body; }
 
     public:                                                 // modifiers
         MailDraft& AddItem(Item* item);
-        MailDraft& AddMoney(uint32 money) { m_money = money; return *this; }
+        MailDraft& AddMoney(uint64 money) { m_money = money; return *this; }
         MailDraft& AddCOD(uint32 COD) { m_COD = COD; return *this; }
 
     public:                                                 // finishers
@@ -153,8 +153,8 @@ class TC_GAME_API MailDraft
 
         MailItemMap m_items;                                // Keep the items in a map to avoid duplicate guids (which can happen), store only low part of guid
 
-        uint32 m_money;
-        uint32 m_COD;
+        uint64 m_money;
+        uint64 m_COD;
 };
 
 struct MailItemInfo
@@ -178,8 +178,8 @@ struct TC_GAME_API Mail
     std::vector<ObjectGuid::LowType> removedItems;
     time_t expire_time;
     time_t deliver_time;
-    uint32 money;
-    uint32 COD;
+    uint64 money;
+    uint64 COD;
     uint32 checked;
     MailState state;
 

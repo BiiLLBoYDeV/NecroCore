@@ -21,21 +21,21 @@
 #include "CreatureAI.h"
 #include "DBCStores.h"
 #include "GameObject.h"
+#include "Language.h"
 #include "Log.h"
 #include "MotionMaster.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "WorldSession.h"
-#include "WorldStatePackets.h"
 
-void BattlegroundAVScore::BuildObjectivesBlock(WorldPacket& data)
+void BattlegroundAVScore::BuildObjectivesBlock(WorldPacket& data, ByteBuffer& content)
 {
-    data << uint32(5); // Objectives Count
-    data << uint32(GraveyardsAssaulted);
-    data << uint32(GraveyardsDefended);
-    data << uint32(TowersAssaulted);
-    data << uint32(TowersDefended);
-    data << uint32(MinesCaptured);
+    data.WriteBits(5, 24); // Objectives Count
+    content << uint32(GraveyardsAssaulted);
+    content << uint32(GraveyardsDefended);
+    content << uint32(TowersAssaulted);
+    content << uint32(TowersDefended);
+    content << uint32(MinesCaptured);
 }
 
 BattlegroundAV::BattlegroundAV()
@@ -204,7 +204,6 @@ void BattlegroundAV::HandleQuestComplete(uint32 questid, Player* player)
         case AV_QUEST_A_BOSS1:
         case AV_QUEST_H_BOSS1:
             m_Team_QuestStatus[team][4] += 9; //you can turn in 10 or 1 item..
-            /* fallthrough */
         case AV_QUEST_A_BOSS2:
         case AV_QUEST_H_BOSS2:
             m_Team_QuestStatus[team][4]++;
@@ -310,9 +309,11 @@ Creature* BattlegroundAV::AddAVCreature(uint16 cinfoid, uint16 type)
     if (creature->GetEntry() == BG_AV_CreatureInfo[AV_NPC_A_CAPTAIN] || creature->GetEntry() == BG_AV_CreatureInfo[AV_NPC_H_CAPTAIN])
         creature->SetRespawnDelay(RESPAWN_ONE_DAY); /// @todo look if this can be done by database + also add this for the wingcommanders
 
-    if ((isStatic && cinfoid >= 10 && cinfoid <= 14) || (!isStatic && (cinfoid <= AV_NPC_A_GRAVEDEFENSE3 || (cinfoid >= AV_NPC_H_GRAVEDEFENSE0 && cinfoid <= AV_NPC_H_GRAVEDEFENSE3))))
+    if ((isStatic && cinfoid >= 10 && cinfoid <= 14) || (!isStatic && ((cinfoid >= AV_NPC_A_GRAVEDEFENSE0 && cinfoid <= AV_NPC_A_GRAVEDEFENSE3) ||
+        (cinfoid >= AV_NPC_H_GRAVEDEFENSE0 && cinfoid <= AV_NPC_H_GRAVEDEFENSE3))))
     {
-        if (!isStatic && (cinfoid <= AV_NPC_A_GRAVEDEFENSE3 || (cinfoid >= AV_NPC_H_GRAVEDEFENSE0 && cinfoid <= AV_NPC_H_GRAVEDEFENSE3)))
+        if (!isStatic && ((cinfoid >= AV_NPC_A_GRAVEDEFENSE0 && cinfoid <= AV_NPC_A_GRAVEDEFENSE3)
+            || (cinfoid >= AV_NPC_H_GRAVEDEFENSE0 && cinfoid <= AV_NPC_H_GRAVEDEFENSE3)))
         {
             CreatureData &data = sObjectMgr->NewOrExistCreatureData(creature->GetSpawnId());
             data.spawnGroupData = sObjectMgr->GetDefaultSpawnGroup();
@@ -448,7 +449,7 @@ void BattlegroundAV::StartingEventOpenDoors()
 void BattlegroundAV::AddPlayer(Player* player)
 {
     Battleground::AddPlayer(player);
-    PlayerScores[player->GetGUID().GetCounter()] = new BattlegroundAVScore(player->GetGUID());
+    PlayerScores[player->GetGUID().GetCounter()] = new BattlegroundAVScore(player->GetGUID(), player->GetBGTeam());
 }
 
 void BattlegroundAV::EndBattleground(uint32 winner)
@@ -781,7 +782,7 @@ void BattlegroundAV::DePopulateNode(BG_AV_Nodes node)
 
     //remove bonus honor aura trigger creature when node is lost
     if (node < BG_AV_NODES_MAX)//fail safe
-        DelCreature(node + 302);//NULL checks are in DelCreature! 0-302 spirit guides
+        DelCreature(node + 302);//nullptr checks are in DelCreature! 0-302 spirit guides
 }
 
 BG_AV_Nodes BattlegroundAV::GetNodeThroughObject(uint32 object)
@@ -1031,34 +1032,32 @@ void BattlegroundAV::EventPlayerAssaultsPoint(Player* player, uint32 object)
     UpdatePlayerScore(player, (IsTower(node)) ? SCORE_TOWERS_ASSAULTED : SCORE_GRAVEYARDS_ASSAULTED, 1);
 }
 
-void BattlegroundAV::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
+void BattlegroundAV::FillInitialWorldStates(WorldPacket& data)
 {
-    for (uint8 itr = BG_AV_NODES_FIRSTAID_STATION; itr < BG_AV_NODES_MAX; ++itr)
+    for (uint8 i = BG_AV_NODES_FIRSTAID_STATION; i < BG_AV_NODES_MAX; ++i)
     {
-        uint16 owner = m_Nodes[itr].Owner;
-        BG_AV_States state = m_Nodes[itr].State;
+        uint16 owner = m_Nodes[i].Owner;
+        BG_AV_States state = m_Nodes[i].State;
 
-        packet.Worldstates.emplace_back(BGAVNodeInfo[itr].WorldStateIds.AllianceAssault, (owner == ALLIANCE && state == POINT_ASSAULTED) ? 1 : 0);
-        packet.Worldstates.emplace_back(BGAVNodeInfo[itr].WorldStateIds.AllianceControl, (owner == ALLIANCE && state >= POINT_DESTROYED) ? 1 : 0);
-        packet.Worldstates.emplace_back(BGAVNodeInfo[itr].WorldStateIds.HordeAssault, (owner == HORDE && state == POINT_ASSAULTED) ? 1 : 0);
-        packet.Worldstates.emplace_back(BGAVNodeInfo[itr].WorldStateIds.HordeControl, (owner == HORDE && state >= POINT_DESTROYED) ? 1 : 0);
+        data << uint32(BGAVNodeInfo[i].WorldStateIds.AllianceAssault) << uint32(owner == ALLIANCE && state == POINT_ASSAULTED);
+        data << uint32(BGAVNodeInfo[i].WorldStateIds.AllianceControl) << uint32(owner == ALLIANCE && state >= POINT_DESTROYED);
+        data << uint32(BGAVNodeInfo[i].WorldStateIds.HordeAssault) << uint32(owner == HORDE && state == POINT_ASSAULTED);
+        data << uint32(BGAVNodeInfo[i].WorldStateIds.HordeControl) << uint32(owner == HORDE && state >= POINT_DESTROYED);
     }
 
-    packet.Worldstates.emplace_back(AV_SNOWFALL_N, (m_Nodes[BG_AV_NODES_SNOWFALL_GRAVE].Owner == AV_NEUTRAL_TEAM ? 1 : 0));
-    packet.Worldstates.emplace_back(AV_Alliance_Score, m_Team_Scores[0]);
-    packet.Worldstates.emplace_back(AV_Horde_Score, m_Team_Scores[1]);
+    data << uint32(AV_SNOWFALL_N) << uint32(m_Nodes[BG_AV_NODES_SNOWFALL_GRAVE].Owner == AV_NEUTRAL_TEAM);
 
-    // only if game started the teamscores are displayed
-    if (GetStatus() == STATUS_IN_PROGRESS) {
-        packet.Worldstates.emplace_back(AV_SHOW_A_SCORE, 1);
-        packet.Worldstates.emplace_back(AV_SHOW_H_SCORE, 1);
+    data << uint32(AV_Alliance_Score)  << uint32(m_Team_Scores[0]);
+    data << uint32(AV_Horde_Score) << uint32(m_Team_Scores[1]);
+    if (GetStatus() == STATUS_IN_PROGRESS){ //only if game started the teamscores are displayed
+        data << uint32(AV_SHOW_A_SCORE) << uint32(1);
+        data << uint32(AV_SHOW_H_SCORE) << uint32(1);
     }
     else
     {
-        packet.Worldstates.emplace_back(AV_SHOW_A_SCORE, 0);
-        packet.Worldstates.emplace_back(AV_SHOW_H_SCORE, 0);
+        data << uint32(AV_SHOW_A_SCORE) << uint32(0);
+        data << uint32(AV_SHOW_H_SCORE) << uint32(0);
     }
-
     SendMineWorldStates(AV_NORTH_MINE);
     SendMineWorldStates(AV_SOUTH_MINE);
 }

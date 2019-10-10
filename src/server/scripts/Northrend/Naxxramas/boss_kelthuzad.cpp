@@ -15,16 +15,15 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "naxxramas.h"
-#include "CommonHelpers.h"
+#include "ScriptMgr.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "MotionMaster.h"
+#include "naxxramas.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "PlayerAI.h"
 #include "ScriptedCreature.h"
-#include "ScriptMgr.h"
 #include "SpellAuraEffects.h"
 #include "SpellScript.h"
 #include "TemporarySummon.h"
@@ -95,7 +94,6 @@ enum Spells
     SPELL_DETONATE_MANA                     = 27819,
     SPELL_MANA_DETONATION_DAMAGE            = 27820,
     SPELL_FROST_BLAST                       = 27808,
-    SPELL_FROST_BLAST_DMG                   = 29879,
     SPELL_CHAINS                            = 28410,
     SPELL_CHAINS_DUMMY                      = 28408, // this holds the category cooldown - the main chains spell can't have one as it is cast multiple times
 
@@ -169,7 +167,7 @@ class KelThuzadCharmedPlayerAI : public SimpleCharmedPlayerAI
     public:
         KelThuzadCharmedPlayerAI(Player* player) : SimpleCharmedPlayerAI(player) { }
 
-        struct CharmedPlayerTargetSelectPred : public std::unary_function<Unit*, bool>
+        struct CharmedPlayerTargetSelectPred
         {
             bool operator()(Unit const* target) const
             {
@@ -181,7 +179,7 @@ class KelThuzadCharmedPlayerAI : public SimpleCharmedPlayerAI
                 if (pTarget->HasBreakableByDamageCrowdControlAura())
                     return false;
                 // We _really_ dislike healers. So we hit them in the face. Repeatedly. Exclusively.
-                return Trinity::Helpers::Entity::IsPlayerHealer(pTarget);
+                return PlayerAI::IsPlayerHealer(pTarget);
             }
         };
 
@@ -191,18 +189,18 @@ class KelThuzadCharmedPlayerAI : public SimpleCharmedPlayerAI
             {
                 if (Unit* target = charmer->AI()->SelectTarget(SELECT_TARGET_RANDOM, 0, CharmedPlayerTargetSelectPred()))
                     return target;
-                if (Unit* target = charmer->AI()->SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true, true, -SPELL_CHAINS))
+                if (Unit* target = charmer->AI()->SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true, -SPELL_CHAINS))
                     return target;
             }
             return nullptr;
         }
 };
 
-struct ManaUserTargetSelector : public std::unary_function<Unit*, bool>
+struct ManaUserTargetSelector
 {
     bool operator()(Unit const* target) const
     {
-        return target->GetTypeId() == TYPEID_PLAYER && target->GetPowerType() == POWER_MANA;
+        return target->GetTypeId() == TYPEID_PLAYER && target->getPowerType() == POWER_MANA;
     }
 };
 
@@ -226,8 +224,7 @@ public:
                     return;
                 _Reset();
                 me->SetReactState(REACT_PASSIVE);
-                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                me->SetImmuneToPC(true);
+                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
                 _skeletonCount = 0;
                 _bansheeCount = 0;
                 _abominationCount = 0;
@@ -286,9 +283,10 @@ public:
                 {
                     Talk(SAY_CHAINS);
                     std::list<Unit*> targets;
-                    SelectTargetList(targets, 3, SELECT_TARGET_RANDOM, 0, 0.0f, true, false);
+                    SelectTargetList(targets, 3, SELECT_TARGET_RANDOM, 0.0f, true);
                     for (Unit* target : targets)
-                        DoCast(target, SPELL_CHAINS);
+                        if (me->GetVictim() != target) // skip MT
+                            DoCast(target, SPELL_CHAINS);
                 }
             }
 
@@ -427,9 +425,8 @@ public:
                         case EVENT_PHASE_TWO:
                             me->CastStop();
                             events.SetPhase(PHASE_TWO);
-                            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                            me->SetImmuneToPC(false);
-                            ResetThreatList();
+                            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE_TO_PC);
+                            me->getThreatManager().resetAllAggro();
                             me->SetReactState(REACT_AGGRESSIVE);
                             Talk(EMOTE_PHASE_TWO);
 
@@ -525,7 +522,7 @@ public:
                     case ACTION_BEGIN_ENCOUNTER:
                         if (instance->GetBossState(BOSS_KELTHUZAD) != NOT_STARTED)
                             return;
-                        me->SetImmuneToPC(false);
+                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                         instance->SetBossState(BOSS_KELTHUZAD, IN_PROGRESS);
                         events.SetPhase(PHASE_ONE);
                         DoZoneInCombat();
@@ -581,7 +578,7 @@ public:
     }
 };
 
-static const float MINION_AGGRO_DISTANCE = 20.0f;
+float const MINION_AGGRO_DISTANCE = 20.0f;
 // @hack the entire _movementTimer logic only exists because RandomMovementGenerator gets really confused due to the unique map geography of KT's room (it's placed on top of a copy of Winterspring).
 // As of the time of writing, RMG sometimes selects positions on the "floor" below the room, causing Abominations to path wildly through the room.
 // This custom movement code prevents this by simply ignoring z coord calculation (the floor of the minion coves is flat anyway).
@@ -809,7 +806,7 @@ public:
                         me->RemoveAllAuras();
                         me->CombatStop();
                         me->StopMoving();
-                        me->SetImmuneToPC(true);
+                        me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                         me->DespawnOrUnsummon(30 * IN_MILLISECONDS); // just in case anything interrupts the movement
                         me->GetMotionMaster()->MoveTargetedHome();
                     default:
@@ -884,20 +881,26 @@ public:
     {
         PrepareAuraScript(spell_kelthuzad_chains_AuraScript);
 
-        void HandleApply(AuraEffect const* aurEff, AuraEffectHandleModes mode)
+        void HandleApply(AuraEffect const* /*eff*/, AuraEffectHandleModes /*mode*/)
         {
-            aurEff->HandleAuraModScale(GetTargetApplication(), mode, true);
+            Unit* target = GetTarget();
+            float scale = target->GetObjectScale();
+            ApplyPercentModFloatVar(scale, 200.0f, true);
+            target->SetObjectScale(scale);
         }
 
-        void HandleRemove(AuraEffect const* aurEff, AuraEffectHandleModes mode)
+        void HandleRemove(AuraEffect const* /*eff*/, AuraEffectHandleModes /*mode*/)
         {
-            aurEff->HandleAuraModScale(GetTargetApplication(), mode, false);
+            Unit* target = GetTarget();
+            float scale = target->GetObjectScale();
+            ApplyPercentModFloatVar(scale, 200.0f, false);
+            target->SetObjectScale(scale);
         }
 
         void Register() override
         {
-            AfterEffectApply += AuraEffectApplyFn(spell_kelthuzad_chains_AuraScript::HandleApply, EFFECT_1, SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, AURA_EFFECT_HANDLE_REAL);
-            AfterEffectRemove += AuraEffectApplyFn(spell_kelthuzad_chains_AuraScript::HandleRemove, EFFECT_1, SPELL_AURA_MOD_DAMAGE_PERCENT_DONE, AURA_EFFECT_HANDLE_REAL);
+            AfterEffectApply += AuraEffectApplyFn(spell_kelthuzad_chains_AuraScript::HandleApply, EFFECT_0, SPELL_AURA_AOE_CHARM, AURA_EFFECT_HANDLE_REAL);
+            AfterEffectRemove += AuraEffectApplyFn(spell_kelthuzad_chains_AuraScript::HandleRemove, EFFECT_0, SPELL_AURA_AOE_CHARM, AURA_EFFECT_HANDLE_REAL);
         }
     };
 
@@ -929,9 +932,7 @@ public:
             if (int32 mana = int32(target->GetMaxPower(POWER_MANA) / 10))
             {
                 mana = target->ModifyPower(POWER_MANA, -mana);
-                CastSpellExtraArgs args(aurEff);
-                args.AddSpellBP0(-mana * 10);
-                target->CastSpell(target, SPELL_MANA_DETONATION_DAMAGE, args);
+                target->CastCustomSpell(SPELL_MANA_DETONATION_DAMAGE, SPELLVALUE_BASE_POINT0, -mana * 10, target, true, nullptr, aurEff);
             }
         }
 
@@ -944,35 +945,6 @@ public:
     AuraScript* GetAuraScript() const override
     {
         return new spell_kelthuzad_detonate_mana_AuraScript();
-    }
-};
-
-// 27808 - Frost Blast
-class spell_kelthuzad_frost_blast : public AuraScript
-{
-    PrepareAuraScript(spell_kelthuzad_frost_blast);
-
-    bool Validate(SpellInfo const* /*spellInfo*/) override
-    {
-        return ValidateSpellInfo({ SPELL_FROST_BLAST_DMG });
-    }
-
-    void PeriodicTick(AuraEffect const* aurEff)
-    {
-        PreventDefaultAction();
-
-        // Stuns the target, dealing 26% of the target's maximum health in Frost damage every second for 4 sec.
-        if (Unit* caster = GetCaster())
-        {
-            CastSpellExtraArgs args(aurEff);
-            args.AddSpellBP0(GetTarget()->CountPctFromMaxHealth(26));
-            caster->CastSpell(GetTarget(), SPELL_FROST_BLAST_DMG, args);
-        }
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_kelthuzad_frost_blast::PeriodicTick, EFFECT_1, SPELL_AURA_PERIODIC_TRIGGER_SPELL);
     }
 };
 
@@ -995,7 +967,6 @@ public:
             return true;
 
         kelThuzad->AI()->DoAction(ACTION_BEGIN_ENCOUNTER);
-
         return true;
     }
 };
@@ -1028,7 +999,6 @@ void AddSC_boss_kelthuzad()
     new npc_kelthuzad_guardian();
     new spell_kelthuzad_chains();
     new spell_kelthuzad_detonate_mana();
-    RegisterAuraScript(spell_kelthuzad_frost_blast);
     new at_kelthuzad_center();
     new achievement_just_cant_get_enough();
 }

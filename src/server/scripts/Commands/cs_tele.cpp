@@ -29,7 +29,9 @@ EndScriptData */
 #include "Group.h"
 #include "Language.h"
 #include "MapManager.h"
+#include "MotionMaster.h"
 #include "ObjectMgr.h"
+#include "PhasingHandler.h"
 #include "Player.h"
 #include "RBAC.h"
 #include "WorldSession.h"
@@ -176,9 +178,13 @@ public:
 
             // stop flight if need
             if (target->IsInFlight())
-                target->FinishTaxiFlight();
+            {
+                target->GetMotionMaster()->MovementExpired();
+                target->CleanupAfterTaxiFlight();
+            }
+            // save only in non-flight case
             else
-                target->SaveRecallPosition(); // save only in non-flight case
+                target->SaveRecallPosition();
 
             target->TeleportTo(tele->mapId, tele->position_x, tele->position_y, tele->position_z, tele->orientation);
         }
@@ -194,7 +200,7 @@ public:
 
             SQLTransaction dummy;
             Player::SavePositionInDB(WorldLocation(tele->mapId, tele->position_x, tele->position_y, tele->position_z, tele->orientation),
-                sMapMgr->GetZoneId(tele->mapId, tele->position_x, tele->position_y, tele->position_z), target_guid, dummy);
+                sMapMgr->GetZoneId(PhasingHandler::GetEmptyPhaseShift(), tele->mapId, tele->position_x, tele->position_y, tele->position_z), target_guid, dummy);
         }
 
         return true;
@@ -265,9 +271,13 @@ public:
 
             // stop flight if need
             if (player->IsInFlight())
-                player->FinishTaxiFlight();
+            {
+                player->GetMotionMaster()->MovementExpired();
+                player->CleanupAfterTaxiFlight();
+            }
+            // save only in non-flight case
             else
-                player->SaveRecallPosition(); // save only in non-flight case
+                player->SaveRecallPosition();
 
             player->TeleportTo(tele->mapId, tele->position_x, tele->position_y, tele->position_z, tele->orientation);
         }
@@ -284,8 +294,8 @@ public:
             return false;
         }
 
-        Player* player = handler->GetSession()->GetPlayer();
-        if (player->IsInCombat() && !handler->GetSession()->HasPermission(rbac::RBAC_PERM_COMMAND_TELE_NAME))
+        Player* me = handler->GetSession()->GetPlayer();
+        if (me->IsInCombat())
         {
             handler->SendSysMessage(LANG_YOU_IN_COMBAT);
             handler->SetSentErrorMessage(true);
@@ -293,7 +303,7 @@ public:
         }
 
         MapEntry const* map = sMapStore.LookupEntry(tele->mapId);
-        if (!map || (map->IsBattlegroundOrArena() && (player->GetMapId() != tele->mapId || !player->IsGameMaster())))
+        if (!map || (map->IsBattlegroundOrArena() && (me->GetMapId() != tele->mapId || !me->IsGameMaster())))
         {
             handler->SendSysMessage(LANG_CANNOT_TELE_TO_BG);
             handler->SetSentErrorMessage(true);
@@ -301,12 +311,16 @@ public:
         }
 
         // stop flight if need
-        if (player->IsInFlight())
-            player->FinishTaxiFlight();
+        if (me->IsInFlight())
+        {
+            me->GetMotionMaster()->MovementExpired();
+            me->CleanupAfterTaxiFlight();
+        }
+        // save only in non-flight case
         else
-            player->SaveRecallPosition(); // save only in non-flight case
+            me->SaveRecallPosition();
 
-        player->TeleportTo(tele->mapId, tele->position_x, tele->position_y, tele->position_z, tele->orientation);
+        me->TeleportTo(tele->mapId, tele->position_x, tele->position_y, tele->position_z, tele->orientation);
         return true;
     }
 };

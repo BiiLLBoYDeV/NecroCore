@@ -44,7 +44,7 @@ void EventProcessor::Update(uint32 p_time)
     m_time += p_time;
 
     // main event loop
-    std::multimap<uint64, BasicEvent*>::iterator i;
+    EventList::iterator i;
     while (((i = m_events.begin()) != m_events.end()) && i->first <= m_time)
     {
         // get and remove event from queue

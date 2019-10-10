@@ -306,8 +306,8 @@ public:
 
                 if (Unit* owner = pet->ToPet()->GetOwner())
                 {
-                    int32 fire  = owner->GetInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_FIRE) - owner->GetInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + SPELL_SCHOOL_FIRE);
-                    int32 shadow = owner->GetInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_SHADOW) - owner->GetInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + SPELL_SCHOOL_SHADOW);
+                    int32 fire  = int32(owner->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_FIRE)) - owner->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + SPELL_SCHOOL_FIRE);
+                    int32 shadow = int32(owner->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_SHADOW)) - owner->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + SPELL_SCHOOL_SHADOW);
                     int32 maximum  = (fire > shadow) ? fire : shadow;
                     if (maximum < 0)
                         maximum = 0;
@@ -320,7 +320,7 @@ public:
                     {
                         if (AuraEffect* /* aurEff */ect = owner->GetAuraEffect(56246, EFFECT_0))
                         {
-                            float base_attPower = pet->GetFlatModifierValue(UNIT_MOD_ATTACK_POWER, BASE_VALUE) * pet->GetPctModifierValue(UNIT_MOD_ATTACK_POWER, BASE_PCT);
+                            float base_attPower = pet->GetModifierValue(UNIT_MOD_ATTACK_POWER, BASE_VALUE) * pet->GetModifierValue(UNIT_MOD_ATTACK_POWER, BASE_PCT);
                             amount += CalculatePct(amount+base_attPower, /* aurEff */ect->GetAmount());
                         }
                     }
@@ -334,8 +334,8 @@ public:
                     if (Unit* owner = pet->ToPet()->GetOwner())
                     {
                         //the damage bonus used for pets is either fire or shadow damage, whatever is higher
-                        int32 fire  = owner->GetInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_FIRE) - owner->GetInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + SPELL_SCHOOL_FIRE);
-                        int32 shadow = owner->GetInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_SHADOW) - owner->GetInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + SPELL_SCHOOL_SHADOW);
+                        int32 fire  = int32(owner->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_FIRE)) - owner->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + SPELL_SCHOOL_FIRE);
+                        int32 shadow = int32(owner->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_POS + SPELL_SCHOOL_SHADOW)) - owner->GetUInt32Value(PLAYER_FIELD_MOD_DAMAGE_DONE_NEG + SPELL_SCHOOL_SHADOW);
                         int32 maximum  = (fire > shadow) ? fire : shadow;
                         float bonusDamage = 0.0f;
 
@@ -549,7 +549,6 @@ public:
         return new spell_warl_pet_scaling_03_AuraScript();
     }
 };
-
 
 class spell_warl_pet_scaling_04 : public SpellScriptLoader
 {
@@ -827,7 +826,6 @@ public:
     }
 };
 
-
 class spell_sha_pet_scaling_04 : public SpellScriptLoader
 {
 public:
@@ -896,13 +894,6 @@ public:
     {
         PrepareAuraScript(spell_hun_pet_scaling_01_AuraScript);
 
-    public:
-        spell_hun_pet_scaling_01_AuraScript()
-        {
-            _tempHealth = 0;
-        }
-
-    private:
         void CalculateStaminaAmount(AuraEffect const* /* aurEff */, int32& amount, bool& /*canBeRecalculated*/)
         {
             if (Unit* pet = GetUnitOwner())
@@ -1010,8 +1001,7 @@ public:
             DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_hun_pet_scaling_01_AuraScript::CalculateDamageDoneAmount, EFFECT_2, SPELL_AURA_MOD_DAMAGE_DONE);
         }
 
-    private:
-        uint32 _tempHealth;
+        uint32 _tempHealth = 0;
     };
 
     AuraScript* GetAuraScript() const override
@@ -1368,24 +1358,6 @@ public:
                 return;
             if (GetCaster()->GetOwner()->ToPlayer())
             {
-                //  Pet's base damage changes depending on happiness
-                if (GetCaster()->IsPet() && GetCaster()->IsHunterPet())
-                {
-                    switch (GetCaster()->ToPet()->GetHappinessState())
-                    {
-                    case HAPPY:
-                        // 125% of normal damage
-                        amount += 25.0f;
-                        break;
-                    case CONTENT:
-                        // 100% of normal damage, nothing to modify
-                        break;
-                    case UNHAPPY:
-                        // 75% of normal damage
-                        amount += -25.0f;
-                        break;
-                    }
-                }
                 // Cobra Reflexes
                 if (AuraEffect* cobraReflexes = GetCaster()->GetAuraEffectOfRankedSpell(61682, EFFECT_0))
                     amount -= cobraReflexes->GetAmount();
@@ -1445,7 +1417,6 @@ public:
     }
 };
 
-
 class spell_dk_avoidance_passive : public SpellScriptLoader
 {
 public:
@@ -1499,6 +1470,13 @@ public:
     {
         PrepareAuraScript(spell_dk_pet_scaling_01_AuraScript);
 
+    public:
+        spell_dk_pet_scaling_01_AuraScript()
+        {
+            _tempHealth = 0;
+        }
+
+    private:
         bool Load() override
         {
             if (!GetCaster() || !GetCaster()->GetOwner() || GetCaster()->GetOwner()->GetTypeId() != TYPEID_PLAYER)
@@ -1582,7 +1560,8 @@ public:
             DoEffectCalcAmount += AuraEffectCalcAmountFn(spell_dk_pet_scaling_01_AuraScript::CalculateStrengthAmount, EFFECT_1, SPELL_AURA_MOD_STAT);
         }
 
-        uint32 _tempHealth = 0;
+    private:
+        uint32 _tempHealth;
     };
 
     AuraScript* GetAuraScript() const override
@@ -1724,8 +1703,7 @@ public:
                 if (pet->IsGuardian())
                     ((Guardian*)pet)->SetBonusDamage(owner->GetTotalAttackPowerValue(BASE_ATTACK));
 
-                for (uint8 i = 0; i < MAX_ITEM_PROTO_DAMAGES; ++i)
-                    amount += owner->CalculateDamage(BASE_ATTACK, true, true, i);
+                amount += owner->CalculateDamage(BASE_ATTACK, true, true);
             }
         }
 

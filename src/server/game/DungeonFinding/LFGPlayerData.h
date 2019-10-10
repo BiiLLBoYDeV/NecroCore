@@ -41,7 +41,7 @@ class TC_GAME_API LfgPlayerData
         // Queue
         void SetRoles(uint8 roles);
         void SetComment(std::string const& comment);
-        void SetSelectedDungeons(LfgDungeonSet const& dungeons);
+        void SetSelectedDungeons(const LfgDungeonSet& dungeons);
 
         // General
         LfgState GetState() const;

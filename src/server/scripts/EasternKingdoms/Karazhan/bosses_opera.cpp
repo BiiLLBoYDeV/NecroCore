@@ -121,11 +121,6 @@ class boss_dorothee : public CreatureScript
 public:
     boss_dorothee() : CreatureScript("boss_dorothee") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_dorotheeAI>(creature);
-    }
-
     struct boss_dorotheeAI : public ScriptedAI
     {
         boss_dorotheeAI(Creature* creature) : ScriptedAI(creature)
@@ -234,17 +229,17 @@ public:
             DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_dorotheeAI>(creature);
+    }
 };
 
 class npc_tito : public CreatureScript
 {
 public:
     npc_tito() : CreatureScript("npc_tito") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<npc_titoAI>(creature);
-    }
 
     struct npc_titoAI : public ScriptedAI
     {
@@ -273,7 +268,7 @@ public:
         {
             if (DorotheeGUID)
             {
-                Creature* Dorothee = (ObjectAccessor::GetCreature((*me), DorotheeGUID));
+                Creature* Dorothee = ObjectAccessor::GetCreature((*me), DorotheeGUID);
                 if (Dorothee && Dorothee->IsAlive())
                 {
                     ENSURE_AI(boss_dorothee::boss_dorotheeAI, Dorothee->AI())->TitoDied = true;
@@ -296,6 +291,11 @@ public:
             DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<npc_titoAI>(creature);
+    }
 };
 
 void boss_dorothee::boss_dorotheeAI::SummonTito()
@@ -314,11 +314,6 @@ class boss_strawman : public CreatureScript
 {
 public:
     boss_strawman() : CreatureScript("boss_strawman") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_strawmanAI>(creature);
-    }
 
     struct boss_strawmanAI : public ScriptedAI
     {
@@ -428,17 +423,17 @@ public:
             DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_strawmanAI>(creature);
+    }
 };
 
 class boss_tinhead : public CreatureScript
 {
 public:
     boss_tinhead() : CreatureScript("boss_tinhead") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_tinheadAI>(creature);
-    }
 
     struct boss_tinheadAI : public ScriptedAI
     {
@@ -543,17 +538,17 @@ public:
             DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_tinheadAI>(creature);
+    }
 };
 
 class boss_roar : public CreatureScript
 {
 public:
     boss_roar() : CreatureScript("boss_roar") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_roarAI>(creature);
-    }
 
     struct boss_roarAI : public ScriptedAI
     {
@@ -657,17 +652,17 @@ public:
             DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_roarAI>(creature);
+    }
 };
 
 class boss_crone : public CreatureScript
 {
 public:
     boss_crone() : CreatureScript("boss_crone") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_croneAI>(creature);
-    }
 
     struct boss_croneAI : public ScriptedAI
     {
@@ -684,8 +679,7 @@ public:
             // Anyway, I digress.
             // @todo This line below is obviously a hack. Duh. I'm just coming in here to hackfix the encounter to actually be completable.
             // It needs a rewrite. Badly. Please, take good care of it.
-            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-            me->SetImmuneToPC(false);
+            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NON_ATTACKABLE);
             CycloneTimer = 30000;
             ChainLightningTimer = 10000;
         }
@@ -742,17 +736,17 @@ public:
             DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_croneAI>(creature);
+    }
 };
 
 class npc_cyclone : public CreatureScript
 {
 public:
     npc_cyclone() : CreatureScript("npc_cyclone") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<npc_cycloneAI>(creature);
-    }
 
     struct npc_cycloneAI : public ScriptedAI
     {
@@ -793,6 +787,11 @@ public:
             } else MoveTimer -= diff;
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<npc_cycloneAI>(creature);
+    }
 };
 
 /**************************************/
@@ -829,9 +828,10 @@ class npc_grandmother : public CreatureScript
                     CloseGossipMenuFor(player);
 
                     if (Creature* pBigBadWolf = me->SummonCreature(CREATURE_BIG_BAD_WOLF, me->GetPositionX(), me->GetPositionY(), me->GetPositionZ(), me->GetOrientation(), TEMPSUMMON_TIMED_OR_DEAD_DESPAWN, HOUR*2*IN_MILLISECONDS))
+                    {
                         pBigBadWolf->AI()->AttackStart(player);
-
-                    me->DespawnOrUnsummon();
+                        me->DespawnOrUnsummon();
+                    }
                 }
                 return false;
             }
@@ -847,11 +847,6 @@ class boss_bigbadwolf : public CreatureScript
 {
 public:
     boss_bigbadwolf() : CreatureScript("boss_bigbadwolf") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_bigbadwolfAI>(creature);
-    }
 
     struct boss_bigbadwolfAI : public ScriptedAI
     {
@@ -925,11 +920,11 @@ public:
                     {
                         Talk(SAY_WOLF_HOOD);
                         DoCast(target, SPELL_LITTLE_RED_RIDING_HOOD, true);
-                        TempThreat = GetThreat(target);
+                        TempThreat = DoGetThreat(target);
                         if (TempThreat)
-                            ModifyThreatByPercent(target, -100);
+                            DoModifyThreatPercent(target, -100);
                         HoodGUID = target->GetGUID();
-                        AddThreat(target, 1000000.0f);
+                        me->AddThreat(target, 1000000.0f);
                         ChaseTimer = 20000;
                         IsChasing = true;
                     }
@@ -941,9 +936,9 @@ public:
                     if (Unit* target = ObjectAccessor::GetUnit(*me, HoodGUID))
                     {
                         HoodGUID.Clear();
-                        if (GetThreat(target))
-                            ModifyThreatByPercent(target, -100);
-                        AddThreat(target, TempThreat);
+                        if (DoGetThreat(target))
+                            DoModifyThreatPercent(target, -100);
+                        me->AddThreat(target, TempThreat);
                         TempThreat = 0;
                     }
 
@@ -967,6 +962,11 @@ public:
             } else SwipeTimer -= diff;
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_bigbadwolfAI>(creature);
+    }
 };
 
 /**********************************************/
@@ -1022,7 +1022,7 @@ void PretendToDie(Creature* creature)
     creature->RemoveAllAuras();
     creature->SetHealth(0);
     creature->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-    creature->GetMotionMaster()->Clear();
+    creature->GetMotionMaster()->MovementExpired(false);
     creature->GetMotionMaster()->MoveIdle();
     creature->SetStandState(UNIT_STAND_STATE_DEAD);
 }
@@ -1046,11 +1046,6 @@ class boss_julianne : public CreatureScript
 {
 public:
     boss_julianne() : CreatureScript("boss_julianne") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_julianneAI>(creature);
-    }
 
     struct boss_julianneAI : public ScriptedAI
     {
@@ -1161,17 +1156,17 @@ public:
 
         void UpdateAI(uint32 diff) override;
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_julianneAI>(creature);
+    }
 };
 
 class boss_romulo : public CreatureScript
 {
 public:
     boss_romulo() : CreatureScript("boss_romulo") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_romuloAI>(creature);
-    }
 
     struct boss_romuloAI : public ScriptedAI
     {
@@ -1258,6 +1253,7 @@ public:
                         Julianne->GetMotionMaster()->Clear();
                         Julianne->setDeathState(JUST_DIED);
                         Julianne->CombatStop(true);
+                        Julianne->DeleteThreatList();
                         Julianne->SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
                     }
                     return;
@@ -1285,7 +1281,7 @@ public:
                 Creature* Julianne = (ObjectAccessor::GetCreature((*me), JulianneGUID));
                 if (Julianne && Julianne->GetVictim())
                 {
-                    AddThreat(Julianne->GetVictim(), 1.0f);
+                    me->AddThreat(Julianne->GetVictim(), 1.0f);
                     AttackStart(Julianne->GetVictim());
                 }
             }
@@ -1364,6 +1360,11 @@ public:
             DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_romuloAI>(creature);
+    }
 };
 
 void boss_julianne::boss_julianneAI::UpdateAI(uint32 diff)
@@ -1527,6 +1528,7 @@ void boss_julianne::boss_julianneAI::DamageTaken(Unit* /*done_by*/, uint32 &dama
                 Romulo->GetMotionMaster()->Clear();
                 Romulo->setDeathState(JUST_DIED);
                 Romulo->CombatStop(true);
+                Romulo->DeleteThreatList();
                 Romulo->SetUInt32Value(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_LOOTABLE);
             }
 

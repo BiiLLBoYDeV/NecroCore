@@ -94,9 +94,9 @@ class boss_shattered_executioner : public CreatureScript
                     me->AddLootMode(LOOT_MODE_HARD_MODE_1);
 
                 if (instance->GetBossState(DATA_KARGATH) == DONE)
-                    me->SetImmuneToPC(false);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                 else
-                    me->SetImmuneToPC(true);
+                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
 
                 Initialize();
             }
@@ -125,7 +125,7 @@ class boss_shattered_executioner : public CreatureScript
                 if (type == DATA_PRISONERS_EXECUTED && data <= 3)
                 {
                     if (Creature* victim = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_FIRST_PRISONER + data - 1)))
-                        Unit::Kill(me, victim);
+                        me->Kill(victim);
 
                     if (data == 1)
                     {
@@ -143,13 +143,10 @@ class boss_shattered_executioner : public CreatureScript
                     {
                         case 3:
                             me->RemoveLootMode(LOOT_MODE_HARD_MODE_1);
-                            /* fallthrough */
                         case 2:
                             me->RemoveLootMode(LOOT_MODE_HARD_MODE_2);
-                            /* fallthrough */
                         case 1:
                             me->RemoveLootMode(LOOT_MODE_HARD_MODE_3);
-                            /* fallthrough */
                         default:
                             break;
                     }

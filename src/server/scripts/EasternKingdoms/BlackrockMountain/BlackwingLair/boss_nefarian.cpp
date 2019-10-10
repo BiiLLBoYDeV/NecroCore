@@ -190,7 +190,6 @@ public:
                     _Reset();
 
                 me->SetVisible(true);
-                me->SetPhaseMask(1, true);
                 me->SetUInt32Value(UNIT_NPC_FLAGS, 1);
                 me->SetFaction(FACTION_FRIENDLY);
                 me->SetStandState(UNIT_STAND_STATE_SIT_HIGH_CHAIR);
@@ -213,12 +212,12 @@ public:
             me->SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
             DoCast(me, SPELL_NEFARIANS_BARRIER);
             me->SetStandState(UNIT_STAND_STATE_STAND);
-            me->SetImmuneToPC(false);
+            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
             AttackStart(target);
-            events.ScheduleEvent(EVENT_SHADOW_BOLT, 3s, 10s);
-            events.ScheduleEvent(EVENT_FEAR, 10s, 20s);
-            //events.ScheduleEvent(EVENT_MIND_CONTROL, 30s, 35s);
-            events.ScheduleEvent(EVENT_SPAWN_ADD, 10s);
+            events.ScheduleEvent(EVENT_SHADOW_BOLT, urand(3000, 10000));
+            events.ScheduleEvent(EVENT_FEAR, urand(10000, 20000));
+            //events.ScheduleEvent(EVENT_MIND_CONTROL, urand(30000, 35000));
+            events.ScheduleEvent(EVENT_SPAWN_ADD, 10000);
         }
 
         void SummonedCreatureDies(Creature* summon, Unit* /*killer*/) override
@@ -321,18 +320,18 @@ public:
                                         DoCast(target, SPELL_SHADOWBOLT);
                                     break;
                             }
-                            ResetThreatList();
-                            events.ScheduleEvent(EVENT_SHADOW_BOLT, 3s, 10s);
+                            DoResetThreat();
+                            events.ScheduleEvent(EVENT_SHADOW_BOLT, urand(3000, 10000));
                             break;
                         case EVENT_FEAR:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40, true))
                                 DoCast(target, SPELL_FEAR);
-                            events.ScheduleEvent(EVENT_FEAR, 10s, 20s);
+                            events.ScheduleEvent(EVENT_FEAR, urand(10000, 20000));
                             break;
                         case EVENT_MIND_CONTROL:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40, true))
                                 DoCast(target, SPELL_SHADOW_COMMAND);
-                            events.ScheduleEvent(EVENT_MIND_CONTROL, 30s, 35s);
+                            events.ScheduleEvent(EVENT_MIND_CONTROL, urand(30000, 35000));
                             break;
                         case EVENT_SPAWN_ADD:
                             for (uint8 i=0; i<2; ++i)
@@ -356,7 +355,7 @@ public:
                                         nefarian->SetFarVisible(true);
                                         nefarian->SetCanFly(true);
                                         nefarian->SetDisableGravity(true);
-                                        nefarian->CastSpell(nullptr, SPELL_SHADOWFLAME_INITIAL);
+                                        nefarian->CastSpell((Unit*)nullptr, SPELL_SHADOWFLAME_INITIAL);
                                         nefarian->GetMotionMaster()->MovePoint(1, NefarianLoc[1]);
                                     }
                                     events.CancelEvent(EVENT_MIND_CONTROL);
@@ -366,7 +365,7 @@ public:
                                     return;
                                 }
                             }
-                            events.ScheduleEvent(EVENT_SPAWN_ADD, 4s);
+                            events.ScheduleEvent(EVENT_SPAWN_ADD, 4000);
                             break;
                     }
 
@@ -428,12 +427,12 @@ public:
 
         void JustEngagedWith(Unit* /*who*/) override
         {
-            events.ScheduleEvent(EVENT_SHADOWFLAME, 12s);
-            events.ScheduleEvent(EVENT_FEAR, 25s, 35s);
-            events.ScheduleEvent(EVENT_VEILOFSHADOW, 25s, 35s);
-            events.ScheduleEvent(EVENT_CLEAVE, 7s);
-            //events.ScheduleEvent(EVENT_TAILLASH, 10s);
-            events.ScheduleEvent(EVENT_CLASSCALL, 30s, 35s);
+            events.ScheduleEvent(EVENT_SHADOWFLAME, 12000);
+            events.ScheduleEvent(EVENT_FEAR, urand(25000, 35000));
+            events.ScheduleEvent(EVENT_VEILOFSHADOW, urand(25000, 35000));
+            events.ScheduleEvent(EVENT_CLEAVE, 7000);
+            //events.ScheduleEvent(EVENT_TAILLASH, 10000);
+            events.ScheduleEvent(EVENT_CLASSCALL, urand(30000, 35000));
             Talk(SAY_RANDOM);
         }
 
@@ -458,7 +457,7 @@ public:
 
             if (id == 1)
             {
-                DoZoneInCombat();
+                me->SetInCombatWithZone();
                 if (me->GetVictim())
                     AttackStart(me->GetVictim());
             }
@@ -494,24 +493,24 @@ public:
                 {
                     case EVENT_SHADOWFLAME:
                         DoCastVictim(SPELL_SHADOWFLAME);
-                        events.ScheduleEvent(EVENT_SHADOWFLAME, 12s);
+                        events.ScheduleEvent(EVENT_SHADOWFLAME, 12000);
                         break;
                     case EVENT_FEAR:
                         DoCastVictim(SPELL_BELLOWINGROAR);
-                        events.ScheduleEvent(EVENT_FEAR, 25s, 35s);
+                        events.ScheduleEvent(EVENT_FEAR, urand(25000, 35000));
                         break;
                     case EVENT_VEILOFSHADOW:
                         DoCastVictim(SPELL_VEILOFSHADOW);
-                        events.ScheduleEvent(EVENT_VEILOFSHADOW, 25s, 35s);
+                        events.ScheduleEvent(EVENT_VEILOFSHADOW, urand(25000, 35000));
                         break;
                     case EVENT_CLEAVE:
                         DoCastVictim(SPELL_CLEAVE);
-                        events.ScheduleEvent(EVENT_CLEAVE, 7s);
+                        events.ScheduleEvent(EVENT_CLEAVE, 7000);
                         break;
                     case EVENT_TAILLASH:
                         // Cast NYI since we need a better check for behind target
                         DoCastVictim(SPELL_TAILLASH);
-                        events.ScheduleEvent(EVENT_TAILLASH, 10s);
+                        events.ScheduleEvent(EVENT_TAILLASH, 10000);
                         break;
                     case EVENT_CLASSCALL:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true))
@@ -560,7 +559,7 @@ public:
                             default:
                                 break;
                         }
-                        events.ScheduleEvent(EVENT_CLASSCALL, 30s, 35s);
+                        events.ScheduleEvent(EVENT_CLASSCALL, urand(30000, 35000));
                         break;
                 }
 
@@ -577,7 +576,7 @@ public:
                     if ((*itr) && !(*itr)->IsAlive())
                     {
                         (*itr)->Respawn();
-                        DoZoneInCombat((*itr));
+                        (*itr)->SetInCombatWithZone();
                         (*itr)->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                         (*itr)->SetReactState(REACT_AGGRESSIVE);
                         (*itr)->SetStandState(UNIT_STAND_STATE_STAND);

@@ -913,7 +913,7 @@ struct BattlegroundICScore final : public BattlegroundScore
     friend class BattlegroundIC;
 
     protected:
-        BattlegroundICScore(ObjectGuid playerGuid) : BattlegroundScore(playerGuid), BasesAssaulted(0), BasesDefended(0) { }
+        BattlegroundICScore(ObjectGuid playerGuid, uint32 team) : BattlegroundScore(playerGuid, team), BasesAssaulted(0), BasesDefended(0) { }
 
         void UpdateScore(uint32 type, uint32 value) override
         {
@@ -931,7 +931,7 @@ struct BattlegroundICScore final : public BattlegroundScore
             }
         }
 
-        void BuildObjectivesBlock(WorldPacket& data) final override;
+        void BuildObjectivesBlock(WorldPacket& data, ByteBuffer& content) final override;
 
         uint32 GetAttr1() const final override { return BasesAssaulted; }
         uint32 GetAttr2() const final override { return BasesDefended; }
@@ -965,7 +965,7 @@ class BattlegroundIC : public Battleground
         WorldSafeLocsEntry const* GetClosestGraveyard(Player* player) override;
 
         /* Scorekeeping */
-        void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override;
+        void FillInitialWorldStates(WorldPacket& data) override;
 
         void HandlePlayerResurrect(Player* player) override;
 

@@ -24,7 +24,6 @@
 #include "Battleground.h"
 #include "CreatureTextMgr.h"
 #include "GameObject.h"
-#include "GameTime.h"
 #include "Log.h"
 #include "MapManager.h"
 #include "ObjectAccessor.h"
@@ -36,7 +35,6 @@
 #include "TemporarySummon.h"
 #include "World.h"
 #include "WorldSession.h"
-#include "WorldStatePackets.h"
 
 struct BfWGCoordGY
 {
@@ -479,7 +477,6 @@ bool BattlefieldWG::SetupBattlefield()
         m_GraveyardList[i] = graveyard;
     }
 
-
     Workshops.resize(WG_MAX_WORKSHOP);
     // Spawn workshop creatures and gameobjects
     for (uint8 i = 0; i < WG_MAX_WORKSHOP; i++)
@@ -602,7 +599,7 @@ void BattlefieldWG::OnBattleStart()
     for (WintergraspWorkshop* workshop : Workshops)
         workshop->UpdateGraveyardAndWorkshop();
 
-    for (uint8 team = 0; team < PVP_TEAMS_COUNT; ++team)
+    for (uint8 team = 0; team < BG_TEAMS_COUNT; ++team)
     {
         for (auto itr = m_players[team].begin(); itr != m_players[team].end(); ++itr)
         {
@@ -719,7 +716,7 @@ void BattlefieldWG::OnBattleEnd(bool endByTimer)
         if (Player* player = ObjectAccessor::FindPlayer(*itr))
             player->CastSpell(player, SPELL_DEFEAT_REWARD, true);
 
-    for (uint8 team = 0; team < PVP_TEAMS_COUNT; ++team)
+    for (uint8 team = 0; team < BG_TEAMS_COUNT; ++team)
     {
         for (auto itr = m_PlayersInWar[team].begin(); itr != m_PlayersInWar[team].end(); ++itr)
             if (Player* player = ObjectAccessor::FindPlayer(*itr))
@@ -737,7 +734,7 @@ void BattlefieldWG::OnBattleEnd(bool endByTimer)
 
     if (!endByTimer)
     {
-        for (uint8 team = 0; team < PVP_TEAMS_COUNT; ++team)
+        for (uint8 team = 0; team < BG_TEAMS_COUNT; ++team)
         {
             for (auto itr = m_players[team].begin(); itr != m_players[team].end(); ++itr)
             {
@@ -962,19 +959,14 @@ void BattlefieldWG::HandleKill(Player* killer, Unit* victim)
         return;
 
     if (victim->GetTypeId() == TYPEID_PLAYER)
-    {
         HandlePromotion(killer, victim);
-
-        // Allow to Skin non-released corpse
-        victim->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_SKINNABLE);
-    }
 
     /// @todoRecent PvP activity worldstate
 }
 
 bool BattlefieldWG::FindAndRemoveVehicleFromList(Unit* vehicle)
 {
-    for (uint32 team = 0; team < PVP_TEAMS_COUNT; ++team)
+    for (uint32 team = 0; team < BG_TEAMS_COUNT; ++team)
     {
         auto itr = m_vehicles[team].find(vehicle->GetGUID());
         if (itr != m_vehicles[team].end())
@@ -1103,7 +1095,6 @@ void BattlefieldWG::OnPlayerLeaveWar(Player* player)
     player->RemoveAurasDueToSpell(SPELL_ALLIANCE_CONTROLS_FACTORY_PHASE_SHIFT);
     player->RemoveAurasDueToSpell(SPELL_HORDE_CONTROL_PHASE_SHIFT);
     player->RemoveAurasDueToSpell(SPELL_ALLIANCE_CONTROL_PHASE_SHIFT);
-    UpdateTenacity();
 }
 
 void BattlefieldWG::OnPlayerLeaveZone(Player* player)
@@ -1115,6 +1106,7 @@ void BattlefieldWG::OnPlayerLeaveZone(Player* player)
     player->RemoveAurasDueToSpell(SPELL_ALLIANCE_CONTROLS_FACTORY_PHASE_SHIFT);
     player->RemoveAurasDueToSpell(SPELL_HORDE_CONTROL_PHASE_SHIFT);
     player->RemoveAurasDueToSpell(SPELL_ALLIANCE_CONTROL_PHASE_SHIFT);
+    UpdateTenacity();
 }
 
 void BattlefieldWG::OnPlayerEnterZone(Player* player)
@@ -1148,48 +1140,50 @@ uint32 BattlefieldWG::GetData(uint32 data) const
     return Battlefield::GetData(data);
 }
 
-void BattlefieldWG::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
+
+void BattlefieldWG::FillInitialWorldStates(WorldPacket& data)
 {
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_DEFENDED_A, GetData(BATTLEFIELD_WG_DATA_DEF_A));
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_DEFENDED_H, GetData(BATTLEFIELD_WG_DATA_DEF_H));
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_ATTACKED_A, GetData(BATTLEFIELD_WG_DATA_WON_A));
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_ATTACKED_H, GetData(BATTLEFIELD_WG_DATA_WON_H));
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_ATTACKER, GetAttackerTeam());
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_DEFENDER, GetDefenderTeam());
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_DEFENDED_A) << uint32(GetData(BATTLEFIELD_WG_DATA_DEF_A));
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_DEFENDED_H) << uint32(GetData(BATTLEFIELD_WG_DATA_DEF_H));
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_ATTACKED_A) << uint32(GetData(BATTLEFIELD_WG_DATA_WON_A));
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_ATTACKED_H) << uint32(GetData(BATTLEFIELD_WG_DATA_WON_H));
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_ATTACKER) << uint32(GetAttackerTeam());
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_DEFENDER) << uint32(GetDefenderTeam());
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_ACTIVE) << uint32(IsWarTime() ? 0 : 1); // Note: cleanup these two, their names look awkward
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_SHOW_WORLDSTATE) << uint32(IsWarTime() ? 1 : 0);
 
-    // Note: cleanup these two, their names look awkward
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_ACTIVE, IsWarTime() ? 0 : 1);
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_SHOW_WORLDSTATE, IsWarTime() ? 1 : 0);
+    for (uint32 i = 0; i < 2; ++i)
+        data << ClockWorldState[i] << uint32(time(nullptr) + (m_Timer / 1000));
 
-    for (uint32 itr = 0; itr < 2; ++itr)
-        packet.Worldstates.emplace_back(ClockWorldState[itr], int32(GameTime::GetGameTime()) + int32(m_Timer) / int32(1000));
-
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_VEHICLE_H, GetData(BATTLEFIELD_WG_DATA_VEHICLE_H));
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_MAX_VEHICLE_H, GetData(BATTLEFIELD_WG_DATA_MAX_VEHICLE_H));
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_VEHICLE_A, GetData(BATTLEFIELD_WG_DATA_VEHICLE_A));
-    packet.Worldstates.emplace_back(BATTLEFIELD_WG_WORLD_STATE_MAX_VEHICLE_A, GetData(BATTLEFIELD_WG_DATA_MAX_VEHICLE_A));
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_VEHICLE_H) << uint32(GetData(BATTLEFIELD_WG_DATA_VEHICLE_H));
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_MAX_VEHICLE_H) << uint32(GetData(BATTLEFIELD_WG_DATA_MAX_VEHICLE_H));
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_VEHICLE_A) << uint32(GetData(BATTLEFIELD_WG_DATA_VEHICLE_A));
+    data << uint32(BATTLEFIELD_WG_WORLD_STATE_MAX_VEHICLE_A) << uint32(GetData(BATTLEFIELD_WG_DATA_MAX_VEHICLE_A));
 
     for (BfWGGameObjectBuilding* building : BuildingsInZone)
-        building->FillInitialWorldStates(packet);
+        building->FillInitialWorldStates(data);
 
     for (WintergraspWorkshop* workshop : Workshops)
-        workshop->FillInitialWorldStates(packet);
+        workshop->FillInitialWorldStates(data);
 }
 
 void BattlefieldWG::SendInitWorldStatesTo(Player* player)
 {
-    WorldPackets::WorldState::InitWorldStates packet;
-    packet.MapID = m_MapId;
-    packet.ZoneID = m_ZoneId;
-    packet.AreaID = player->GetAreaId();
-    FillInitialWorldStates(packet);
+    WorldPacket data(SMSG_INIT_WORLD_STATES, 4 + 4 + 4 + 2 + (14 + WG_MAX_OBJ + WG_MAX_WORKSHOP) * 8);
 
-    player->SendDirectMessage(packet.Write());
+    data << uint32(m_MapId);
+    data << uint32(m_ZoneId);
+    data << uint32(0);                                              // AreaId
+    data << uint16(14 + BuildingsInZone.size() + Workshops.size()); // Number of fields
+
+    FillInitialWorldStates(data);
+
+    player->SendDirectMessage(&data);
 }
 
 void BattlefieldWG::SendInitWorldStatesToAll()
 {
-    for (uint8 team = 0; team < PVP_TEAMS_COUNT; ++team)
+    for (uint8 team = 0; team < BG_TEAMS_COUNT; ++team)
         for (auto itr = m_players[team].begin(); itr != m_players[team].end(); ++itr)
             if (Player* player = ObjectAccessor::FindPlayer(*itr))
                 SendInitWorldStatesTo(player);
@@ -1757,9 +1751,9 @@ void BfWGGameObjectBuilding::UpdateTurretAttack(bool disable)
     }
 }
 
-void BfWGGameObjectBuilding::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
+void BfWGGameObjectBuilding::FillInitialWorldStates(WorldPacket& data)
 {
-    packet.Worldstates.emplace_back(_worldState, _state);
+    data << uint32(_worldState) << uint32(_state);
 }
 
 void BfWGGameObjectBuilding::Save()
@@ -1842,9 +1836,9 @@ void WintergraspWorkshop::UpdateGraveyardAndWorkshop()
         GiveControlTo(_wg->GetDefenderTeam(), true);
 }
 
-void WintergraspWorkshop::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
+void WintergraspWorkshop::FillInitialWorldStates(WorldPacket& data)
 {
-    packet.Worldstates.emplace_back(_staticInfo->WorldStateId, _state);
+    data << uint32(_staticInfo->WorldStateId) << uint32(_state);
 }
 
 void WintergraspWorkshop::Save()

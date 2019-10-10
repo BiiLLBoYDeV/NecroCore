@@ -187,7 +187,7 @@ public:
         void Reset() override
         {
             _events.Reset();
-            _events.ScheduleEvent(EVENT_FOCUS, 1s);
+            _events.ScheduleEvent(EVENT_FOCUS, 1000);
         }
 
         void EnterEvadeMode(EvadeReason why) override
@@ -206,10 +206,10 @@ public:
             switch (emote)
             {
             case TEXT_EMOTE_BOW:
-                _events.ScheduleEvent(EVENT_FOCUS, 1s);
+                _events.ScheduleEvent(EVENT_FOCUS, 1000);
                 break;
             case TEXT_EMOTE_DRINK:
-                _events.ScheduleEvent(EVENT_DRINK, 1s);
+                _events.ScheduleEvent(EVENT_DRINK, 1000);
                 break;
             }
         }
@@ -229,11 +229,11 @@ public:
                 case EVENT_FOCUS:
                     if (Unit* owner = me->GetCharmerOrOwner())
                         me->SetFacingToObject(owner);
-                    _events.ScheduleEvent(EVENT_EMOTE, 1s);
+                    _events.ScheduleEvent(EVENT_EMOTE, 1000);
                     break;
                 case EVENT_EMOTE:
                     me->HandleEmoteCommand(EMOTE_ONESHOT_BOW);
-                    _events.ScheduleEvent(EVENT_FOLLOW, 1s);
+                    _events.ScheduleEvent(EVENT_FOLLOW, 1000);
                     break;
                 case EVENT_FOLLOW:
                     if (Unit* owner = me->GetCharmerOrOwner())
@@ -320,6 +320,92 @@ class npc_pet_gen_mojo : public CreatureScript
         }
 };
 
+// Lil' Ragnaros
+enum LilRagnaros
+{
+    SPELL_DND_LR_2                      = 95804, // Root and emerge effect
+    SPELL_DND_SUMMON_BASIC_CAMPFIRE     = 95811,
+    SPELL_DND_LR                        = 95802,
+    SPELL_SCORCHLING                    = 45887,
+    SPELL_DND_LR_1                      = 95803, // Submerge effect
+    SPELL_DND_DESPAWN_BASIC_CAMPFIRE    = 95813,
+
+    EVENT_CHECK_PLAYER_DISTANCE         = 1,
+};
+
+class npc_pet_gen_lil_ragnaros : public CreatureScript
+{
+    public:
+        npc_pet_gen_lil_ragnaros() : CreatureScript("npc_pet_gen_lil_ragnaros") { }
+
+        struct npc_pet_gen_lil_ragnarosAI : public ScriptedAI
+        {
+            npc_pet_gen_lil_ragnarosAI(Creature* creature) : ScriptedAI(creature)
+            {
+                Initialize();
+            }
+
+            void Initialize()
+            {
+                _submerged = false;
+            }
+
+            void IsSummonedBy(Unit* /*summoner*/) override
+            {
+                DoCastSelf(SPELL_DND_LR_2, true);
+                DoCastSelf(SPELL_DND_SUMMON_BASIC_CAMPFIRE, true);
+                DoCastSelf(SPELL_DND_LR, true);
+                DoCastSelf(SPELL_SCORCHLING, true);
+                _events.ScheduleEvent(EVENT_CHECK_PLAYER_DISTANCE, Seconds(1));
+            }
+
+            void UpdateAI(uint32 diff) override
+            {
+                _events.Update(diff);
+
+                if (uint32 eventId = _events.ExecuteEvent())
+                {
+                    switch (eventId)
+                    {
+                        case EVENT_CHECK_PLAYER_DISTANCE:
+                            if (Unit* owner = me->GetCharmerOrOwner())
+                            {
+                                if (me->GetDistance(owner) >= 20.0f && !_submerged)
+                                {
+                                    me->RemoveAllAuras();
+                                    DoCastSelf(SPELL_DND_LR_1, true);
+                                    DoCastSelf(SPELL_DND_DESPAWN_BASIC_CAMPFIRE, true);
+                                    me->GetMotionMaster()->MoveFollow(owner, PET_FOLLOW_DIST, PET_FOLLOW_ANGLE);
+                                    _submerged = true;
+                                }
+                                else if (me->GetDistance(owner) <= 5.0f && _submerged)
+                                {
+                                    me->RemoveAurasDueToSpell(SPELL_DND_LR_1);
+                                    DoCastSelf(SPELL_DND_LR_2, true);
+                                    DoCastSelf(SPELL_DND_SUMMON_BASIC_CAMPFIRE, true);
+                                    DoCastSelf(SPELL_DND_LR, true);
+                                    DoCastSelf(SPELL_SCORCHLING, true);
+                                    _submerged = false;
+                                }
+                            }
+                            _events.Repeat(Seconds(1));
+                            break;
+                        default:
+                            break;
+                    }
+                }
+            }
+        private:
+            EventMap _events;
+            bool _submerged;
+        };
+
+        CreatureAI* GetAI(Creature* creature) const override
+        {
+            return new npc_pet_gen_lil_ragnarosAI(creature);
+        }
+};
+
 enum SoulTrader
 {
     SAY_SOUL_TRADER_INTRO           = 0,
@@ -343,8 +429,6 @@ struct npc_pet_gen_soul_trader : public ScriptedAI
         Talk(SAY_SOUL_TRADER_INTRO);
         if (Unit* owner = me->GetOwner())
             DoCast(owner, SPELL_ETHEREAL_ONSUMMON);
-
-        CreatureAI::JustAppeared();
     }
 };
 
@@ -354,5 +438,6 @@ void AddSC_generic_pet_scripts()
     new npc_pet_gen_egbert();
     new npc_pet_gen_pandaren_monk();
     new npc_pet_gen_mojo();
+    new npc_pet_gen_lil_ragnaros();
     RegisterCreatureAI(npc_pet_gen_soul_trader);
 }

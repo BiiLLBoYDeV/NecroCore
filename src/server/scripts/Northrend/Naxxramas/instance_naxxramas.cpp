@@ -17,6 +17,7 @@
 
 #include "ScriptMgr.h"
 #include "AreaBoundary.h"
+#include "Creature.h"
 #include "CreatureAI.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
@@ -109,11 +110,11 @@ ObjectData const objectData[] =
 class instance_naxxramas : public InstanceMapScript
 {
     public:
-        instance_naxxramas() : InstanceMapScript(NaxxramasScriptName, 533) { }
+        instance_naxxramas() : InstanceMapScript("instance_naxxramas", 533) { }
 
         struct instance_naxxramas_InstanceMapScript : public InstanceScript
         {
-            instance_naxxramas_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_naxxramas_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -127,7 +128,7 @@ class instance_naxxramas : public InstanceMapScript
                 playerDied              = 0;
 
                 nextFroggerWave         = 0;
-                events.ScheduleEvent(EVENT_SUMMON_FROGGER_WAVE, 1s);
+                events.ScheduleEvent(EVENT_SUMMON_FROGGER_WAVE, Seconds(1));
             }
 
             void OnCreatureCreate(Creature* creature) override
@@ -361,7 +362,7 @@ class instance_naxxramas : public InstanceMapScript
                             if (GameObject* teleporter = GetGameObject(DATA_NAXX_PORTAL_ARACHNID))
                                 teleporter->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
 
-                            events.ScheduleEvent(EVENT_KELTHUZAD_WING_TAUNT, 6s);
+                            events.ScheduleEvent(EVENT_KELTHUZAD_WING_TAUNT, Seconds(6));
                         }
                         break;
                     case BOSS_LOATHEB:
@@ -370,7 +371,7 @@ class instance_naxxramas : public InstanceMapScript
                             if (GameObject* teleporter = GetGameObject(DATA_NAXX_PORTAL_PLAGUE))
                                 teleporter->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
 
-                            events.ScheduleEvent(EVENT_KELTHUZAD_WING_TAUNT, 6s);
+                            events.ScheduleEvent(EVENT_KELTHUZAD_WING_TAUNT, Seconds(6));
                         }
                         break;
                     case BOSS_THADDIUS:
@@ -379,12 +380,12 @@ class instance_naxxramas : public InstanceMapScript
                             if (GameObject* teleporter = GetGameObject(DATA_NAXX_PORTAL_CONSTRUCT))
                                 teleporter->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
 
-                            events.ScheduleEvent(EVENT_KELTHUZAD_WING_TAUNT, 6s);
+                            events.ScheduleEvent(EVENT_KELTHUZAD_WING_TAUNT, Seconds(6));
                         }
                         break;
                     case BOSS_GOTHIK:
                         if (state == DONE)
-                            events.ScheduleEvent(EVENT_DIALOGUE_GOTHIK_KORTHAZZ, 10s);
+                            events.ScheduleEvent(EVENT_DIALOGUE_GOTHIK_KORTHAZZ, Seconds(10));
                         break;
                     case BOSS_HORSEMEN:
                         if (state == DONE)
@@ -398,12 +399,12 @@ class instance_naxxramas : public InstanceMapScript
                             if (GameObject* teleporter = GetGameObject(DATA_NAXX_PORTAL_MILITARY))
                                 teleporter->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
 
-                            events.ScheduleEvent(EVENT_KELTHUZAD_WING_TAUNT, 6s);
+                            events.ScheduleEvent(EVENT_KELTHUZAD_WING_TAUNT, Seconds(6));
                         }
                         break;
                     case BOSS_SAPPHIRON:
                         if (state == DONE)
-                            events.ScheduleEvent(EVENT_DIALOGUE_SAPPHIRON_KELTHUZAD, 6s);
+                            events.ScheduleEvent(EVENT_DIALOGUE_SAPPHIRON_KELTHUZAD, Seconds(6));
                         HandleGameObject(KelthuzadDoorGUID, false);
                         break;
                     case BOSS_KELTHUZAD:
@@ -429,17 +430,17 @@ class instance_naxxramas : public InstanceMapScript
                         case EVENT_DIALOGUE_GOTHIK_KORTHAZZ:
                             if (Creature* korthazz = instance->GetCreature(ThaneGUID))
                                 korthazz->AI()->Talk(SAY_DIALOGUE_GOTHIK_HORSEMAN);
-                            events.ScheduleEvent(EVENT_DIALOGUE_GOTHIK_ZELIEK, 5s);
+                            events.ScheduleEvent(EVENT_DIALOGUE_GOTHIK_ZELIEK, Seconds(5));
                             break;
                         case EVENT_DIALOGUE_GOTHIK_ZELIEK:
                             if (Creature* zeliek = instance->GetCreature(SirGUID))
                                 zeliek->AI()->Talk(SAY_DIALOGUE_GOTHIK_HORSEMAN);
-                            events.ScheduleEvent(EVENT_DIALOGUE_GOTHIK_BLAUMEUX, 6s);
+                            events.ScheduleEvent(EVENT_DIALOGUE_GOTHIK_BLAUMEUX, Seconds(6));
                             break;
                         case EVENT_DIALOGUE_GOTHIK_BLAUMEUX:
                             if (Creature* blaumeux = instance->GetCreature(LadyGUID))
                                 blaumeux->AI()->Talk(SAY_DIALOGUE_GOTHIK_HORSEMAN);
-                            events.ScheduleEvent(EVENT_DIALOGUE_GOTHIK_RIVENDARE, 6s);
+                            events.ScheduleEvent(EVENT_DIALOGUE_GOTHIK_RIVENDARE, Seconds(6));
                             break;
                         case EVENT_DIALOGUE_GOTHIK_RIVENDARE:
                             if (Creature* rivendare = instance->GetCreature(BaronGUID))
@@ -477,7 +478,7 @@ class instance_naxxramas : public InstanceMapScript
                             std::list<TempSummon*> spawns;
                             instance->SummonCreatureGroup(nextFroggerWave, &spawns);
                             if (!spawns.empty())
-                                spawns.front()->GetMotionMaster()->MovePath(10 * NPC_FROGGER + nextFroggerWave, false);
+                                (*spawns.begin())->GetMotionMaster()->MovePath(10 * NPC_FROGGER + nextFroggerWave, false);
                             events.Repeat(Seconds(1) + Milliseconds(666));
                             nextFroggerWave = (nextFroggerWave+1) % 3;
                             break;
@@ -485,7 +486,7 @@ class instance_naxxramas : public InstanceMapScript
                         case EVENT_DIALOGUE_SAPPHIRON_KELTHUZAD:
                             if (Creature* kelthuzad = instance->GetCreature(KelthuzadGUID))
                                 kelthuzad->AI()->Talk(SAY_DIALOGUE_SAPPHIRON_KELTHUZAD);
-                            events.ScheduleEvent(EVENT_DIALOGUE_SAPPHIRON_LICHKING, 6s);
+                            events.ScheduleEvent(EVENT_DIALOGUE_SAPPHIRON_LICHKING, Seconds(6));
                             break;
                         case EVENT_DIALOGUE_SAPPHIRON_LICHKING:
                             if (Creature* lichKing = instance->GetCreature(LichKingGUID))

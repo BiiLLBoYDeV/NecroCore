@@ -20,7 +20,7 @@
 #include "WorldPacket.h"
 #include "WorldSession.h"
 #include "Log.h"
-#include "Database/DatabaseEnv.h"
+#include "DatabaseEnv.h"
 #include "WardenCheckMgr.h"
 #include "Warden.h"
 #include "World.h"

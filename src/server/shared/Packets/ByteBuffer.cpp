@@ -25,7 +25,7 @@
 #include <sstream>
 #include <ctime>
 
-ByteBuffer::ByteBuffer(MessageBuffer&& buffer) : _rpos(0), _wpos(0), _storage(buffer.Move())
+ByteBuffer::ByteBuffer(MessageBuffer&& buffer) : _rpos(0), _wpos(0), _bitpos(InitialBitPos), _curbitval(0), _storage(buffer.Move())
 {
 }
 
@@ -47,7 +47,7 @@ ByteBufferSourceException::ByteBufferSourceException(size_t pos, size_t size,
     std::ostringstream ss;
 
     ss << "Attempted to put a "
-       << (valueSize > 0 ? "NULL-pointer" : "zero-sized value")
+       << (valueSize > 0 ? "nullptr-pointer" : "zero-sized value")
        << " in ByteBuffer (pos: " << pos << " size: " << size << ")";
 
     message().assign(ss.str());
@@ -89,6 +89,8 @@ void ByteBuffer::append(uint8 const* src, size_t cnt)
     ASSERT(src, "Attempted to put a NULL-pointer in ByteBuffer (pos: " SZFMTD " size: " SZFMTD ")", _wpos, size());
     ASSERT(cnt, "Attempted to put a zero-sized value in ByteBuffer (pos: " SZFMTD " size: " SZFMTD ")", _wpos, size());
     ASSERT(size() < 10000000);
+
+    FlushBits();
 
     size_t const newSize = _wpos + cnt;
     if (_storage.capacity() < newSize) // custom memory allocation rules

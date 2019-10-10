@@ -103,12 +103,12 @@ public:
             // now drop damage requirement to be able to take loot
             me->ResetPlayerDamageReq();
 
-            events.ScheduleEvent(EVENT_CLEAVE, 10s);
-            events.ScheduleEvent(EVENT_FLAMEBREATH, 15s);
-            events.ScheduleEvent(EVENT_FIRENOVA, 20s);
-            events.ScheduleEvent(EVENT_TAILSWIPE, 11s);
-            events.ScheduleEvent(EVENT_BURNINGADRENALINE_CASTER, 15s);
-            events.ScheduleEvent(EVENT_BURNINGADRENALINE_TANK, 45s);
+            events.ScheduleEvent(EVENT_CLEAVE, 10000);
+            events.ScheduleEvent(EVENT_FLAMEBREATH, 15000);
+            events.ScheduleEvent(EVENT_FIRENOVA, 20000);
+            events.ScheduleEvent(EVENT_TAILSWIPE, 11000);
+            events.ScheduleEvent(EVENT_BURNINGADRENALINE_CASTER, 15000);
+            events.ScheduleEvent(EVENT_BURNINGADRENALINE_TANK, 45000);
         }
 
         void BeginSpeech(Unit* target)
@@ -155,8 +155,8 @@ public:
                             break;
                         case EVENT_SPEECH_4:
                             me->SetFaction(FACTION_DRAGONFLIGHT_BLACK);
-                            if (PlayerGUID && ObjectAccessor::GetUnit(*me, PlayerGUID))
-                                AttackStart(ObjectAccessor::GetUnit(*me, PlayerGUID));;
+                            if (Player* player = ObjectAccessor::GetPlayer(*me, PlayerGUID))
+                                AttackStart(player);
                             break;
                     }
                 }
@@ -171,16 +171,16 @@ public:
                 switch (eventId)
                 {
                     case EVENT_CLEAVE:
-                        events.ScheduleEvent(EVENT_CLEAVE, 15s);
+                        events.ScheduleEvent(EVENT_CLEAVE, 15000);
                         DoCastVictim(SPELL_CLEAVE);
                         break;
                     case EVENT_FLAMEBREATH:
                         DoCastVictim(SPELL_FLAMEBREATH);
-                        events.ScheduleEvent(EVENT_FLAMEBREATH, 8s, 14s);
+                        events.ScheduleEvent(EVENT_FLAMEBREATH, urand(8000, 14000));
                         break;
                     case EVENT_FIRENOVA:
                         DoCastVictim(SPELL_FIRENOVA);
-                        events.ScheduleEvent(EVENT_FIRENOVA, 15s);
+                        events.ScheduleEvent(EVENT_FIRENOVA, 15000);
                         break;
                     case EVENT_TAILSWIPE:
                         //Only cast if we are behind
@@ -188,24 +188,24 @@ public:
                         {
                         DoCast(me->GetVictim(), SPELL_TAILSWIPE);
                         }*/
-                        events.ScheduleEvent(EVENT_TAILSWIPE, 15s);
+                        events.ScheduleEvent(EVENT_TAILSWIPE, 15000);
                         break;
                     case EVENT_BURNINGADRENALINE_CASTER:
                         {
                             //selects a random target that isn't the current victim and is a mana user (selects mana users) but not pets
                             //it also ignores targets who have the aura. We don't want to place the debuff on the same target twice.
-                            if (Unit *target = SelectTarget(SELECT_TARGET_RANDOM, 1, [&](Unit* u) { return u && !u->IsPet() && u->GetPowerType() == POWER_MANA && !u->HasAura(SPELL_BURNINGADRENALINE); }))
+                            if (Unit *target = SelectTarget(SELECT_TARGET_RANDOM, 1, [&](Unit* u) { return u && !u->IsPet() && u->getPowerType() == POWER_MANA && !u->HasAura(SPELL_BURNINGADRENALINE); }))
                             {
                                 me->CastSpell(target, SPELL_BURNINGADRENALINE, true);
                             }
                         }
                         //reschedule the event
-                        events.ScheduleEvent(EVENT_BURNINGADRENALINE_CASTER, 15s);
+                        events.ScheduleEvent(EVENT_BURNINGADRENALINE_CASTER, 15000);
                         break;
                     case EVENT_BURNINGADRENALINE_TANK:
                         //Vael has to cast it himself; contrary to the previous commit's comment. Nothing happens otherwise.
                         me->CastSpell(me->GetVictim(), SPELL_BURNINGADRENALINE, true);
-                        events.ScheduleEvent(EVENT_BURNINGADRENALINE_TANK, 45s);
+                        events.ScheduleEvent(EVENT_BURNINGADRENALINE_TANK, 45000);
                         break;
                 }
 

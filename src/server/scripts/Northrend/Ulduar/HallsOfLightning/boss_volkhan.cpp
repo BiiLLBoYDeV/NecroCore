@@ -135,7 +135,7 @@ public:
         {
             if (me->Attack(who, true))
             {
-                AddThreat(who, 0.0f);
+                me->AddThreat(who, 0.0f);
                 me->SetInCombatWith(who);
                 who->SetInCombatWith(me);
 
@@ -202,7 +202,7 @@ public:
                     summoned->GetMotionMaster()->MoveFollow(target, 0.0f, 0.0f);
 
                 // Why healing when just summoned?
-                summoned->CastSpell(summoned, SPELL_HEAT, CastSpellExtraArgs().SetOriginalCaster(me->GetGUID()));
+                summoned->CastSpell(summoned, SPELL_HEAT, false, nullptr, nullptr, me->GetGUID());
             }
         }
 
@@ -332,7 +332,7 @@ public:
                     // 4 - Wait for delay to expire
                     if (m_uiDelay_Timer <= diff)
                     {
-                        if (Unit* target = SelectTarget(SELECT_TARGET_MAXTHREAT, 0))
+                        if (Unit* target = SelectTarget(SELECT_TARGET_TOPAGGRO, 0))
                         {
                             me->SetReactState(REACT_AGGRESSIVE);
                             me->SetInCombatWith(target);
@@ -414,7 +414,7 @@ public:
         {
             if (me->Attack(who, true))
             {
-                AddThreat(who, 0.0f);
+                me->AddThreat(who, 0.0f);
                 me->SetInCombatWith(who);
                 who->SetInCombatWith(me);
 
@@ -423,21 +423,21 @@ public:
             }
         }
 
-        void DamageTaken(Unit* /*attacker*/, uint32& damage) override
+        void DamageTaken(Unit* /*pDoneBy*/, uint32 &uiDamage) override
         {
-            if (damage >= me->GetHealth())
+            if (uiDamage > me->GetHealth())
             {
                 me->UpdateEntry(NPC_BRITTLE_GOLEM);
                 me->SetHealth(1);
-                damage = 0;
+                uiDamage = 0;
                 me->RemoveAllAuras();
                 me->AttackStop();
-                // me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED); // Set in DB
-                // me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE); // Set in DB
+                // me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_STUNNED);  //Set in DB
+                // me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE); //Set in DB
                 if (me->IsNonMeleeSpellCast(false))
                     me->InterruptNonMeleeSpells(false);
-
-                me->GetMotionMaster()->Clear();
+                if (me->GetMotionMaster()->GetCurrentMovementGeneratorType() == CHASE_MOTION_TYPE)
+                    me->GetMotionMaster()->MovementExpired();
                 m_bIsFrozen = true;
             }
         }
@@ -467,11 +467,11 @@ public:
                 {
                     case EVENT_BLAST:
                         DoCast(me, SPELL_BLAST_WAVE);
-                        events.ScheduleEvent(EVENT_BLAST, 20s);
+                        events.ScheduleEvent(EVENT_BLAST, 20 * IN_MILLISECONDS);
                         break;
                     case EVENT_IMMOLATION:
                         DoCastVictim(SPELL_IMMOLATION_STRIKE);
-                        events.ScheduleEvent(EVENT_BLAST, 5s);
+                        events.ScheduleEvent(EVENT_BLAST, 5 * IN_MILLISECONDS);
                         break;
                     default:
                         break;

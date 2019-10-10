@@ -26,10 +26,10 @@ struct TC_GAME_API ArenaScore : public BattlegroundScore
     friend class Arena;
 
     protected:
-        ArenaScore(ObjectGuid playerGuid, uint32 team) : BattlegroundScore(playerGuid), TeamId(team == ALLIANCE ? PVP_TEAM_ALLIANCE : PVP_TEAM_HORDE) { }
+        ArenaScore(ObjectGuid playerGuid, uint32 team) : BattlegroundScore(playerGuid, team), TeamId(team == ALLIANCE ? BG_TEAM_ALLIANCE : BG_TEAM_HORDE) { }
 
-        void AppendToPacket(WorldPacket& data) final override;
-        void BuildObjectivesBlock(WorldPacket& data) final override;
+        void AppendToPacket(WorldPacket& data, ByteBuffer& content) final override;
+        void BuildObjectivesBlock(WorldPacket& data, ByteBuffer& content) final override;
 
         // For Logging purpose
         std::string ToString() const override
@@ -39,7 +39,7 @@ struct TC_GAME_API ArenaScore : public BattlegroundScore
             return stream.str();
         }
 
-        uint8 TeamId; // PvPTeamId
+        uint8 TeamId; // BattlegroundTeamId
 };
 
 struct TC_GAME_API ArenaTeamScore
@@ -67,6 +67,7 @@ struct TC_GAME_API ArenaTeamScore
         }
 
         void BuildRatingInfoBlock(WorldPacket& data);
+        void BuildTeamInfoLengthBlock(WorldPacket& data);
         void BuildTeamInfoBlock(WorldPacket& data);
 
         int32 RatingChange;

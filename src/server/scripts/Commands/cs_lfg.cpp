@@ -24,6 +24,7 @@
 #include "Language.h"
 #include "LFGMgr.h"
 #include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "RBAC.h"
 

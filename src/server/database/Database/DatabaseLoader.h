@@ -19,7 +19,6 @@
 #define DatabaseLoader_h__
 
 #include "Define.h"
-
 #include <functional>
 #include <queue>
 #include <stack>

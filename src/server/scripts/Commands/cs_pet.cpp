@@ -76,7 +76,7 @@ public:
 
         CreatureTemplate const* creatureTemplate = creatureTarget->GetCreatureTemplate();
         // Creatures with family CREATURE_FAMILY_NONE crashes the server
-        if (creatureTemplate->family == CREATURE_FAMILY_NONE)
+        if (!creatureTemplate->family)
         {
             handler->PSendSysMessage("This creature cannot be tamed. Family id: 0 (CREATURE_FAMILY_NONE).");
             handler->SetSentErrorMessage(true);
@@ -99,7 +99,8 @@ public:
             return false;
         }
 
-        creatureTarget->DespawnOrUnsummon();
+        creatureTarget->setDeathState(JUST_DIED);
+        creatureTarget->RemoveCorpse();
         creatureTarget->SetHealth(0); // just for nice GM-mode view
 
         pet->SetGuidValue(UNIT_FIELD_CREATEDBY, player->GetGUID());

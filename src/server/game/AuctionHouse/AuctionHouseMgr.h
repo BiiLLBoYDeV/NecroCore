@@ -35,7 +35,7 @@ struct AuctionHouseEntry;
 #define MAX_AUCTION_ITEMS 160
 #define MAX_GETALL_RETURN 55000
 
-enum AuctionError : uint8
+enum AuctionError
 {
     ERR_AUCTION_OK                  = 0,
     ERR_AUCTION_INVENTORY           = 1,
@@ -48,7 +48,7 @@ enum AuctionError : uint8
     ERR_AUCTION_RESTRICTED_ACCOUNT  = 13
 };
 
-enum AuctionAction : uint8
+enum AuctionAction
 {
     AUCTION_SELL_ITEM   = 0,
     AUCTION_CANCEL      = 1,
@@ -181,7 +181,7 @@ class TC_GAME_API AuctionHouseMgr
         void SendAuctionSuccessfulMail(AuctionEntry* auction, SQLTransaction& trans);
         void SendAuctionExpiredMail(AuctionEntry* auction, SQLTransaction& trans);
         void SendAuctionOutbiddedMail(AuctionEntry* auction, uint32 newPrice, Player* newBidder, SQLTransaction& trans);
-        void SendAuctionCancelledToBidderMail(AuctionEntry* auction, SQLTransaction& trans);
+        void SendAuctionCancelledToBidderMail(AuctionEntry* auction, SQLTransaction& trans, Item* item);
 
         static uint32 GetAuctionDeposit(AuctionHouseEntry const* entry, uint32 time, Item* pItem, uint32 count);
         static AuctionHouseEntry const* GetAuctionHouseEntry(uint32 factionTemplateId);
@@ -194,7 +194,7 @@ class TC_GAME_API AuctionHouseMgr
 
         void AddAItem(Item* it);
         bool RemoveAItem(ObjectGuid::LowType id, bool deleteItem = false, SQLTransaction* trans = nullptr);
-        bool PendingAuctionAdd(Player* player, AuctionEntry* aEntry);
+        bool PendingAuctionAdd(Player* player, AuctionEntry* aEntry, Item* item);
         uint32 PendingAuctionCount(Player const* player) const;
         void PendingAuctionProcess(Player* player);
         void UpdatePendingAuctions();

@@ -61,16 +61,14 @@ class WorldSocket;
 class WorldObject;
 class WorldSession;
 
-struct AchievementCriteriaData;
-struct AreaTriggerEntry;
 struct AuctionEntry;
+struct AreaTriggerEntry;
 struct ConditionSourceInfo;
 struct Condition;
 struct CreatureTemplate;
 struct CreatureData;
 struct ItemTemplate;
 struct MapEntry;
-struct Position;
 
 enum BattlegroundTypeId : uint32;
 enum ContentLevels : uint8;
@@ -314,7 +312,7 @@ template<class TMap> class MapScript : public UpdatableScript<TMap>
 
     public:
 
-        // Gets the MapEntry structure associated with this script. Can return NULL.
+        // Gets the MapEntry structure associated with this script. Can return nullptr.
         MapEntry const* GetEntry() { return _mapEntry; }
 
         // Called when the map is created.
@@ -386,11 +384,6 @@ class TC_GAME_API ItemScript : public ScriptObject
         // Called before casting a combat spell from this item (chance on hit spells of item template, can be used to prevent cast if returning false)
         virtual bool OnCastItemCombatSpell(Player* /*player*/, Unit* /*victim*/, SpellInfo const* /*spellInfo*/, Item* /*item*/) { return true; }
 
-        // Called when a player selects an option in an item gossip window
-        virtual void OnGossipSelect(Player* /*player*/, Item* /*item*/, uint32 /*sender*/, uint32 /*action*/) { }
-
-        // Called when a player selects an option in an item gossip window
-        virtual void OnGossipSelectCode(Player* /*player*/, Item* /*item*/, uint32 /*sender*/, uint32 /*action*/, const char* /*code*/) { }
 };
 
 class TC_GAME_API UnitScript : public ScriptObject
@@ -414,9 +407,6 @@ class TC_GAME_API UnitScript : public ScriptObject
 
         // Called when Spell Damage is being Dealt
         virtual void ModifySpellDamageTaken(Unit* /*target*/, Unit* /*attacker*/, int32& /*damage*/) { }
-
-        // Called when an unit exits a vehicle
-        virtual void ModifyVehiclePassengerExitPos(Unit* /*passenger*/, Vehicle* /*vehicle*/, Position& /*pos*/) { }
 };
 
 class TC_GAME_API CreatureScript : public ScriptObject
@@ -431,7 +421,7 @@ class TC_GAME_API CreatureScript : public ScriptObject
         virtual CreatureAI* GetAI(Creature* /*creature*/) const = 0;
 };
 
-class TC_GAME_API GameObjectScript : public ScriptObject
+class TC_GAME_API GameObjectScript : public ScriptObject, public UpdatableScript<GameObject>
 {
     protected:
 
@@ -643,10 +633,10 @@ class TC_GAME_API PlayerScript : public ScriptObject
         virtual void OnTalentsReset(Player* /*player*/, bool /*noCost*/) { }
 
         // Called when a player's money is modified (before the modification is done)
-        virtual void OnMoneyChanged(Player* /*player*/, int32& /*amount*/) { }
+        virtual void OnMoneyChanged(Player* /*player*/, int64& /*amount*/) { }
 
         // Called when a player's money is at limit (amount = money tried to add)
-        virtual void OnMoneyLimit(Player* /*player*/, int32 /*amount*/) { }
+        virtual void OnMoneyLimit(Player* /*player*/, int64 /*amount*/) { }
 
         // Called when a player gains XP (before anything is given)
         virtual void OnGiveXP(Player* /*player*/, uint32& /*amount*/, Unit* /*victim*/) { }
@@ -708,12 +698,6 @@ class TC_GAME_API PlayerScript : public ScriptObject
 
         // Called when a player changes to a new map (after moving to new map)
         virtual void OnMapChanged(Player* /*player*/) { }
-
-        // Called when a player selects an option in a player gossip window
-        virtual void OnGossipSelect(Player* /*player*/, uint32 /*menu_id*/, uint32 /*sender*/, uint32 /*action*/) { }
-
-        // Called when a player selects an option in a player gossip window
-        virtual void OnGossipSelectCode(Player* /*player*/, uint32 /*menu_id*/, uint32 /*sender*/, uint32 /*action*/, const char* /*code*/) { }
 
         // Called when a player obtains progress on a quest's objective
         virtual void OnQuestObjectiveProgress(Player* /*player*/, Quest const* /*quest*/, uint32 /*objectiveIndex*/, uint16 /*progress*/) { }
@@ -779,10 +763,10 @@ class TC_GAME_API GuildScript : public ScriptObject
         virtual void OnDisband(Guild* /*guild*/) { }
 
         // Called when a guild member withdraws money from a guild bank.
-        virtual void OnMemberWitdrawMoney(Guild* /*guild*/, Player* /*player*/, uint32& /*amount*/, bool /*isRepair*/) { }
+        virtual void OnMemberWitdrawMoney(Guild* /*guild*/, Player* /*player*/, uint64& /*amount*/, bool /*isRepair*/) { }
 
         // Called when a guild member deposits money in a guild bank.
-        virtual void OnMemberDepositMoney(Guild* /*guild*/, Player* /*player*/, uint32& /*amount*/) { }
+        virtual void OnMemberDepositMoney(Guild* /*guild*/, Player* /*player*/, uint64& /*amount*/) { }
 
         // Called when a guild member moves an item in a guild bank.
         virtual void OnItemMove(Guild* /*guild*/, Player* /*player*/, Item* /*pItem*/, bool /*isSrcBank*/, uint8 /*srcContainer*/, uint8 /*srcSlotId*/,
@@ -933,8 +917,6 @@ class TC_GAME_API ScriptMgr
         bool OnItemExpire(Player* player, ItemTemplate const* proto);
         bool OnItemRemove(Player* player, Item* item);
         bool OnCastItemCombatSpell(Player* player, Unit* victim, SpellInfo const* spellInfo, Item* item);
-        void OnGossipSelect(Player* player, Item* item, uint32 sender, uint32 action);
-        void OnGossipSelectCode(Player* player, Item* item, uint32 sender, uint32 action, const char* code);
 
     public: /* CreatureScript */
 
@@ -1009,8 +991,8 @@ class TC_GAME_API ScriptMgr
         void OnPlayerLevelChanged(Player* player, uint8 oldLevel);
         void OnPlayerFreeTalentPointsChanged(Player* player, uint32 newPoints);
         void OnPlayerTalentsReset(Player* player, bool noCost);
-        void OnPlayerMoneyChanged(Player* player, int32& amount);
-        void OnPlayerMoneyLimit(Player* player, int32 amount);
+        void OnPlayerMoneyChanged(Player* player, int64& amount);
+        void OnPlayerMoneyLimit(Player* player, int64 amount);
         void OnGivePlayerXP(Player* player, uint32& amount, Unit* victim);
         void OnPlayerReputationChange(Player* player, uint32 factionID, int32& standing, bool incremental);
         void OnPlayerDuelRequest(Player* target, Player* challenger);
@@ -1032,8 +1014,6 @@ class TC_GAME_API ScriptMgr
         void OnPlayerSave(Player* player);
         void OnPlayerBindToInstance(Player* player, Difficulty difficulty, uint32 mapid, bool permanent, uint8 extendState);
         void OnPlayerUpdateZone(Player* player, uint32 newZone, uint32 newArea);
-        void OnGossipSelect(Player* player, uint32 menu_id, uint32 sender, uint32 action);
-        void OnGossipSelectCode(Player* player, uint32 menu_id, uint32 sender, uint32 action, const char* code);
         void OnQuestObjectiveProgress(Player* player, Quest const* quest, uint32 objectiveIndex, uint16 progress);
         void OnQuestStatusChange(Player* player, uint32 questId);
         void OnPlayerRepop(Player* player);
@@ -1055,8 +1035,8 @@ class TC_GAME_API ScriptMgr
         void OnGuildInfoChanged(Guild* guild, const std::string& newInfo);
         void OnGuildCreate(Guild* guild, Player* leader, const std::string& name);
         void OnGuildDisband(Guild* guild);
-        void OnGuildMemberWitdrawMoney(Guild* guild, Player* player, uint32 &amount, bool isRepair);
-        void OnGuildMemberDepositMoney(Guild* guild, Player* player, uint32 &amount);
+        void OnGuildMemberWitdrawMoney(Guild* guild, Player* player, uint64 &amount, bool isRepair);
+        void OnGuildMemberDepositMoney(Guild* guild, Player* player, uint64 &amount);
         void OnGuildItemMove(Guild* guild, Player* player, Item* pItem, bool isSrcBank, uint8 srcContainer, uint8 srcSlotId,
             bool isDestBank, uint8 destContainer, uint8 destSlotId);
         void OnGuildEvent(Guild* guild, uint8 eventType, ObjectGuid::LowType playerGuid1, ObjectGuid::LowType playerGuid2, uint8 newRank);
@@ -1077,7 +1057,6 @@ class TC_GAME_API ScriptMgr
         void ModifyPeriodicDamageAurasTick(Unit* target, Unit* attacker, uint32& damage);
         void ModifyMeleeDamage(Unit* target, Unit* attacker, uint32& damage);
         void ModifySpellDamageTaken(Unit* target, Unit* attacker, int32& damage);
-        void ModifyVehiclePassengerExitPos(Unit* passenger, Vehicle* vehicle, Position& pos);
 
     private:
         uint32 _scriptCount;

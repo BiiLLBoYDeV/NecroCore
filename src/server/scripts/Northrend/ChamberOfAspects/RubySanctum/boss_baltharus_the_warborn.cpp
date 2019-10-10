@@ -19,7 +19,7 @@
 #include "InstanceScript.h"
 #include "ruby_sanctum.h"
 #include "ScriptedCreature.h"
-#include "SpellAuraEffects.h"
+#include "SpellAuras.h"
 #include "SpellScript.h"
 
 enum Texts
@@ -137,7 +137,7 @@ class boss_baltharus_the_warborn : public CreatureScript
             {
                 summons.Summon(summon);
                 summon->SetHealth(me->GetHealth());
-                events.ScheduleEvent(EVENT_SUMMONS_ATTACK, 2s);
+                events.ScheduleEvent(EVENT_SUMMONS_ATTACK, Seconds(2));
             }
 
             void DamageTaken(Unit* /*attacker*/, uint32& damage) override
@@ -205,8 +205,8 @@ class boss_baltharus_the_warborn : public CreatureScript
                             events.Repeat(Seconds(24));
                             break;
                         case EVENT_ENERVATING_BRAND:
-                            for (uint8 i = 0; i < RAID_MODE<uint8>(2, 4, 2, 4); i++)
-                                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 45.0f, true, false, -SPELL_ENERVATING_BRAND))
+                            for (uint8 i = 0; i < RAID_MODE<uint8>(4, 8, 8, 10); i++)
+                                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 45.0f, true))
                                     DoCast(target, SPELL_ENERVATING_BRAND);
                             events.Repeat(Seconds(26));
                             break;
@@ -256,9 +256,9 @@ class npc_baltharus_the_warborn_clone : public CreatureScript
             {
                 DoZoneInCombat();
                 events.Reset();
-                events.ScheduleEvent(EVENT_CLEAVE, 11s);
-                events.ScheduleEvent(EVENT_BLADE_TEMPEST, 15s);
-                events.ScheduleEvent(EVENT_ENERVATING_BRAND, 10s);
+                events.ScheduleEvent(EVENT_CLEAVE, Seconds(11));
+                events.ScheduleEvent(EVENT_BLADE_TEMPEST, Seconds(15));
+                events.ScheduleEvent(EVENT_ENERVATING_BRAND, Seconds(10));
             }
 
             void EnterEvadeMode(EvadeReason /*why*/) override { }
@@ -274,7 +274,7 @@ class npc_baltharus_the_warborn_clone : public CreatureScript
             {
                 // This is here because DamageTaken wont trigger if the damage is deadly.
                 if (Creature* baltharus = instance->GetCreature(DATA_BALTHARUS_THE_WARBORN))
-                    Unit::Kill(killer, baltharus);
+                    killer->Kill(baltharus);
             }
 
             void UpdateAI(uint32 diff) override
@@ -302,8 +302,8 @@ class npc_baltharus_the_warborn_clone : public CreatureScript
                             events.Repeat(Seconds(24));
                             break;
                         case EVENT_ENERVATING_BRAND:
-                            for (uint8 i = 0; i < RAID_MODE<uint8>(2, 4, 2, 4); i++)
-                                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 45.0f, true, false, -SPELL_ENERVATING_BRAND))
+                            for (uint8 i = 0; i < RAID_MODE<uint8>(4, 8, 8, 10); i++)
+                                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 45.0f, true))
                                     DoCast(target, SPELL_ENERVATING_BRAND);
                             events.Repeat(Seconds(26));
                             break;

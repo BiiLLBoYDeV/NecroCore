@@ -17,8 +17,8 @@
  */
 
 #include "ScriptMgr.h"
-#include "blackrock_spire.h"
 #include "ScriptedCreature.h"
+#include "blackrock_spire.h"
 
 enum Spells
 {
@@ -40,7 +40,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetBlackrockSpireAI<boss_mothersmolderwebAI>(creature);
+        return new boss_mothersmolderwebAI(creature);
     }
 
     struct boss_mothersmolderwebAI : public BossAI
@@ -56,7 +56,7 @@ public:
         {
             _JustEngagedWith();
             events.ScheduleEvent(EVENT_CRYSTALIZE,   20 * IN_MILLISECONDS);
-            events.ScheduleEvent(EVENT_MOTHERS_MILK, 10s);
+            events.ScheduleEvent(EVENT_MOTHERS_MILK, 10 * IN_MILLISECONDS);
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -86,7 +86,7 @@ public:
                 {
                     case EVENT_CRYSTALIZE:
                         DoCast(me, SPELL_CRYSTALIZE);
-                        events.ScheduleEvent(EVENT_CRYSTALIZE, 15s);
+                        events.ScheduleEvent(EVENT_CRYSTALIZE, 15 * IN_MILLISECONDS);
                         break;
                     case EVENT_MOTHERS_MILK:
                         DoCast(me, SPELL_MOTHERSMILK);

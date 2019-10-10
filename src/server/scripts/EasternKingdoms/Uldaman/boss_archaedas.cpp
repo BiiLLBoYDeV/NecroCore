@@ -62,11 +62,7 @@ enum Spells
 class boss_archaedas : public CreatureScript
 {
     public:
-
-        boss_archaedas()
-            : CreatureScript("boss_archaedas")
-        {
-        }
+        boss_archaedas() : CreatureScript("boss_archaedas") { }
 
         struct boss_archaedasAI : public ScriptedAI
         {
@@ -230,11 +226,7 @@ EndScriptData */
 class npc_archaedas_minions : public CreatureScript
 {
     public:
-
-        npc_archaedas_minions()
-            : CreatureScript("npc_archaedas_minions")
-        {
-        }
+        npc_archaedas_minions() : CreatureScript("npc_archaedas_minions") { }
 
         struct npc_archaedas_minionsAI : public ScriptedAI
         {
@@ -273,7 +265,7 @@ class npc_archaedas_minions : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                me->SetFaction(FACTION_MONSTER);
+                me->SetFaction (FACTION_MONSTER);
                 me->RemoveAllAuras();
                 me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                 me->SetControlled(false, UNIT_STATE_ROOT);
@@ -336,11 +328,7 @@ EndScriptData */
 class npc_stonekeepers : public CreatureScript
 {
     public:
-
-        npc_stonekeepers()
-            : CreatureScript("npc_stonekeepers")
-        {
-        }
+        npc_stonekeepers() : CreatureScript("npc_stonekeepers") { }
 
         struct npc_stonekeepersAI : public ScriptedAI
         {

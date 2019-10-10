@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -53,15 +53,15 @@ Location MoveSpline::ComputePosition() const
     }
     else
     {
-        if (!splineflags.hasFlag(MoveSplineFlag::OrientationFixed | MoveSplineFlag::Falling))
+        if (!splineflags.hasFlag(MoveSplineFlag::OrientationFixed | MoveSplineFlag::Falling | MoveSplineFlag::Unknown0))
         {
             Vector3 hermite;
             spline.evaluate_derivative(point_Idx, u, hermite);
             c.orientation = std::atan2(hermite.y, hermite.x);
         }
 
-        if (splineflags.backward)
-            c.orientation = c.orientation - float(M_PI);
+        if (splineflags.orientationInversed)
+            c.orientation = -c.orientation;
     }
     return c;
 }
@@ -126,10 +126,10 @@ void MoveSpline::init_spline(MoveSplineInitArgs const& args)
         // MoveSplineFlag::Enter_Cycle support dropped
         //if (splineflags & SPLINEFLAG_ENTER_CYCLE)
         //cyclic_point = 1;   // shouldn't be modified, came from client
-        spline.init_cyclic_spline(&args.path[0], args.path.size(), modes[args.flags.isSmooth()], cyclic_point, args.initialOrientation);
+        spline.init_cyclic_spline(&args.path[0], args.path.size(), modes[args.flags.isSmooth()], cyclic_point);
     }
     else
-        spline.init_spline(&args.path[0], args.path.size(), modes[args.flags.isSmooth()], args.initialOrientation);
+        spline.init_spline(&args.path[0], args.path.size(), modes[args.flags.isSmooth()]);
 
     // init spline timestamps
     if (splineflags.falling)
@@ -193,6 +193,15 @@ MoveSpline::MoveSpline() : m_Id(0), time_passed(0),
     splineflags.done = true;
 }
 
+MoveSplineInitArgs::MoveSplineInitArgs(size_t path_capacity /*= 16*/) : path_Idx_offset(0), velocity(0.f),
+parabolic_amplitude(0.f), time_perc(0.f), splineId(0), initialOrientation(0.f),
+HasVelocity(false), TransformForTransport(true)
+{
+    path.reserve(path_capacity);
+}
+
+MoveSplineInitArgs::~MoveSplineInitArgs() = default;
+
 /// ============================================================================================
 
 bool MoveSplineInitArgs::Validate(Unit* unit) const
@@ -215,7 +224,7 @@ bool MoveSplineInitArgs::Validate(Unit* unit) const
 // each vertex offset packed into 11 bytes
 bool MoveSplineInitArgs::_checkPathBounds() const
 {
-    if (!(flags & MoveSplineFlag::Mask_CatmullRom) && path.size() > 2)
+    if (!(flags & MoveSplineFlag::Catmullrom) && path.size() > 2)
     {
         enum{
             MAX_OFFSET = (1 << 11) / 2
@@ -234,17 +243,6 @@ bool MoveSplineInitArgs::_checkPathBounds() const
     }
     return true;
 }
-
-MoveSplineInitArgs::MoveSplineInitArgs(size_t path_capacity /*= 16*/) : path_Idx_offset(0), velocity(0.f),
-parabolic_amplitude(0.f), time_perc(0.f), splineId(0), initialOrientation(0.f),
-walk(false), HasVelocity(false), TransformForTransport(true)
-{
-    path.reserve(path_capacity);
-}
-
-MoveSplineInitArgs::MoveSplineInitArgs(MoveSplineInitArgs && args) = default;
-
-MoveSplineInitArgs::~MoveSplineInitArgs() = default;
 
 /// ============================================================================================
 

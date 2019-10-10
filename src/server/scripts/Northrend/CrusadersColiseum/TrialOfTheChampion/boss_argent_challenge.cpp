@@ -112,7 +112,7 @@ enum Spells
     SPELL_WAKING_NIGHTMARE_H    = 67677
 };
 
-class OrientationCheck : public std::unary_function<Unit*, bool>
+class OrientationCheck
 {
     public:
         explicit OrientationCheck(Unit* _caster) : caster(_caster) { }
@@ -487,7 +487,7 @@ public:
         void JustDied(Unit* /*killer*/) override
         {
             if (TempSummon* summ = me->ToTempSummon())
-                if (Unit* summoner = summ->GetSummonerUnit())
+                if (Unit* summoner = summ->GetSummoner())
                     if (summoner->IsAlive())
                         summoner->GetAI()->SetData(1, 0);
         }
@@ -505,9 +505,9 @@ public:
     npc_argent_soldier() : CreatureScript("npc_argent_soldier") { }
 
     // THIS AI NEEDS MORE IMPROVEMENTS
-    struct npc_argent_soldierAI : public EscortAI
+    struct npc_argent_soldierAI : public npc_escortAI
     {
-        npc_argent_soldierAI(Creature* creature) : EscortAI(creature)
+        npc_argent_soldierAI(Creature* creature) : npc_escortAI(creature)
         {
             instance = creature->GetInstanceScript();
             me->SetReactState(REACT_DEFENSIVE);
@@ -519,7 +519,7 @@ public:
 
         uint8 uiWaypoint;
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 0)
             {
@@ -592,7 +592,7 @@ public:
 
         void UpdateAI(uint32 uiDiff) override
         {
-            EscortAI::UpdateAI(uiDiff);
+            npc_escortAI::UpdateAI(uiDiff);
 
             if (!UpdateVictim())
                 return;
@@ -668,7 +668,7 @@ class spell_paletress_summon_memory : public SpellScriptLoader
 
             void HandleScript(SpellEffIndex /*effIndex*/)
             {
-                GetHitUnit()->CastSpell(GetHitUnit(), memorySpellId[urand(0, 24)], GetCaster()->GetGUID());
+                GetHitUnit()->CastSpell(GetHitUnit(), memorySpellId[urand(0, 24)], true, nullptr, nullptr, GetCaster()->GetGUID());
             }
 
             void Register() override

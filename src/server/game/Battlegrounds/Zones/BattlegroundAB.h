@@ -270,7 +270,7 @@ struct BattlegroundABScore final : public BattlegroundScore
     friend class BattlegroundAB;
 
     protected:
-        BattlegroundABScore(ObjectGuid playerGuid) : BattlegroundScore(playerGuid), BasesAssaulted(0), BasesDefended(0) { }
+        BattlegroundABScore(ObjectGuid playerGuid, uint32 team) : BattlegroundScore(playerGuid, team), BasesAssaulted(0), BasesDefended(0) { }
 
         void UpdateScore(uint32 type, uint32 value) override
         {
@@ -288,7 +288,7 @@ struct BattlegroundABScore final : public BattlegroundScore
             }
         }
 
-        void BuildObjectivesBlock(WorldPacket& data) final override;
+        void BuildObjectivesBlock(WorldPacket& data, ByteBuffer& content) final override;
 
         uint32 GetAttr1() const final override { return BasesAssaulted; }
         uint32 GetAttr2() const final override { return BasesDefended; }
@@ -316,7 +316,7 @@ class BattlegroundAB : public Battleground
         /* Scorekeeping */
         bool UpdatePlayerScore(Player* player, uint32 type, uint32 value, bool doAddHonor = true) override;
 
-        void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override;
+        void FillInitialWorldStates(WorldPacket& data) override;
 
         /* Nodes occupying */
         void EventPlayerClickedOnFlag(Player* source, GameObject* target_obj) override;
@@ -348,13 +348,13 @@ class BattlegroundAB : public Battleground
         uint8               m_prevNodes[BG_AB_DYNAMIC_NODES_COUNT];
         BG_AB_BannerTimer   m_BannerTimers[BG_AB_DYNAMIC_NODES_COUNT];
         uint32              m_NodeTimers[BG_AB_DYNAMIC_NODES_COUNT];
-        uint32              m_lastTick[PVP_TEAMS_COUNT];
-        uint32              m_HonorScoreTics[PVP_TEAMS_COUNT];
-        uint32              m_ReputationScoreTics[PVP_TEAMS_COUNT];
+        uint32              m_lastTick[BG_TEAMS_COUNT];
+        uint32              m_HonorScoreTics[BG_TEAMS_COUNT];
+        uint32              m_ReputationScoreTics[BG_TEAMS_COUNT];
         bool                m_IsInformedNearVictory;
         uint32              m_HonorTics;
         uint32              m_ReputationTics;
         // need for achievements
-        bool                m_TeamScores500Disadvantage[PVP_TEAMS_COUNT];
+        bool                m_TeamScores500Disadvantage[BG_TEAMS_COUNT];
 };
 #endif

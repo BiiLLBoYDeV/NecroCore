@@ -25,6 +25,7 @@ EndScriptData */
 #include "ScriptMgr.h"
 #include "InstanceScript.h"
 #include "Log.h"
+#include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
 #include "sunwell_plateau.h"
 
@@ -149,7 +150,7 @@ public:
             if (!Intro || IsIntro)
                 return;
 
-            if (Creature* Madrigosa = instance->GetCreature(DATA_MADRIGOSA))
+            if (Creature* Madrigosa = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_MADRIGOSA)))
             {
                 Madrigosa->Respawn();
                 Madrigosa->setActive(true);
@@ -185,7 +186,7 @@ public:
 
         void DoIntro()
         {
-            Creature* Madrigosa = instance->GetCreature(DATA_MADRIGOSA);
+            Creature* Madrigosa = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_MADRIGOSA));
             if (!Madrigosa)
                 return;
 
@@ -197,8 +198,8 @@ public:
                     ++IntroPhase;
                     break;
                 case 1:
-                    me->SetFacingToObject(Madrigosa);
-                    Madrigosa->SetFacingToObject(me);
+                    me->SetInFront(Madrigosa);
+                    Madrigosa->SetInFront(me);
                     Madrigosa->AI()->Talk(YELL_MADR_INTRO, me);
                     IntroPhaseTimer = 9000;
                     ++IntroPhase;
@@ -235,7 +236,7 @@ public:
                     ++IntroPhase;
                     break;
                 case 7:
-                    Unit::Kill(me, Madrigosa);
+                    me->Kill(Madrigosa);
                     Madrigosa->AI()->Talk(YELL_MADR_DEATH);
                     me->SetFullHealth();
                     me->AttackStop();
@@ -288,7 +289,7 @@ public:
                 {
                     if (IntroFrostBoltTimer <= diff)
                     {
-                        if (Creature* Madrigosa = instance->GetCreature(DATA_MADRIGOSA))
+                        if (Creature* Madrigosa = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_MADRIGOSA)))
                         {
                             Madrigosa->CastSpell(me, SPELL_INTRO_FROSTBOLT, true);
                             IntroFrostBoltTimer = 2000;
@@ -322,8 +323,14 @@ public:
 
             if (BurnTimer <= diff)
             {
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true, true, -SPELL_BURN))
-                    target->CastSpell(target, SPELL_BURN, true);
+                std::list<Unit*> targets;
+                SelectTargetList(targets, 10, SELECT_TARGET_RANDOM, 100, true);
+                for (std::list<Unit*>::const_iterator i = targets.begin(); i != targets.end(); ++i)
+                    if (!(*i)->HasAura(SPELL_BURN))
+                    {
+                        (*i)->CastSpell((*i), SPELL_BURN, true);
+                        break;
+                    }
                 BurnTimer = urand(60000, 180000);
             } else BurnTimer -= diff;
 

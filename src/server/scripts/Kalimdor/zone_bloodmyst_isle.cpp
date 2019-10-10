@@ -258,7 +258,7 @@ public:
         {
             _events.ScheduleEvent(EVENT_UPPERCUT,      15 * IN_MILLISECONDS);
             _events.ScheduleEvent(EVENT_IMMOLATE,      10 * IN_MILLISECONDS);
-            _events.ScheduleEvent(EVENT_CURSE_OF_BLOOD, 5s);
+            _events.ScheduleEvent(EVENT_CURSE_OF_BLOOD, 5 * IN_MILLISECONDS);
         }
 
         void JustDied(Unit* killer) override
@@ -293,15 +293,15 @@ public:
                 {
                     case EVENT_UPPERCUT:
                         DoCastVictim(SPELL_UPPERCUT);
-                        _events.ScheduleEvent(EVENT_UPPERCUT, 10s, 12s);
+                        _events.ScheduleEvent(EVENT_UPPERCUT, urand(10, 12) * IN_MILLISECONDS);
                         break;
                     case EVENT_IMMOLATE:
                         DoCastVictim(SPELL_IMMOLATE);
-                        _events.ScheduleEvent(EVENT_IMMOLATE, 15s, 20s);
+                        _events.ScheduleEvent(EVENT_IMMOLATE, urand(15, 20) * IN_MILLISECONDS);
                         break;
                     case EVENT_CURSE_OF_BLOOD:
                         DoCastVictim(SPELL_CURSE_OF_BLOOD);
-                        _events.ScheduleEvent(EVENT_CURSE_OF_BLOOD, 20s, 25s);
+                        _events.ScheduleEvent(EVENT_CURSE_OF_BLOOD, urand(20, 25) * IN_MILLISECONDS);
                         break;
                     default:
                         break;
@@ -362,9 +362,9 @@ class npc_demolitionist_legoso : public CreatureScript
 public:
     npc_demolitionist_legoso() : CreatureScript("npc_demolitionist_legoso") { }
 
-    struct npc_demolitionist_legosoAI : public EscortAI
+    struct npc_demolitionist_legosoAI : public npc_escortAI
     {
-        npc_demolitionist_legosoAI(Creature* creature) : EscortAI(creature)
+        npc_demolitionist_legosoAI(Creature* creature) : npc_escortAI(creature)
         {
             Initialize();
         }
@@ -414,10 +414,10 @@ public:
             me->SetCanDualWield(true);
 
             _events.Reset();
-            _events.ScheduleEvent(EVENT_FROST_SHOCK, 1s);
-            _events.ScheduleEvent(EVENT_HEALING_SURGE, 5s);
-            _events.ScheduleEvent(EVENT_SEARING_TOTEM, 15s);
-            _events.ScheduleEvent(EVENT_STRENGTH_OF_EARTH_TOTEM, 20s);
+            _events.ScheduleEvent(EVENT_FROST_SHOCK, 1 * IN_MILLISECONDS);
+            _events.ScheduleEvent(EVENT_HEALING_SURGE, 5 * IN_MILLISECONDS);
+            _events.ScheduleEvent(EVENT_SEARING_TOTEM, 15 * IN_MILLISECONDS);
+            _events.ScheduleEvent(EVENT_STRENGTH_OF_EARTH_TOTEM, 20 * IN_MILLISECONDS);
         }
 
         void UpdateAI(uint32 diff) override
@@ -433,7 +433,7 @@ public:
                         case EVENT_FROST_SHOCK:
                             DoCastVictim(SPELL_FROST_SHOCK);
                             _events.DelayEvents(1 * IN_MILLISECONDS);
-                            _events.ScheduleEvent(EVENT_FROST_SHOCK, 10s, 15s);
+                            _events.ScheduleEvent(EVENT_FROST_SHOCK, urand(10, 15) * IN_MILLISECONDS);
                             break;
                         case EVENT_SEARING_TOTEM:
                             DoCast(me, SPELL_SEARING_TOTEM);
@@ -456,10 +456,10 @@ public:
                             if (target)
                             {
                                 DoCast(target, SPELL_HEALING_SURGE);
-                                _events.ScheduleEvent(EVENT_HEALING_SURGE, 10s);
+                                _events.ScheduleEvent(EVENT_HEALING_SURGE, 10 * IN_MILLISECONDS);
                             }
                             else
-                                _events.ScheduleEvent(EVENT_HEALING_SURGE, 2s);
+                                _events.ScheduleEvent(EVENT_HEALING_SURGE, 2 * IN_MILLISECONDS);
                             break;
                         }
                         default:
@@ -473,7 +473,7 @@ public:
             if (HasEscortState(STATE_ESCORT_NONE))
                 return;
 
-            EscortAI::UpdateAI(diff);
+            npc_escortAI::UpdateAI(diff);
 
             if (_phase)
             {
@@ -647,7 +647,7 @@ public:
                             _explosivesGuids.clear();
                             if (Creature* sironas = me->FindNearestCreature(NPC_SIRONAS, SIZE_OF_GRIDS))
                             {
-                                sironas->SetImmuneToAll(false);
+                                sironas->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
                                 me->SetFacingToObject(sironas);
                             }
                             _moveTimer = 1 * IN_MILLISECONDS;
@@ -679,7 +679,7 @@ public:
                                 if (!target)
                                     target = me;
 
-                                AddThreat(sironas, 0.001f, target);
+                                target->AddThreat(sironas, 0.001f);
                                 sironas->Attack(target, true);
                                 sironas->GetMotionMaster()->MoveChase(target);
                             }
@@ -717,7 +717,7 @@ public:
             }
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             Player* player = GetPlayerForEscort();
             if (!player)

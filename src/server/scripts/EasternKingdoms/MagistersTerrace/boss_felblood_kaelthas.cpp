@@ -66,7 +66,7 @@ enum Spells
     SPELL_CLEAR_FLIGHT                          = 44232,
     SPELL_QUITE_SUICIDE                         = 3617, // Serverside spell
 
-    // Flame Strike
+    // Flame Strike 
     SPELL_FLAME_STRIKE_DUMMY                    = 44191,
     SPELL_FLAME_STRIKE_DAMAGE                   = 44190,
 
@@ -156,7 +156,9 @@ struct boss_felblood_kaelthas : public BossAI
     {
         _Reset();
         Initialize();
-        events.SetPhase(PHASE_INTRO);
+        if (instance->GetData(DATA_KAELTHAS_INTRO_STATE) != DONE)
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+
     }
 
     void JustDied(Unit* /*killer*/) override
@@ -165,12 +167,15 @@ struct boss_felblood_kaelthas : public BossAI
         instance->SetBossState(DATA_KAELTHAS_SUNSTRIDER, DONE);
     }
 
-    void EnterEvadeMode(EvadeReason /*why*/) override
+    void EnterEvadeMode(EvadeReason why) override
     {
         DoCastAOE(SPELL_CLEAR_FLIGHT, true);
         _EnterEvadeMode();
         summons.DespawnAll();
-        _DespawnAtEvade();
+        events.Reset();
+        me->ReleaseFocus();
+        me->SetReactState(REACT_AGGRESSIVE);
+        BossAI::EnterEvadeMode(why);
     }
 
     void DamageTaken(Unit* attacker, uint32 &damage) override
@@ -209,11 +214,7 @@ struct boss_felblood_kaelthas : public BossAI
     {
         if (type == DATA_KAELTHAS_INTRO)
         {
-            // skip the intro if Kael'thas is engaged already
-            if (!events.IsInPhase(PHASE_INTRO))
-                return;
-
-            me->SetImmuneToPC(true);
+            events.SetPhase(PHASE_INTRO);
             events.ScheduleEvent(EVENT_TALK_INTRO_1, 6s, 0, PHASE_INTRO);
         }
     }
@@ -251,7 +252,7 @@ struct boss_felblood_kaelthas : public BossAI
         switch (summon->GetEntry())
         {
             case NPC_ARCANE_SPHERE:
-                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 70.0f, true))
+                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 70.0f, true, 0))
                     summon->GetMotionMaster()->MoveFollow(target, 0.0f, 0.0f);
                 break;
             case NPC_FLAME_STRIKE:
@@ -292,7 +293,7 @@ struct boss_felblood_kaelthas : public BossAI
                     break;
                 case EVENT_FINISH_INTRO:
                     me->SetUInt32Value(UNIT_NPC_EMOTESTATE, EMOTE_ONESHOT_NONE);
-                    me->SetImmuneToPC(false);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                     break;
                 case EVENT_FIREBALL:
                     DoCastVictim(SPELL_FIREBALL);
@@ -300,7 +301,7 @@ struct boss_felblood_kaelthas : public BossAI
                     break;
                 case EVENT_FLAME_STRIKE:
                     Talk(SAY_FLAME_STRIKE);
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
+                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true, 0))
                         DoCast(target, SPELL_FLAME_STRIKE);
                     events.Repeat(44s);
                     break;
@@ -312,7 +313,7 @@ struct boss_felblood_kaelthas : public BossAI
                     events.Repeat(1min);
                     break;
                 case EVENT_PYROBLAST:
-                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
+                    if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true, 0))
                         DoCast(target, SPELL_PYROBLAST);
                     break;
                 case EVENT_PHOENIX:
@@ -323,9 +324,8 @@ struct boss_felblood_kaelthas : public BossAI
                 case EVENT_PREPARE_GRAVITY_LAPSE:
                     Talk(_firstGravityLapse ? SAY_GRAVITY_LAPSE_1 : SAY_GRAVITY_LAPSE_2);
                     _firstGravityLapse = false;
-                    me->SetReactState(REACT_PASSIVE);
                     me->AttackStop();
-                    me->GetMotionMaster()->Clear();
+                    me->SetReactState(REACT_PASSIVE);
                     events.ScheduleEvent(EVENT_GRAVITY_LAPSE_CENTER_TELEPORT, 1s, 0, PHASE_TWO);
                     break;
                 case EVENT_GRAVITY_LAPSE_CENTER_TELEPORT:
@@ -389,7 +389,7 @@ struct npc_felblood_kaelthas_phoenix : public ScriptedAI
         _isInEgg = false;
     }
 
-    void IsSummonedBy(WorldObject* /*summoner*/) override
+    void IsSummonedBy(Unit* /*summoner*/) override
     {
         DoZoneInCombat();
         DoCastSelf(SPELL_BURN);

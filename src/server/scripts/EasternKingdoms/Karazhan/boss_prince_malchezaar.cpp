@@ -24,8 +24,8 @@ SDCategory: Karazhan
 EndScriptData */
 
 #include "ScriptMgr.h"
-#include "karazhan.h"
 #include "InstanceScript.h"
+#include "karazhan.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
 #include "SpellInfo.h"
@@ -106,11 +106,6 @@ class netherspite_infernal : public CreatureScript
 public:
     netherspite_infernal() : CreatureScript("netherspite_infernal") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<netherspite_infernalAI>(creature);
-    }
-
     struct netherspite_infernalAI : public ScriptedAI
     {
         netherspite_infernalAI(Creature* creature) : ScriptedAI(creature),
@@ -168,23 +163,23 @@ public:
 
         void DamageTaken(Unit* done_by, uint32 &damage) override
         {
-            if (!done_by || done_by->GetGUID() != malchezaar)
+            if (done_by->GetGUID() != malchezaar)
                 damage = 0;
         }
 
         void Cleanup();
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<netherspite_infernalAI>(creature);
+    }
 };
 
 class boss_malchezaar : public CreatureScript
 {
 public:
     boss_malchezaar() : CreatureScript("boss_malchezaar") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_malchezaarAI>(creature);
-    }
 
     struct boss_malchezaarAI : public ScriptedAI
     {
@@ -316,18 +311,18 @@ public:
             if (!info)
                 return;
 
-            Unit* tank = me->GetThreatManager().GetCurrentVictim();
+            ThreatContainer::StorageType const& t_list = me->getThreatManager().getThreatList();
+            if (t_list.empty())
+                return;
+
             std::vector<Unit*> targets;
-
-            for (ThreatReference const* ref : me->GetThreatManager().GetUnsortedThreatList())
-            {
-                Unit* target = ref->GetVictim();
-                if (target != tank && target->IsAlive() && target->GetTypeId() == TYPEID_PLAYER)
-                    targets.push_back(target);
-            }
-
-            if (targets.empty())
-              return;
+            //begin + 1, so we don't target the one with the highest threat
+            ThreatContainer::StorageType::const_iterator itr = t_list.begin();
+            std::advance(itr, 1);
+            for (; itr != t_list.end(); ++itr) //store the threat list in a different container
+                if (Unit* target = ObjectAccessor::GetUnit(*me, (*itr)->getUnitGuid()))
+                    if (target->IsAlive() && target->GetTypeId() == TYPEID_PLAYER)
+                        targets.push_back(target);
 
             //cut down to size if we have more than 5 targets
             while (targets.size() > 5)
@@ -340,10 +335,7 @@ public:
                     enfeeble_targets[i] = target->GetGUID();
                     enfeeble_health[i] = target->GetHealth();
 
-                    CastSpellExtraArgs args;
-                    args.TriggerFlags = TRIGGERED_FULL_MASK;
-                    args.OriginalCaster = me->GetGUID();
-                    target->CastSpell(target, SPELL_ENFEEBLE, args);
+                    target->CastSpell(target, SPELL_ENFEEBLE, true, 0, 0, me->GetGUID());
                     target->SetHealth(1);
                 }
         }
@@ -362,7 +354,7 @@ public:
 
         void SummonInfernal(const uint32 /*diff*/)
         {
-            InfernalPoint *point = nullptr;
+            InfernalPoint* point = nullptr;
             Position pos;
             if ((me->GetMapId() != 532) || positions.empty())
                 pos = me->GetRandomNearPosition(60);
@@ -373,7 +365,6 @@ public:
             }
 
             Creature* infernal = me->SummonCreature(NETHERSPITE_INFERNAL, pos, TEMPSUMMON_TIMED_DESPAWN, 180000);
-
             if (infernal)
             {
                 infernal->SetDisplayId(INFERNAL_MODEL_INVISIBLE);
@@ -457,7 +448,9 @@ public:
                             if (target)
                             {
                                 axe->AI()->AttackStart(target);
-                                AddThreat(target, 10000000.0f, axe);
+                                //axe->getThreatManager().tauntApply(target); //Taunt Apply and fade out does not work properly
+                                                                // So we'll use a hack to add a lot of threat to our target
+                                axe->AddThreat(target, 10000000.0f);
                             }
                         }
                     }
@@ -493,8 +486,11 @@ public:
                             if (Unit* axe = ObjectAccessor::GetUnit(*me, axes[i]))
                             {
                                 if (axe->GetVictim())
-                                    ResetThreat(axe->GetVictim(), axe);
-                                AddThreat(target, 1000000.0f, axe);
+                                    DoModifyThreatPercent(axe->GetVictim(), -100);
+                                if (target)
+                                    axe->AddThreat(target, 1000000.0f);
+                                //axe->getThreatManager().tauntFadeOut(axe->GetVictim());
+                                //axe->getThreatManager().tauntApply(target);
                             }
                         }
                     }
@@ -574,7 +570,7 @@ public:
             }
         }
 
-        void Cleanup(Creature* infernal, InfernalPoint *point)
+        void Cleanup(Creature* infernal, InfernalPoint* point)
         {
             for (GuidVector::iterator itr = infernals.begin(); itr!= infernals.end(); ++itr)
             {
@@ -588,6 +584,11 @@ public:
             positions.push_back(point);
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_malchezaarAI>(creature);
+    }
 };
 
 void netherspite_infernal::netherspite_infernalAI::Cleanup()

@@ -25,8 +25,8 @@
 #include "LFGMgr.h"
 #include "Log.h"
 #include "Map.h"
-#include "Player.h"
 #include "ObjectAccessor.h"
+#include "Player.h"
 #include "ScriptMgr.h"
 #include "SharedDefines.h"
 #include "WorldSession.h"
@@ -192,7 +192,7 @@ void LFGGroupScript::OnRemoveMember(Group* group, ObjectGuid guid, RemoveMethod 
         //else if (state == LFG_STATE_BOOT)
             // Update internal kick cooldown of kicked
 
-        player->GetSession()->SendLfgUpdateParty(LfgUpdateData(LFG_UPDATETYPE_LEADER_UNK1));
+        player->GetSession()->SendLfgUpdateStatus(LfgUpdateData(LFG_UPDATETYPE_LEADER_UNK1), true);
         if (isLFG && player->GetMap()->IsDungeon())            // Teleport player out the dungeon
             sLFGMgr->TeleportPlayer(player, true);
     }

@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
@@ -20,7 +20,6 @@
 #include "InstanceScript.h"
 #include "Map.h"
 #include "MotionMaster.h"
-#include "Player.h"
 #include "TemporarySummon.h"
 #include "zulfarrak.h"
 
@@ -104,14 +103,9 @@ class instance_zulfarrak : public InstanceMapScript
 public:
     instance_zulfarrak() : InstanceMapScript(ZFScriptName, 209) { }
 
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_zulfarrak_InstanceMapScript(map);
-    }
-
     struct instance_zulfarrak_InstanceMapScript : public InstanceScript
     {
-        instance_zulfarrak_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_zulfarrak_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             GahzRillaEncounter = NOT_STARTED;
@@ -219,9 +213,9 @@ public:
             switch (type)
             {
                 case EVENT_PYRAMID:
-                    PyramidPhase = data;
+                    PyramidPhase=data;
                     break;
-            }
+            };
         }
 
         virtual void Update(uint32 diff) override
@@ -374,6 +368,10 @@ public:
         }
     };
 
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_zulfarrak_InstanceMapScript(map);
+    }
 };
 
 void AddSC_instance_zulfarrak()

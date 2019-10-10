@@ -19,6 +19,7 @@
 #include "DBCStructure.h"
 #include "Log.h"
 #include "Map.h"
+#include "MovementStructures.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "Vehicle.h"
@@ -28,7 +29,7 @@ void WorldSession::HandleDismissControlledVehicle(WorldPacket &recvData)
 {
     TC_LOG_DEBUG("network", "WORLD: Recvd CMSG_DISMISS_CONTROLLED_VEHICLE");
 
-    ObjectGuid vehicleGUID = _player->GetCharmedGUID();
+    ObjectGuid vehicleGUID = _player->GetCharmGUID();
 
     if (!vehicleGUID)                                       // something wrong here...
     {
@@ -36,20 +37,15 @@ void WorldSession::HandleDismissControlledVehicle(WorldPacket &recvData)
         return;
     }
 
-    ObjectGuid guid;
-
-    recvData >> guid.ReadAsPacked();
-
     MovementInfo mi;
-    mi.guid = guid;
-    ReadMovementInfo(recvData, &mi);
+    _player->ReadMovementInfo(recvData, &mi);
 
     _player->m_movementInfo = mi;
 
     _player->ExitVehicle();
 }
 
-void WorldSession::HandleChangeSeatsOnControlledVehicle(WorldPacket &recvData)
+void WorldSession::HandleChangeSeatsOnControlledVehicle(WorldPacket& recvData)
 {
     TC_LOG_DEBUG("network", "WORLD: Recvd CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE");
 
@@ -79,20 +75,36 @@ void WorldSession::HandleChangeSeatsOnControlledVehicle(WorldPacket &recvData)
             break;
         case CMSG_CHANGE_SEATS_ON_CONTROLLED_VEHICLE:
         {
-            ObjectGuid guid;        // current vehicle guid
-            recvData >> guid.ReadAsPacked();
+            static MovementStatusElements const accessoryGuid[] =
+            {
+                MSEExtraInt8,
+                MSEHasGuidByte2,
+                MSEHasGuidByte4,
+                MSEHasGuidByte7,
+                MSEHasGuidByte6,
+                MSEHasGuidByte5,
+                MSEHasGuidByte0,
+                MSEHasGuidByte1,
+                MSEHasGuidByte3,
+                MSEGuidByte6,
+                MSEGuidByte1,
+                MSEGuidByte2,
+                MSEGuidByte5,
+                MSEGuidByte3,
+                MSEGuidByte0,
+                MSEGuidByte4,
+                MSEGuidByte7,
+            };
 
+            Movement::ExtraMovementStatusElement extra(accessoryGuid);
             MovementInfo movementInfo;
-            ReadMovementInfo(recvData, &movementInfo);
+            GetPlayer()->ReadMovementInfo(recvData, &movementInfo, &extra);
             vehicle_base->m_movementInfo = movementInfo;
 
-            ObjectGuid accessory;        //  accessory guid
-            recvData >> accessory.ReadAsPacked();
+            ObjectGuid accessory = extra.Data.guid;
+            int8 seatId = extra.Data.byteData;
 
-            int8 seatId;
-            recvData >> seatId;
-
-            if (vehicle_base->GetGUID() != guid)
+            if (vehicle_base->GetGUID() != movementInfo.guid)
                 return;
 
             if (!accessory)
@@ -126,7 +138,7 @@ void WorldSession::HandleChangeSeatsOnControlledVehicle(WorldPacket &recvData)
     }
 }
 
-void WorldSession::HandleEnterPlayerVehicle(WorldPacket &data)
+void WorldSession::HandleEnterPlayerVehicle(WorldPacket& data)
 {
     // Read guid
     ObjectGuid guid;
@@ -148,7 +160,7 @@ void WorldSession::HandleEnterPlayerVehicle(WorldPacket &data)
     }
 }
 
-void WorldSession::HandleEjectPassenger(WorldPacket &data)
+void WorldSession::HandleEjectPassenger(WorldPacket& data)
 {
     Vehicle* vehicle = _player->GetVehicleKit();
     if (!vehicle)

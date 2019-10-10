@@ -18,17 +18,14 @@
 
 #include "WorldSession.h"
 #include "Common.h"
-#include "Creature.h"
 #include "DatabaseEnv.h"
 #include "DBCStores.h"
-#include "FlightPathMovementGenerator.h"
 #include "Log.h"
-#include "Map.h"
-#include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Player.h"
+#include "WaypointMovementGenerator.h"
 #include "WorldPacket.h"
 
 void WorldSession::HandleTaxiNodeStatusQueryOpcode(WorldPacket& recvData)
@@ -47,7 +44,7 @@ void WorldSession::SendTaxiStatus(ObjectGuid guid)
     Creature* unit = ObjectAccessor::GetCreature(*player, guid);
     if (!unit || unit->IsHostileTo(player) || !unit->HasFlag(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_FLIGHTMASTER))
     {
-        TC_LOG_DEBUG("network", "WorldSession::SendTaxiStatus - %s not found or you can't interact with him.", guid.ToString().c_str());
+        TC_LOG_DEBUG("network", "WorldSession::SendTaxiStatus - %s not found.", guid.ToString().c_str());
         return;
     }
 
@@ -58,7 +55,7 @@ void WorldSession::SendTaxiStatus(ObjectGuid guid)
 
     WorldPacket data(SMSG_TAXINODE_STATUS, 9);
     data << guid;
-    data << uint8(player->m_taxi.IsTaximaskNodeKnown(nearest) ? 1 : 0);
+    data << uint8(player->m_taxi.IsTaximaskNodeKnown(nearest) ? 1 : 2);
     SendPacket(&data);
 }
 
@@ -69,11 +66,6 @@ void WorldSession::HandleTaxiQueryAvailableNodes(WorldPacket& recvData)
     ObjectGuid guid;
     recvData >> guid;
 
-#ifndef DISABLE_DRESSNPCS_CORESOUNDS
-    if (guid.IsAnyTypeCreature())
-        if (Creature* creature = _player->GetMap()->GetCreature(guid))
-            creature->SendMirrorSound(_player, 0);
-#endif
     // cheating checks
     Creature* unit = GetPlayer()->GetNPCIfCanInteractWith(guid, UNIT_NPC_FLAG_FLIGHTMASTER);
     if (!unit)
@@ -98,12 +90,12 @@ void WorldSession::SendTaxiMenu(Creature* unit)
 {
     // find current node
     uint32 curloc = sObjectMgr->GetNearestTaxiNode(unit->GetPositionX(), unit->GetPositionY(), unit->GetPositionZ(), unit->GetMapId(), GetPlayer()->GetTeam());
-
-    if (curloc == 0)
+    if (!curloc)
         return;
 
     bool lastTaxiCheaterState = GetPlayer()->isTaxiCheater();
-    if (unit->GetEntry() == 29480) GetPlayer()->SetTaxiCheater(true); // Grimwing in Ebon Hold, special case. NOTE: Not perfect, Zul'Aman should not be included according to WoWhead, and I think taxicheat includes it.
+    if (unit->GetEntry() == 29480)
+        GetPlayer()->SetTaxiCheater(true); // Grimwing in Ebon Hold, special case. NOTE: Not perfect, Zul'Aman should not be included according to WoWhead, and I think taxicheat includes it.
 
     TC_LOG_DEBUG("network", "WORLD: CMSG_TAXINODE_STATUS_QUERY %u ", curloc);
 
@@ -124,6 +116,9 @@ void WorldSession::SendDoFlight(uint32 mountDisplayId, uint32 path, uint32 pathN
     // remove fake death
     if (GetPlayer()->HasUnitState(UNIT_STATE_DIED))
         GetPlayer()->RemoveAurasByType(SPELL_AURA_FEIGN_DEATH);
+
+    while (GetPlayer()->GetMotionMaster()->GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE)
+        GetPlayer()->GetMotionMaster()->MovementExpired(false);
 
     if (mountDisplayId)
         GetPlayer()->Mount(mountDisplayId);
@@ -209,13 +204,10 @@ void WorldSession::HandleMoveSplineDoneOpcode(WorldPacket& recvData)
 {
     TC_LOG_DEBUG("network", "WORLD: Received CMSG_MOVE_SPLINE_DONE");
 
-    uint64 guid; // used only for proper packet read
-    recvData.readPackGUID(guid);
+    recvData.read_skip<uint32>();                          // unk
 
     MovementInfo movementInfo;                              // used only for proper packet read
-    ReadMovementInfo(recvData, &movementInfo);
-
-    recvData.read_skip<uint32>();                          // spline id
+    _player->ReadMovementInfo(recvData, &movementInfo);
 
     // in taxi flight packet received in 2 case:
     // 1) end taxi path in far (multi-node) flight
@@ -228,11 +220,13 @@ void WorldSession::HandleMoveSplineDoneOpcode(WorldPacket& recvData)
         TaxiNodesEntry const* curDestNode = sTaxiNodesStore.LookupEntry(curDest);
 
         // far teleport case
-        if (curDestNode && curDestNode->map_id != GetPlayer()->GetMapId() && GetPlayer()->GetMotionMaster()->GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE)
+        if (curDestNode && curDestNode->map_id != GetPlayer()->GetMapId())
         {
-            if (FlightPathMovementGenerator* flight = dynamic_cast<FlightPathMovementGenerator*>(GetPlayer()->GetMotionMaster()->GetCurrentMovementGenerator()))
+            if (GetPlayer()->GetMotionMaster()->GetCurrentMovementGeneratorType() == FLIGHT_MOTION_TYPE)
             {
                 // short preparations to continue flight
+                FlightPathMovementGenerator* flight = (FlightPathMovementGenerator*)(GetPlayer()->GetMotionMaster()->top());
+
                 flight->SetCurrentNodeAfterTeleport();
                 TaxiPathNodeEntry const* node = flight->GetPath()[flight->GetCurrentNode()];
                 flight->SkipCurrentNode();

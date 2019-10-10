@@ -22,9 +22,9 @@ SDComment: aura applied/defined in database
 SDCategory: Scholomance
 EndScriptData */
 
-#include "scholomance.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "scholomance.h"
 
 enum Spells
 {
@@ -58,8 +58,8 @@ class boss_lord_alexei_barov : public CreatureScript
             void JustEngagedWith(Unit* /*who*/) override
             {
                 _JustEngagedWith();
-                events.ScheduleEvent(EVENT_IMMOLATE, 7s);
-                events.ScheduleEvent(EVENT_VEILOFSHADOW, 15s);
+                events.ScheduleEvent(EVENT_IMMOLATE, 7000);
+                events.ScheduleEvent(EVENT_VEILOFSHADOW, 15000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -78,11 +78,11 @@ class boss_lord_alexei_barov : public CreatureScript
                     {
                         case EVENT_IMMOLATE:
                             DoCast(SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true), SPELL_IMMOLATE, true);
-                            events.ScheduleEvent(EVENT_IMMOLATE, 12s);
+                            events.ScheduleEvent(EVENT_IMMOLATE, 12000);
                             break;
                         case EVENT_VEILOFSHADOW:
                             DoCastVictim(SPELL_VEILOFSHADOW, true);
-                            events.ScheduleEvent(EVENT_VEILOFSHADOW, 20s);
+                            events.ScheduleEvent(EVENT_VEILOFSHADOW, 20000);
                             break;
                         default:
                             break;
@@ -98,7 +98,7 @@ class boss_lord_alexei_barov : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetScholomanceAI<boss_lordalexeibarovAI>(creature);
+            return new boss_lordalexeibarovAI(creature);
         }
 };
 

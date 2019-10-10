@@ -23,7 +23,6 @@
 #include "Player.h"
 #include "ScriptedEscortAI.h"
 #include "SpellInfo.h"
-#include "SpellScript.h"
 
 //How to win friends and influence enemies
 // texts signed for creature 28939 but used for 28939, 28940, 28610
@@ -143,7 +142,7 @@ public:
 
                         case 6:
                             Talk(SAY_PERSUADED6);
-                            Unit::Kill(player, me);
+                            player->Kill(me);
                             speechCounter = 0;
                             player->GroupEventHappens(QUEST_HOW_TO_WIN_FRIENDS, me);
                             return;
@@ -202,9 +201,9 @@ class npc_koltira_deathweaver : public CreatureScript
 public:
     npc_koltira_deathweaver() : CreatureScript("npc_koltira_deathweaver") { }
 
-    struct npc_koltira_deathweaverAI : public EscortAI
+    struct npc_koltira_deathweaverAI : public npc_escortAI
     {
-        npc_koltira_deathweaverAI(Creature* creature) : EscortAI(creature)
+        npc_koltira_deathweaverAI(Creature* creature) : npc_escortAI(creature)
         {
             Initialize();
             me->SetReactState(REACT_DEFENSIVE);
@@ -229,7 +228,7 @@ public:
             }
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             switch (waypointId)
             {
@@ -271,7 +270,7 @@ public:
             if (summoned->GetEntry() == NPC_HIGH_INQUISITOR_VALROTH)
                 valrothGUID = summoned->GetGUID();
 
-            summoned->SetImmuneToPC(false);
+            summoned->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
         }
 
         void SummonAcolyte(uint32 uiAmount)
@@ -282,7 +281,7 @@ public:
 
         void UpdateAI(uint32 uiDiff) override
         {
-            EscortAI::UpdateAI(uiDiff);
+            npc_escortAI::UpdateAI(uiDiff);
 
             if (HasEscortState(STATE_ESCORT_PAUSED))
             {
@@ -345,11 +344,12 @@ public:
             }
         }
 
-        void QuestAccept(Player* player, Quest const* quest) override
+        void QuestAccept(Player* player, const Quest* quest) override
         {
             if (quest->GetQuestId() == QUEST_BREAKOUT)
             {
                 me->SetStandState(UNIT_STAND_STATE_STAND);
+
                 Start(false, false, player->GetGUID());
             }
         }
@@ -611,7 +611,7 @@ public:
         {
             Initialize();
 
-            me->SetImmuneToPC(true);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
         }
 
         bool MeetQuestCondition(Player* player)
@@ -720,7 +720,7 @@ public:
                         case 9:
                             Talk(SAY_EXEC_TIME, player);
                             me->SetStandState(UNIT_STAND_STATE_KNEEL);
-                            me->SetImmuneToPC(false);
+                            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                             break;
                         case 10:
                             Talk(SAY_EXEC_WAITING, player);
@@ -746,21 +746,6 @@ public:
     };
 };
 
-class spell_death_knight_devour_humanoid : public SpellScript
-{
-    PrepareSpellScript(spell_death_knight_devour_humanoid);
-
-    void HandleScriptEffect(SpellEffIndex /* effIndex */)
-    {
-        GetHitUnit()->CastSpell(GetCaster(), GetEffectValue(), true);
-    }
-
-    void Register() override
-    {
-        OnEffectHitTarget += SpellEffectFn(spell_death_knight_devour_humanoid::HandleScriptEffect, EFFECT_0, SPELL_EFFECT_SCRIPT_EFFECT);
-    }
-};
-
 void AddSC_the_scarlet_enclave_c2()
 {
     new npc_crusade_persuaded();
@@ -768,5 +753,4 @@ void AddSC_the_scarlet_enclave_c2()
     new npc_koltira_deathweaver();
     new npc_high_inquisitor_valroth();
     new npc_a_special_surprise();
-    RegisterSpellScript(spell_death_knight_devour_humanoid);
 }

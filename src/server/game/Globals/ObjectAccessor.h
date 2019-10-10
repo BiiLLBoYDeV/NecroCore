@@ -22,6 +22,7 @@
 #include "ObjectGuid.h"
 #include <unordered_map>
 
+class AreaTrigger;
 class Corpse;
 class Creature;
 class DynamicObject;
@@ -46,7 +47,6 @@ class TC_GAME_API HashMapHolder
     HashMapHolder() { }
 
 public:
-
     typedef std::unordered_map<ObjectGuid, T*> MapType;
 
     static void Insert(T* o);
@@ -69,6 +69,7 @@ namespace ObjectAccessor
     TC_GAME_API GameObject* GetGameObject(WorldObject const& u, ObjectGuid const& guid);
     TC_GAME_API Transport* GetTransport(WorldObject const& u, ObjectGuid const& guid);
     TC_GAME_API DynamicObject* GetDynamicObject(WorldObject const& u, ObjectGuid const& guid);
+    TC_GAME_API AreaTrigger* GetAreaTrigger(WorldObject const& u, ObjectGuid const& guid);
     TC_GAME_API Unit* GetUnit(WorldObject const&, ObjectGuid const& guid);
     TC_GAME_API Creature* GetCreature(WorldObject const& u, ObjectGuid const& guid);
     TC_GAME_API Pet* GetPet(WorldObject const&, ObjectGuid const& guid);

@@ -19,17 +19,15 @@
 #include "TemporarySummon.h"
 #include "CreatureAI.h"
 #include "DBCStructure.h"
-#include "GameObject.h"
-#include "GameObjectAI.h"
 #include "Log.h"
 #include "Map.h"
 #include "ObjectAccessor.h"
 #include "Pet.h"
 #include "Player.h"
 
-TempSummon::TempSummon(SummonPropertiesEntry const* properties, WorldObject* owner, bool isWorldObject) :
+TempSummon::TempSummon(SummonPropertiesEntry const* properties, Unit* owner, bool isWorldObject) :
 Creature(isWorldObject), m_Properties(properties), m_type(TEMPSUMMON_MANUAL_DESPAWN),
-m_timer(0), m_lifetime(0), m_canFollowOwner(true)
+m_timer(0), m_lifetime(0), m_visibleBySummonerOnly(false)
 {
     if (owner)
         m_summonerGUID = owner->GetGUID();
@@ -37,28 +35,14 @@ m_timer(0), m_lifetime(0), m_canFollowOwner(true)
     m_unitTypeMask |= UNIT_MASK_SUMMON;
 }
 
-WorldObject* TempSummon::GetSummoner() const
+Unit* TempSummon::GetSummoner() const
 {
-    return m_summonerGUID ? ObjectAccessor::GetWorldObject(*this, m_summonerGUID) : nullptr;
-}
-
-Unit* TempSummon::GetSummonerUnit() const
-{
-    if (WorldObject* summoner = GetSummoner())
-        return summoner->ToUnit();
-    return nullptr;
+    return m_summonerGUID ? ObjectAccessor::GetUnit(*this, m_summonerGUID) : nullptr;
 }
 
 Creature* TempSummon::GetSummonerCreatureBase() const
 {
     return m_summonerGUID ? ObjectAccessor::GetCreature(*this, m_summonerGUID) : nullptr;
-}
-
-GameObject* TempSummon::GetSummonerGameObject() const
-{
-    if (WorldObject* summoner = GetSummoner())
-        return summoner->ToGameObject();
-    return nullptr;
 }
 
 void TempSummon::Update(uint32 diff)
@@ -184,7 +168,7 @@ void TempSummon::InitStats(uint32 duration)
     if (m_type == TEMPSUMMON_MANUAL_DESPAWN)
         m_type = (duration == 0) ? TEMPSUMMON_DEAD_DESPAWN : TEMPSUMMON_TIMED_DESPAWN;
 
-    Unit* owner = GetSummonerUnit();
+    Unit* owner = GetSummoner();
 
     if (owner && IsTrigger() && m_spells[0])
     {
@@ -199,7 +183,8 @@ void TempSummon::InitStats(uint32 duration)
 
     if (owner)
     {
-        if (uint32 slot = m_Properties->Slot)
+        int32 slot = m_Properties->Slot;
+        if (slot > 0)
         {
             if (owner->m_SummonSlot[slot] && owner->m_SummonSlot[slot] != GetGUID())
             {
@@ -219,20 +204,12 @@ void TempSummon::InitStats(uint32 duration)
 
 void TempSummon::InitSummon()
 {
-    WorldObject* owner = GetSummoner();
+    Unit* owner = GetSummoner();
     if (owner)
     {
-        if (owner->GetTypeId() == TYPEID_UNIT)
-        {
-            if (owner->ToCreature()->IsAIEnabled())
-                owner->ToCreature()->AI()->JustSummoned(this);
-        }
-        else if (owner->GetTypeId() == TYPEID_GAMEOBJECT)
-        {
-            if (owner->ToGameObject()->AI())
-                owner->ToGameObject()->AI()->JustSummoned(this);
-        }
-        if (IsAIEnabled())
+        if (owner->GetTypeId() == TYPEID_UNIT && owner->ToCreature()->IsAIEnabled)
+            owner->ToCreature()->AI()->JustSummoned(this);
+        if (IsAIEnabled)
             AI()->IsSummonedBy(owner);
     }
 }
@@ -260,18 +237,14 @@ void TempSummon::UnSummon(uint32 msTime)
     //ASSERT(!IsPet());
     if (IsPet())
     {
-        ToPet()->Remove(PET_SAVE_NOT_IN_SLOT);
+        ((Pet*)this)->Remove(PET_SAVE_NOT_IN_SLOT);
         ASSERT(!IsInWorld());
         return;
     }
 
-    if (WorldObject * owner = GetSummoner())
-    {
-        if (owner->GetTypeId() == TYPEID_UNIT && owner->ToCreature()->IsAIEnabled())
-            owner->ToCreature()->AI()->SummonedCreatureDespawn(this);
-        else if (owner->GetTypeId() == TYPEID_GAMEOBJECT && owner->ToGameObject()->AI())
-            owner->ToGameObject()->AI()->SummonedCreatureDespawn(this);
-    }
+    Unit* owner = GetSummoner();
+    if (owner && owner->GetTypeId() == TYPEID_UNIT && owner->ToCreature()->IsAIEnabled)
+        owner->ToCreature()->AI()->SummonedCreatureDespawn(this);
 
     AddObjectToRemoveList();
 }
@@ -288,10 +261,13 @@ void TempSummon::RemoveFromWorld()
         return;
 
     if (m_Properties)
-        if (uint32 slot = m_Properties->Slot)
-            if (Unit* owner = GetSummonerUnit())
+    {
+        int32 slot = m_Properties->Slot;
+        if (slot > 0)
+            if (Unit* owner = GetSummoner())
                 if (owner->m_SummonSlot[slot] == GetGUID())
                     owner->m_SummonSlot[slot].Clear();
+    }
 
     //if (GetOwnerGUID())
     //    TC_LOG_ERROR("entities.unit", "Unit %u has owner guid when removed from world", GetEntry());
@@ -314,6 +290,8 @@ Minion::Minion(SummonPropertiesEntry const* properties, Unit* owner, bool isWorl
     ASSERT(m_owner);
     m_unitTypeMask |= UNIT_MASK_MINION;
     m_followAngle = PET_FOLLOW_ANGLE;
+    /// @todo: Find correct way
+    InitCharmInfo();
 }
 
 void Minion::InitStats(uint32 duration)
@@ -335,28 +313,6 @@ void Minion::RemoveFromWorld()
 
     GetOwner()->SetMinion(this, false);
     TempSummon::RemoveFromWorld();
-}
-
-void Minion::setDeathState(DeathState s)
-{
-    Creature::setDeathState(s);
-    if (s != JUST_DIED || !IsGuardianPet())
-        return;
-
-    Unit* owner = GetOwner();
-    if (!owner || owner->GetTypeId() != TYPEID_PLAYER || owner->GetMinionGUID() != GetGUID())
-        return;
-
-    for (Unit* controlled : owner->m_Controlled)
-    {
-        if (controlled->GetEntry() == GetEntry() && controlled->IsAlive())
-        {
-            owner->SetMinionGUID(controlled->GetGUID());
-            owner->SetPetGUID(controlled->GetGUID());
-            owner->ToPlayer()->CharmSpellInitialize();
-            break;
-        }
-    }
 }
 
 bool Minion::IsGuardianPet() const
@@ -403,7 +359,7 @@ void Guardian::InitSummon()
 
     if (GetOwner()->GetTypeId() == TYPEID_PLAYER
             && GetOwner()->GetMinionGUID() == GetGUID()
-            && !GetOwner()->GetCharmedGUID())
+            && !GetOwner()->GetCharmGUID())
     {
         GetOwner()->ToPlayer()->CharmSpellInitialize();
     }
@@ -449,4 +405,13 @@ void Puppet::Update(uint32 time)
             /// @todo why long distance .die does not remove it
         }
     }
+}
+
+void Puppet::RemoveFromWorld()
+{
+    if (!IsInWorld())
+        return;
+
+    RemoveCharmedBy(nullptr);
+    Minion::RemoveFromWorld();
 }

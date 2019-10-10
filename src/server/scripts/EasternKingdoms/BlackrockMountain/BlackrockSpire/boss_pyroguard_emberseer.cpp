@@ -21,8 +21,10 @@
 #include "InstanceScript.h"
 #include "Map.h"
 #include "ObjectAccessor.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
+#include "Spell.h"
 #include "SpellInfo.h"
 
 enum Text
@@ -82,17 +84,16 @@ public:
 
         void Reset() override
         {
-            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-            me->SetImmuneToPC(true);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
             events.Reset();
             // Apply auras on spawn and reset
             // DoCast(me, SPELL_FIRE_SHIELD_TRIGGER); // Need to find this in old DBC if possible
             me->RemoveAura(SPELL_EMBERSEER_FULL_STRENGTH);
             me->RemoveAura(SPELL_EMBERSEER_GROWING);
             me->RemoveAura(SPELL_EMBERSEER_GROWING_TRIGGER);
-            events.ScheduleEvent(EVENT_RESPAWN, 5s);
+            events.ScheduleEvent(EVENT_RESPAWN, 5000);
             // Hack for missing trigger spell
-            events.ScheduleEvent(EVENT_FIRE_SHIELD, 3s);
+            events.ScheduleEvent(EVENT_FIRE_SHIELD, 3000);
 
             // Open doors on reset
             if (instance->GetBossState(DATA_PYROGAURD_EMBERSEER) == IN_PROGRESS)
@@ -104,7 +105,7 @@ public:
             switch (data)
             {
                 case 1:
-                    events.ScheduleEvent(EVENT_PLAYER_CHECK, 5s);
+                    events.ScheduleEvent(EVENT_PLAYER_CHECK, 5000);
                     break;
                 case 2:
                    // Close these two doors on Blackhand Incarcerators aggro
@@ -127,7 +128,7 @@ public:
         {
             // ### TODO Check combat timing ###
             events.ScheduleEvent(EVENT_FIRENOVA,    6000);
-            events.ScheduleEvent(EVENT_FLAMEBUFFET, 3s);
+            events.ScheduleEvent(EVENT_FLAMEBUFFET, 3000);
             events.ScheduleEvent(EVENT_PYROBLAST,  14000);
         }
 
@@ -161,9 +162,8 @@ public:
                     me->CastSpell(me, SPELL_EMBERSEER_FULL_STRENGTH);
                     Talk(EMOTE_FREE_OF_BONDS);
                     Talk(YELL_FREE_OF_BONDS);
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                    me->SetImmuneToPC(false);
-                    events.ScheduleEvent(EVENT_ENTER_COMBAT, 2s);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
+                    events.ScheduleEvent(EVENT_ENTER_COMBAT, 2000);
                 }
             }
         }
@@ -249,7 +249,7 @@ public:
                         case EVENT_FIRE_SHIELD:
                             // #### Spell isn't doing any damage ??? ####
                             DoCast(me, SPELL_FIRE_SHIELD);
-                            events.ScheduleEvent(EVENT_FIRE_SHIELD, 3s);
+                            events.ScheduleEvent(EVENT_FIRE_SHIELD, 3000);
                             break;
                         case EVENT_PLAYER_CHECK:
                         {
@@ -289,20 +289,20 @@ public:
                 {
                     case EVENT_FIRE_SHIELD:
                         DoCast(me, SPELL_FIRE_SHIELD);
-                        events.ScheduleEvent(EVENT_FIRE_SHIELD, 3s);
+                        events.ScheduleEvent(EVENT_FIRE_SHIELD, 3000);
                         break;
                     case EVENT_FIRENOVA:
                         DoCast(me, SPELL_FIRENOVA);
-                        events.ScheduleEvent(EVENT_FIRENOVA, 6s);
+                        events.ScheduleEvent(EVENT_FIRENOVA, 6000);
                         break;
                     case EVENT_FLAMEBUFFET:
                         DoCast(me, SPELL_FLAMEBUFFET);
-                        events.ScheduleEvent(EVENT_FLAMEBUFFET, 14s);
+                        events.ScheduleEvent(EVENT_FLAMEBUFFET, 14000);
                         break;
                     case EVENT_PYROBLAST:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true))
                             DoCast(target, SPELL_PYROBLAST);
-                        events.ScheduleEvent(EVENT_PYROBLAST, 15s);
+                        events.ScheduleEvent(EVENT_PYROBLAST, 15000);
                         break;
                     default:
                         break;
@@ -345,7 +345,7 @@ public:
 
         void Reset() override
         {
-            me->SetImmuneToAll(true);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC|UNIT_FLAG_IMMUNE_TO_NPC);
             if (Creature* Emberseer = me->FindNearestCreature(NPC_PYROGAURD_EMBERSEER, 30.0f, true))
                 Emberseer->AI()->SetData(1, 3);
         }
@@ -359,13 +359,13 @@ public:
         {
             if (data == 1 && value == 1)
             {
-                me->SetImmuneToAll(false);
+                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC|UNIT_FLAG_IMMUNE_TO_NPC);
                 me->InterruptSpell(CURRENT_CHANNELED_SPELL);
                 _events.CancelEvent(EVENT_ENCAGED_EMBERSEER);
             }
 
             if (data == 1 && value == 2)
-                _events.ScheduleEvent(EVENT_ENCAGED_EMBERSEER, 1s);
+                _events.ScheduleEvent(EVENT_ENCAGED_EMBERSEER, 1000);
         }
 
         void JustEngagedWith(Unit* /*who*/) override
@@ -380,17 +380,15 @@ public:
             for (std::list<Creature*>::iterator itr = creatureList.begin(); itr != creatureList.end(); ++itr)
             {
                 if (Creature* creature = *itr)
-                    DoZoneInCombat(creature);    // AI()->AttackStart(me->GetVictim());
+                    creature->SetInCombatWithZone();    // AI()->AttackStart(me->GetVictim());
             }
 
-            _events.ScheduleEvent(EVENT_STRIKE, 8s, 16s);
-            _events.ScheduleEvent(EVENT_ENCAGE, 10s, 20s);
+            _events.ScheduleEvent(EVENT_STRIKE, urand(8000, 16000));
+            _events.ScheduleEvent(EVENT_ENCAGE, urand(10000, 20000));
         }
 
         void UpdateAI(uint32 diff) override
         {
-
-
             if (!UpdateVictim())
             {
                 _events.Update(diff);
@@ -421,11 +419,11 @@ public:
                 {
                     case EVENT_STRIKE:
                         DoCastVictim(SPELL_STRIKE, true);
-                        _events.ScheduleEvent(EVENT_STRIKE, 14s, 23s);
+                        _events.ScheduleEvent(EVENT_STRIKE, urand(14000, 23000));
                         break;
                     case EVENT_ENCAGE:
                         DoCast(SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true), EVENT_ENCAGE, true);
-                        _events.ScheduleEvent(EVENT_ENCAGE, 6s, 12s);
+                        _events.ScheduleEvent(EVENT_ENCAGE, urand(6000, 12000));
                         break;
                     default:
                         break;

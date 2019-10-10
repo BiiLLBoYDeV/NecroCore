@@ -50,7 +50,7 @@ struct FactionState
 {
     uint32 ID;
     RepListID ReputationListID;
-    int32 Standing;
+    int32  Standing;
     uint8 Flags;
     bool needSend;
     bool needSave;
@@ -148,7 +148,7 @@ class TC_GAME_API ReputationMgr
         void SetVisible(FactionState* faction);
         void SetAtWar(FactionState* faction, bool atWar) const;
         void SetInactive(FactionState* faction, bool inactive) const;
-        void SendVisible(FactionState const* faction) const;
+        void SendVisible(FactionState const* faction, bool visible = true) const;
         void UpdateRankCounters(ReputationRank old_rank, ReputationRank new_rank);
     private:
         Player* _player;

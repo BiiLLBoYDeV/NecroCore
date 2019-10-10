@@ -214,7 +214,7 @@ class boss_grand_warlock_nethekurse : public CreatureScript
 
                 //triggered spell of consumption does not properly show it's SpellVisual, wrong spellid?
                 summoned->CastSpell(summoned, SPELL_TEMPORARY_VISUAL, true);
-                summoned->CastSpell(summoned, SPELL_CONSUMPTION, CastSpellExtraArgs().SetOriginalCaster(me->GetGUID()));
+                summoned->CastSpell(summoned, SPELL_CONSUMPTION, false, 0, 0, me->GetGUID());
             }
 
             void KilledUnit(Unit* /*victim*/) override
@@ -330,7 +330,7 @@ class npc_fel_orc_convert : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                events.ScheduleEvent(EVENT_HEMORRHAGE, 3s);
+                events.ScheduleEvent(EVENT_HEMORRHAGE, 3000);
 
                 if (Creature* Kurse = ObjectAccessor::GetCreature(*me, instance->GetGuidData(NPC_GRAND_WARLOCK_NETHEKURSE)))
                     if (me->IsWithinDist(Kurse, 45.0f))

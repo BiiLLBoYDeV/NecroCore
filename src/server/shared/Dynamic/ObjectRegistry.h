@@ -82,8 +82,6 @@ class ObjectRegistry final
         // non instanceable, only static
         ObjectRegistry() { }
         ~ObjectRegistry() { }
-        ObjectRegistry(ObjectRegistry const&) = delete;
-        ObjectRegistry& operator=(ObjectRegistry const&) = delete;
 };
 
 #endif

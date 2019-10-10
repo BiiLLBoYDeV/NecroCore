@@ -20,23 +20,8 @@
 #define DBC_FILE_LOADER_H
 
 #include "Define.h"
-#include "Errors.h"
 #include "Utilities/ByteConverter.h"
-
-enum DbcFieldFormat
-{
-    FT_NA='x',                                              //not used or unknown, 4 byte size
-    FT_NA_BYTE='X',                                         //not used or unknown, byte
-    FT_STRING='s',                                          //char*
-    FT_FLOAT='f',                                           //float
-    FT_INT='i',                                             //uint32
-    FT_BYTE='b',                                            //uint8
-    FT_SORT='d',                                            //sorted by this field, field is not included
-    FT_IND='n',                                             //the same, but parsed to data
-    FT_LOGIC='l',                                           //Logical (boolean)
-    FT_SQL_PRESENT='p',                                     //Used in sql format to mark column present in sql dbc
-    FT_SQL_ABSENT='a'                                       //Used in sql format to mark column absent in sql dbc
-};
+#include <cassert>
 
 class TC_COMMON_API DBCFileLoader
 {
@@ -51,36 +36,48 @@ class TC_COMMON_API DBCFileLoader
             public:
                 float getFloat(size_t field) const
                 {
-                    ASSERT(field < file.fieldCount);
-                    float val = *reinterpret_cast<float*>(offset+file.GetOffset(field));
+                    assert(field < file.fieldCount);
+                    float val = *reinterpret_cast<float*>(offset + file.GetOffset(field));
                     EndianConvert(val);
                     return val;
                 }
                 uint32 getUInt(size_t field) const
                 {
-                    ASSERT(field < file.fieldCount);
-                    uint32 val = *reinterpret_cast<uint32*>(offset+file.GetOffset(field));
+                    assert(field < file.fieldCount);
+                    uint32 val = *reinterpret_cast<uint32*>(offset + file.GetOffset(field));
+                    EndianConvert(val);
+                    return val;
+                }
+                int32 getInt(size_t field) const
+                {
+                    assert(field < file.fieldCount);
+                    int32 val = *reinterpret_cast<int32*>(offset + file.GetOffset(field));
                     EndianConvert(val);
                     return val;
                 }
                 uint8 getUInt8(size_t field) const
                 {
-                    ASSERT(field < file.fieldCount);
-                    return *reinterpret_cast<uint8*>(offset+file.GetOffset(field));
+                    assert(field < file.fieldCount);
+                    return *reinterpret_cast<uint8*>(offset + file.GetOffset(field));
+                }
+                uint64 getUInt64(size_t field) const
+                {
+                    assert(field < file.fieldCount);
+                    return *reinterpret_cast<uint64*>(offset + file.GetOffset(field));
                 }
 
                 const char *getString(size_t field) const
                 {
-                    ASSERT(field < file.fieldCount);
+                    assert(field < file.fieldCount);
                     size_t stringOffset = getUInt(field);
-                    ASSERT(stringOffset < file.stringSize);
+                    assert(stringOffset < file.stringSize);
                     return reinterpret_cast<char*>(file.stringTable + stringOffset);
                 }
 
             private:
                 Record(DBCFileLoader &file_, unsigned char *offset_): offset(offset_), file(file_) { }
-                unsigned char *offset;
-                DBCFileLoader &file;
+                unsigned char* offset;
+                DBCFileLoader& file;
 
                 friend class DBCFileLoader;
 
@@ -97,9 +94,9 @@ class TC_COMMON_API DBCFileLoader
         bool IsLoaded() const { return data != nullptr; }
         char* AutoProduceData(char const* fmt, uint32& count, char**& indexTable);
         char* AutoProduceStrings(char const* fmt, char* dataTable);
-        static uint32 GetFormatRecordSize(const char * format, int32 * index_pos = nullptr);
-    private:
+        static uint32 GetFormatRecordSize(char const* format, int32* index_pos = nullptr);
 
+    private:
         uint32 recordSize;
         uint32 recordCount;
         uint32 fieldCount;

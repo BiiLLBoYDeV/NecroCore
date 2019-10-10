@@ -16,8 +16,8 @@
  */
 
 #include "ScriptMgr.h"
-#include "ScriptedCreature.h"
 #include "blackfathom_deeps.h"
+#include "ScriptedCreature.h"
 
 enum Spells
 {
@@ -41,7 +41,7 @@ public:
         void JustEngagedWith(Unit* /*who*/) override
         {
             _JustEngagedWith();
-            events.ScheduleEvent(EVENT_THROW_NET, 2s, 4s);
+            events.ScheduleEvent(EVENT_THROW_NET, urand(2000, 4000));
         }
 
         void UpdateAI(uint32 diff) override
@@ -56,7 +56,7 @@ public:
                 if (eventId == EVENT_THROW_NET)
                 {
                     DoCastVictim(SPELL_NET);
-                    events.ScheduleEvent(EVENT_THROW_NET, 4s, 7s);
+                    events.ScheduleEvent(EVENT_THROW_NET, urand(4000, 7000));
                 }
             }
 

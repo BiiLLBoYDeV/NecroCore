@@ -103,18 +103,15 @@ public:
     struct Cell
     {
         int x, y;
-        bool operator==(Cell const& c2) const
-        {
-            return x == c2.x && y == c2.y;
-        }
+        bool operator == (const Cell& c2) const { return x == c2.x && y == c2.y;}
 
         static Cell ComputeCell(float fx, float fy)
         {
-            Cell c = { int(fx * (1.f / CELL_SIZE) + (CELL_NUMBER / 2)), int(fy * (1.f / CELL_SIZE) + (CELL_NUMBER / 2)) };
+            Cell c = { int(fx * (1.f/CELL_SIZE) + (CELL_NUMBER/2)), int(fy * (1.f/CELL_SIZE) + (CELL_NUMBER/2)) };
             return c;
         }
 
-        bool isValid() const { return x >= 0 && x < CELL_NUMBER && y >= 0 && y < CELL_NUMBER; }
+        bool isValid() const { return x >= 0 && x < CELL_NUMBER && y >= 0 && y < CELL_NUMBER;}
     };
 
     Node& getGrid(int x, int y)

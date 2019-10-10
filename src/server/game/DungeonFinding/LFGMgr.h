@@ -97,23 +97,24 @@ enum LfgTeleportError
 enum LfgJoinResult
 {
     // 3 = No client reaction | 18 = "Rolecheck failed"
-    LFG_JOIN_OK                                  = 0,      // Joined (no client msg)
-    LFG_JOIN_FAILED                              = 1,      // RoleCheck Failed
-    LFG_JOIN_GROUPFULL                           = 2,      // Your group is full
-    LFG_JOIN_INTERNAL_ERROR                      = 4,      // Internal LFG Error
-    LFG_JOIN_NOT_MEET_REQS                       = 5,      // You do not meet the requirements for the chosen dungeons
-    LFG_JOIN_PARTY_NOT_MEET_REQS                 = 6,      // One or more party members do not meet the requirements for the chosen dungeons
-    LFG_JOIN_MIXED_RAID_DUNGEON                  = 7,      // You cannot mix dungeons, raids, and random when picking dungeons
-    LFG_JOIN_MULTI_REALM                         = 8,      // The dungeon you chose does not support players from multiple realms
-    LFG_JOIN_DISCONNECTED                        = 9,      // One or more party members are pending invites or disconnected
-    LFG_JOIN_PARTY_INFO_FAILED                   = 10,     // Could not retrieve information about some party members
-    LFG_JOIN_DUNGEON_INVALID                     = 11,     // One or more dungeons was not valid
-    LFG_JOIN_DESERTER                            = 12,     // You can not queue for dungeons until your deserter debuff wears off
-    LFG_JOIN_PARTY_DESERTER                      = 13,     // One or more party members has a deserter debuff
-    LFG_JOIN_RANDOM_COOLDOWN                     = 14,     // You can not queue for random dungeons while on random dungeon cooldown
-    LFG_JOIN_PARTY_RANDOM_COOLDOWN               = 15,     // One or more party members are on random dungeon cooldown
-    LFG_JOIN_TOO_MUCH_MEMBERS                    = 16,     // You can not enter dungeons with more that 5 party members
-    LFG_JOIN_USING_BG_SYSTEM                     = 17      // You can not use the dungeon system while in BG or arenas
+    LFG_JOIN_OK                                  = 0x00,   // Joined (no client msg)
+    LFG_JOIN_FAILED                              = 0x1B,   // RoleCheck Failed
+    LFG_JOIN_GROUPFULL                           = 0x1C,   // Your group is full
+    LFG_JOIN_INTERNAL_ERROR                      = 0x1E,   // Internal LFG Error
+    LFG_JOIN_NOT_MEET_REQS                       = 0x1F,   // You do not meet the requirements for the chosen dungeons
+    //LFG_JOIN_PARTY_NOT_MEET_REQS                 = 6,      // One or more party members do not meet the requirements for the chosen dungeons
+    LFG_JOIN_MIXED_RAID_DUNGEON                  = 0x20,   // You cannot mix dungeons, raids, and random when picking dungeons
+    LFG_JOIN_MULTI_REALM                         = 0x21,   // The dungeon you chose does not support players from multiple realms
+    LFG_JOIN_DISCONNECTED                        = 0x22,   // One or more party members are pending invites or disconnected
+    LFG_JOIN_PARTY_INFO_FAILED                   = 0x23,   // Could not retrieve information about some party members
+    LFG_JOIN_DUNGEON_INVALID                     = 0x24,   // One or more dungeons was not valid
+    LFG_JOIN_DESERTER                            = 0x25,   // You can not queue for dungeons until your deserter debuff wears off
+    LFG_JOIN_PARTY_DESERTER                      = 0x26,   // One or more party members has a deserter debuff
+    LFG_JOIN_RANDOM_COOLDOWN                     = 0x27,   // You can not queue for random dungeons while on random dungeon cooldown
+    LFG_JOIN_PARTY_RANDOM_COOLDOWN               = 0x28,   // One or more party members are on random dungeon cooldown
+    LFG_JOIN_TOO_MUCH_MEMBERS                    = 0x29,   // You can not enter dungeons with more that 5 party members
+    LFG_JOIN_USING_BG_SYSTEM                     = 0x2A,   // You can not use the dungeon system while in BG or arenas
+    LFG_JOIN_ROLE_CHECK_FAILED                   = 0x2B    // Role check failed, client shows special error
 };
 
 /// Role check states
@@ -160,7 +161,7 @@ struct LfgJoinResultData
     LfgLockPartyMap lockmap;
 };
 
-// Data needed by SMSG_LFG_UPDATE_PARTY and SMSG_LFG_UPDATE_PLAYER
+// Data needed by SMSG_LFG_UPDATE_STATUS
 struct LfgUpdateData
 {
     LfgUpdateData(LfgUpdateType _type = LFG_UPDATETYPE_DEFAULT): updateType(_type), state(LFG_STATE_NONE), comment("") { }
@@ -178,12 +179,14 @@ struct LfgUpdateData
 // Data needed by SMSG_LFG_QUEUE_STATUS
 struct LfgQueueStatusData
 {
-    LfgQueueStatusData(uint32 _dungeonId = 0, int32 _waitTime = -1, int32 _waitTimeAvg = -1, int32 _waitTimeTank = -1, int32 _waitTimeHealer = -1,
+    LfgQueueStatusData(uint8 _queueId = 0, uint32 _dungeonId = 0, time_t _joinTime = 0, int32 _waitTime = -1, int32 _waitTimeAvg = -1, int32 _waitTimeTank = -1, int32 _waitTimeHealer = -1,
         int32 _waitTimeDps = -1, uint32 _queuedTime = 0, uint8 _tanks = 0, uint8 _healers = 0, uint8 _dps = 0) :
-        dungeonId(_dungeonId), waitTime(_waitTime), waitTimeAvg(_waitTimeAvg), waitTimeTank(_waitTimeTank), waitTimeHealer(_waitTimeHealer),
-        waitTimeDps(_waitTimeDps), queuedTime(_queuedTime), tanks(_tanks), healers(_healers), dps(_dps) { }
+        queueId(_queueId), dungeonId(_dungeonId), joinTime(_joinTime), waitTime(_waitTime), waitTimeAvg(_waitTimeAvg), waitTimeTank(_waitTimeTank),
+        waitTimeHealer(_waitTimeHealer), waitTimeDps(_waitTimeDps), queuedTime(_queuedTime), tanks(_tanks), healers(_healers), dps(_dps) { }
 
+    uint8 queueId;
     uint32 dungeonId;
+    time_t joinTime;
     int32 waitTime;
     int32 waitTimeAvg;
     int32 waitTimeTank;
@@ -282,6 +285,7 @@ struct LFGDungeonData
     Difficulty difficulty;
     bool seasonal;
     float x, y, z, o;
+    uint16 requiredItemLevel;
 
     // Helpers
     uint32 Entry() const { return id + (type << 24); }
@@ -404,8 +408,12 @@ class TC_GAME_API LFGMgr
         uint8 GetPlayerCount(ObjectGuid guid);
         /// Add a new Proposal
         uint32 AddProposal(LfgProposal& proposal);
+        /// Returns queue id
+        uint8 GetQueueId(ObjectGuid guid);
         /// Checks if all players are queued
         bool AllQueued(GuidList const& check);
+        /// Gets queue join time
+        time_t GetQueueJoinTime(ObjectGuid guid);
         /// Checks if given roles match, modifies given roles map with new roles
         static bool CheckGroupRoles(LfgRolesMap &groles);
         /// Checks if given players are ignoring each other
@@ -426,13 +434,15 @@ class TC_GAME_API LFGMgr
         void GetCompatibleDungeons(LfgDungeonSet& dungeons, GuidSet const& players, LfgLockPartyMap& lockMap, bool isContinue);
         void _SaveToDB(ObjectGuid guid, uint32 db_guid);
         LFGDungeonData const* GetLFGDungeon(uint32 id);
+        void AddDungeonsFromGroupingMap(LfgCachedDungeonContainer& container, uint32 groupId, uint32 dungeonId);
 
         // Proposals
         void RemoveProposal(LfgProposalContainer::iterator itProposal, LfgUpdateType type);
         void MakeNewGroup(LfgProposal const& proposal);
 
         // Generic
-        LFGQueue &GetQueue(ObjectGuid guid);
+        LFGQueue& GetQueue(ObjectGuid guid);
+
         LfgDungeonSet const& GetDungeonsByRandom(uint32 randomdungeon);
         LfgType GetDungeonType(uint32 dungeon);
 
@@ -440,8 +450,7 @@ class TC_GAME_API LFGMgr
         void SendLfgJoinResult(ObjectGuid guid, LfgJoinResultData const& data);
         void SendLfgRoleChosen(ObjectGuid guid, ObjectGuid pguid, uint8 roles);
         void SendLfgRoleCheckUpdate(ObjectGuid guid, LfgRoleCheck const& roleCheck);
-        void SendLfgUpdateParty(ObjectGuid guid, LfgUpdateData const& data);
-        void SendLfgUpdatePlayer(ObjectGuid guid, LfgUpdateData const& data);
+        void SendLfgUpdateStatus(ObjectGuid guid, LfgUpdateData const& data, bool party);
         void SendLfgUpdateProposal(ObjectGuid guid, LfgProposal const& proposal);
 
         GuidSet const& GetPlayers(ObjectGuid guid);
@@ -455,7 +464,7 @@ class TC_GAME_API LFGMgr
         LfgCachedDungeonContainer CachedDungeonMapStore;   /// Stores all dungeons by groupType
         // Reward System
         LfgRewardContainer RewardMapStore;                 /// Stores rewards for random dungeons
-        LFGDungeonContainer LfgDungeonStore;
+        LFGDungeonContainer  LfgDungeonStore;
         // Rolecheck - Proposal - Vote Kicks
         LfgRoleCheckContainer RoleChecksStore;             /// Current Role checks
         LfgProposalContainer ProposalsStore;               /// Current Proposals

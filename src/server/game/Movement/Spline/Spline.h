@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -50,7 +50,6 @@ protected:
 
     uint8 m_mode;
     bool cyclic;
-    float initialOrientation;
 
     enum{
         // could be modified, affects segment length evaluation precision
@@ -91,7 +90,7 @@ protected:
 
 public:
 
-    explicit SplineBase() : index_lo(0), index_hi(0), m_mode(UninitializedMode), cyclic(false), initialOrientation(0.f) { }
+    explicit SplineBase() : index_lo(0), index_hi(0), m_mode(UninitializedMode), cyclic(false) { }
 
     /** Caclulates the position for given segment Idx, and percent of segment length t
         @param t - percent of segment length, assumes that t in range [0, 1]
@@ -118,8 +117,8 @@ public:
     Vector3 const& getPoint(index_type i) const { return points[i];}
 
     /** Initializes spline. Don't call other methods while spline not initialized. */
-    void init_spline(const Vector3 * controls, index_type count, EvaluationMode m, float orientation);
-    void init_cyclic_spline(const Vector3 * controls, index_type count, EvaluationMode m, index_type cyclic_point, float orientation);
+    void init_spline(const Vector3 * controls, index_type count, EvaluationMode m);
+    void init_cyclic_spline(const Vector3 * controls, index_type count, EvaluationMode m, index_type cyclic_point);
 
     /** As i can see there are a lot of ways how spline can be initialized
         would be no harm to have some custom initializers. */
@@ -174,8 +173,8 @@ public:
     void computeIndex(float t, index_type& out_idx, float& out_u) const;
 
     /** Initializes spline. Don't call other methods while spline not initialized. */
-    void init_spline(const Vector3 * controls, index_type count, EvaluationMode m, float orientation = 0) { SplineBase::init_spline(controls, count, m, orientation);}
-    void init_cyclic_spline(const Vector3 * controls, index_type count, EvaluationMode m, index_type cyclic_point, float orientation = 0) { SplineBase::init_cyclic_spline(controls, count, m, cyclic_point, orientation);}
+    void init_spline(Vector3 const* controls, index_type count, EvaluationMode m) { SplineBase::init_spline(controls, count, m);}
+    void init_cyclic_spline(Vector3 const* controls, index_type count, EvaluationMode m, index_type cyclic_point) { SplineBase::init_cyclic_spline(controls, count, m, cyclic_point);}
 
     /**  Initializes lengths with SplineBase::SegLength method. */
     void initLengths();
@@ -201,12 +200,7 @@ public:
     }
 
     /** Returns length of the whole spline. */
-    length_type length() const
-    {
-        if (lengths.empty())
-            return 0;
-        return lengths[index_hi];
-    }
+    length_type length() const { return lengths[index_hi];}
     /** Returns length between given nodes. */
     length_type length(index_type first, index_type last) const { return lengths[last]-lengths[first];}
     length_type length(index_type Idx) const { return lengths[Idx];}

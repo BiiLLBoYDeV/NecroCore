@@ -16,20 +16,21 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "zulgurub.h"
-#include "ScriptedCreature.h"
+#include "ObjectMgr.h"
 #include "ScriptMgr.h"
+#include "ScriptedCreature.h"
+#include "zulgurub.h"
+
+enum Yells
+{
+};
 
 enum Spells
 {
-    SPELL_LIGHTNINGCLOUD = 25033,
-    SPELL_LIGHTNINGWAVE = 24819
 };
 
 enum Events
 {
-    EVENT_LIGHTNINGCLOUD = 1,
-    EVENT_LIGHTNINGWAVE = 2
 };
 
 class boss_wushoolay : public CreatureScript
@@ -39,23 +40,20 @@ class boss_wushoolay : public CreatureScript
 
         struct boss_wushoolayAI : public BossAI
         {
-            boss_wushoolayAI(Creature* creature) : BossAI(creature, DATA_EDGE_OF_MADNESS) { }
+            boss_wushoolayAI(Creature* creature) : BossAI(creature, DATA_HAZZARAH)
+            {
+            }
 
             void Reset() override
             {
-                _Reset();
-            }
-
-            void JustDied(Unit* /*killer*/) override
-            {
-                _JustDied();
             }
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                _JustEngagedWith();
-                events.ScheduleEvent(EVENT_LIGHTNINGCLOUD, 5s, 10s);
-                events.ScheduleEvent(EVENT_LIGHTNINGWAVE, 8s, 16s);
+            }
+
+            void JustDied(Unit* /*killer*/) override
+            {
             }
 
             void UpdateAI(uint32 diff) override
@@ -67,19 +65,11 @@ class boss_wushoolay : public CreatureScript
 
                 if (me->HasUnitState(UNIT_STATE_CASTING))
                     return;
-
+                /*
                 while (uint32 eventId = events.ExecuteEvent())
                 {
                     switch (eventId)
                     {
-                        case EVENT_LIGHTNINGCLOUD:
-                            DoCastVictim(SPELL_LIGHTNINGCLOUD, true);
-                            events.ScheduleEvent(EVENT_LIGHTNINGCLOUD, 15s, 20s);
-                            break;
-                        case EVENT_LIGHTNINGWAVE:
-                            DoCast(SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true), SPELL_LIGHTNINGWAVE);
-                            events.ScheduleEvent(EVENT_LIGHTNINGWAVE, 12s, 16s);
-                            break;
                         default:
                             break;
                     }
@@ -87,6 +77,7 @@ class boss_wushoolay : public CreatureScript
                     if (me->HasUnitState(UNIT_STATE_CASTING))
                         return;
                 }
+                */
 
                 DoMeleeAttackIfReady();
             }
@@ -94,7 +85,7 @@ class boss_wushoolay : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetZulGurubAI<boss_wushoolayAI>(creature);
+            return new boss_wushoolayAI(creature);
         }
 };
 

@@ -23,13 +23,11 @@
 #include "DBCStores.h"
 #include "EventProcessor.h"
 #include "Log.h"
-#include "MotionMaster.h"
 #include "MoveSplineInit.h"
 #include "ObjectAccessor.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptMgr.h"
-#include "SpellAuraEffects.h"
 #include "TemporarySummon.h"
 #include "Unit.h"
 #include "Util.h"
@@ -76,7 +74,54 @@ Vehicle::~Vehicle()
 
 void Vehicle::Install()
 {
-    _me->UpdateDisplayPower();
+    if (_me->GetTypeId() == TYPEID_UNIT)
+    {
+        if (PowerDisplayEntry const* powerDisplay = sPowerDisplayStore.LookupEntry(_vehicleInfo->m_powerDisplayId))
+            _me->SetPowerType(Powers(powerDisplay->PowerType));
+        else if (_me->GetClass() == CLASS_ROGUE)
+            _me->SetPowerType(POWER_ENERGY);
+    }
+
+    if (Creature* creature = _me->ToCreature())
+    {
+        switch (_vehicleInfo->m_powerDisplayId)
+        {
+            case POWER_STEAM:
+            case POWER_HEAT:
+            case POWER_BLOOD:
+            case POWER_OOZE:
+            case POWER_WRATH:
+            case POWER_ARCANE_ENERGY:
+            case POWER_LIFE_ENERGY:
+            case POWER_SUN_ENERGY:
+            case POWER_SWING_VELOCITY:
+            case POWER_SHADOWFLAME_ENERGY:
+            case POWER_BLUE_POWER:
+            case POWER_PURPLE_POWER:
+            case POWER_GREEN_POWER:
+            case POWER_ORANGE_POWER:
+            case POWER_ELECTRICAL_ENERGY:
+            case POWER_ARCANE_ENERGY_2:
+            case POWER_FUEL:
+            case POWER_SUN_POWER:
+            case POWER_TWILIGHT_ENERGY:
+                _me->SetMaxPower(POWER_ENERGY, 100);
+                 _me->SetPower(POWER_ENERGY, 100);
+                break;
+            case POWER_PYRITE:
+                _me->SetMaxPower(POWER_ENERGY, 50);
+                _me->SetPower(POWER_ENERGY, 50);
+                break;
+            case POWER_WIND_POWER_1:
+            case POWER_WIND_POWER_2:
+            case POWER_WIND_POWER_3:
+                _me->SetMaxPower(POWER_MANA, 90);
+                _me->SetPower(POWER_MANA, 90);
+                break;
+            default:
+                break;
+        }
+    }
 
     _status = STATUS_INSTALLED;
     if (GetBase()->GetTypeId() == TYPEID_UNIT)
@@ -384,7 +429,7 @@ void Vehicle::InstallAccessory(uint32 entry, int8 seatId, bool minion, uint8 typ
     if (minion)
         accessory->AddUnitTypeMask(UNIT_MASK_ACCESSORY);
 
-    _me->HandleSpellClick(accessory, seatId);
+    (void)_me->HandleSpellClick(accessory, seatId);
 
     /// If for some reason adding accessory to vehicle fails it will unsummon in
     /// @VehicleJoinEvent::Abort
@@ -502,10 +547,7 @@ Vehicle* Vehicle::RemovePassenger(Unit* unit)
     if (_me->IsInWorld())
     {
         if (!_me->GetTransport())
-        {
-            unit->RemoveUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
-            unit->m_movementInfo.transport.Reset();
-        }
+            unit->m_movementInfo.ResetTransport();
         else
             unit->m_movementInfo.transport = _me->m_movementInfo.transport;
     }
@@ -514,7 +556,7 @@ Vehicle* Vehicle::RemovePassenger(Unit* unit)
     if (unit->IsFlying())
         _me->CastSpell(unit, VEHICLE_SPELL_PARACHUTE, true);
 
-    if (_me->GetTypeId() == TYPEID_UNIT && _me->ToCreature()->IsAIEnabled())
+    if (_me->GetTypeId() == TYPEID_UNIT && _me->ToCreature()->IsAIEnabled)
         _me->ToCreature()->AI()->PassengerBoarded(unit, seat->first, false);
 
     if (GetBase()->GetTypeId() == TYPEID_UNIT)
@@ -764,16 +806,7 @@ bool VehicleJoinEvent::Execute(uint64, uint32)
 {
     ASSERT(Passenger->IsInWorld());
     ASSERT(Target && Target->GetBase()->IsInWorld());
-
-    Unit::AuraEffectList const& vehicleAuras = Target->GetBase()->GetAuraEffectsByType(SPELL_AURA_CONTROL_VEHICLE);
-    auto itr = std::find_if(vehicleAuras.begin(), vehicleAuras.end(), [this](AuraEffect const* aurEff) -> bool
-    {
-        return aurEff->GetCasterGUID() == Passenger->GetGUID();
-    });
-    ASSERT(itr != vehicleAuras.end());
-
-    AuraApplication const* aurApp = (*itr)->GetBase()->GetApplicationOfTarget(Target->GetBase()->GetGUID());
-    ASSERT(aurApp && !aurApp->GetRemoveMode());
+    ASSERT(Target->GetBase()->HasAuraTypeWithCaster(SPELL_AURA_CONTROL_VEHICLE, Passenger->GetGUID()));
 
     Target->RemovePendingEventsForSeat(Seat->first);
     Target->RemovePendingEventsForPassenger(Passenger);
@@ -821,29 +854,24 @@ bool VehicleJoinEvent::Execute(uint64, uint32)
         player->StopCastingCharm();
         player->StopCastingBindSight();
         player->SendOnCancelExpectedVehicleRideAura();
-        if (!veSeat->HasFlag(VEHICLE_SEAT_FLAG_B_KEEP_PET))
+        if (!(veSeat->m_flagsB & VEHICLE_SEAT_FLAG_B_KEEP_PET))
             player->UnsummonPetTemporaryIfAny();
     }
 
-    if (veSeat->HasFlag(VEHICLE_SEAT_FLAG_PASSENGER_NOT_SELECTABLE))
+    if (Seat->second.SeatInfo->m_flags & VEHICLE_SEAT_FLAG_PASSENGER_NOT_SELECTABLE)
         Passenger->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
 
-    Passenger->AddUnitMovementFlag(MOVEMENTFLAG_ONTRANSPORT);
     Passenger->m_movementInfo.transport.pos.Relocate(veSeat->m_attachmentOffsetX, veSeat->m_attachmentOffsetY, veSeat->m_attachmentOffsetZ);
     Passenger->m_movementInfo.transport.time = 0;
     Passenger->m_movementInfo.transport.seat = Seat->first;
     Passenger->m_movementInfo.transport.guid = Target->GetBase()->GetGUID();
+    Passenger->m_movementInfo.transport.vehicleId = Target->GetVehicleInfo()->m_ID;
 
     if (Target->GetBase()->GetTypeId() == TYPEID_UNIT && Passenger->GetTypeId() == TYPEID_PLAYER &&
-        veSeat->HasFlag(VEHICLE_SEAT_FLAG_CAN_CONTROL))
+        Seat->second.SeatInfo->m_flags & VEHICLE_SEAT_FLAG_CAN_CONTROL)
     {
-        // handles SMSG_CLIENT_CONTROL
-        if (!Target->GetBase()->SetCharmedBy(Passenger, CHARM_TYPE_VEHICLE, aurApp))
-        {
-            // charming failed, probably aura was removed by relocation/scripts/whatever
-            Abort(0);
-            return true;
-        }
+        bool charmedByResult = Target->GetBase()->SetCharmedBy(Passenger, CHARM_TYPE_VEHICLE);  // SMSG_CLIENT_CONTROL
+        ASSERT(charmedByResult);
     }
 
     Passenger->SendClearTarget();                            // SMSG_BREAK_TARGET
@@ -855,12 +883,12 @@ bool VehicleJoinEvent::Execute(uint64, uint32)
     init.MoveTo(veSeat->m_attachmentOffsetX, veSeat->m_attachmentOffsetY, veSeat->m_attachmentOffsetZ, false, true);
     init.SetFacing(0.0f);
     init.SetTransportEnter();
-    Passenger->GetMotionMaster()->LaunchMoveSpline(std::move(init), EVENT_VEHICLE_BOARD, MOTION_PRIORITY_HIGHEST);
+    init.Launch();
 
     if (Creature* creature = Target->GetBase()->ToCreature())
     {
-        if (CreatureAI* ai = creature->AI())
-            ai->PassengerBoarded(Passenger, Seat->first, true);
+        if (creature->IsAIEnabled)
+            creature->AI()->PassengerBoarded(Passenger, Seat->first, true);
 
         sScriptMgr->OnAddPassenger(Target, Passenger, Seat->first);
 

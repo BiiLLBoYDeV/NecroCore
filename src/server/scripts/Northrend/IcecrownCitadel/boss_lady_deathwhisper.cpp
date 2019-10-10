@@ -22,7 +22,7 @@
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "Player.h"
-#include "QuestPools.h"
+#include "PoolMgr.h"
 #include "ScriptedCreature.h"
 #include "SpellInfo.h"
 #include "SpellScript.h"
@@ -180,10 +180,10 @@ Position const SummonPositions[7] =
     {-524.2480f, 2211.920f, 62.90960f, 3.141592f}, // 7 Upper (Random Cultist)
 };
 
-class DaranavanMoveEvent : public BasicEvent
+class DarnavanMoveEvent : public BasicEvent
 {
     public:
-        DaranavanMoveEvent(Creature& darnavan) : _darnavan(darnavan) { }
+        DarnavanMoveEvent(Creature& darnavan) : _darnavan(darnavan) { }
 
         bool Execute(uint64 /*time*/, uint32 /*diff*/) override
         {
@@ -312,10 +312,9 @@ class boss_lady_deathwhisper : public CreatureScript
                         scheduler.Schedule(Seconds(27), [this](TaskContext dominate_mind)
                         {
                             Talk(SAY_DOMINATE_MIND);
-                            std::list<Unit*> targets;
-                            SelectTargetList(targets, _dominateMindCount, SELECT_TARGET_RANDOM, 0, 0.0f, true, false, -SPELL_DOMINATE_MIND);
-                            for (Unit* target : targets)
-                              DoCast(target, SPELL_DOMINATE_MIND);
+                            for (uint8 i = 0; i < _dominateMindCount; i++)
+                                if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1, 0.0f, true, -SPELL_DOMINATE_MIND))
+                                    DoCast(target, SPELL_DOMINATE_MIND);
                             dominate_mind.Repeat(Seconds(40), Seconds(45));
                         });
                 // phase one only
@@ -366,7 +365,7 @@ class boss_lady_deathwhisper : public CreatureScript
                         darnavan->CombatStop(true);
                         darnavan->GetMotionMaster()->MoveIdle();
                         darnavan->SetReactState(REACT_PASSIVE);
-                        darnavan->m_Events.AddEvent(new DaranavanMoveEvent(*darnavan), darnavan->m_Events.CalculateTime(10000));
+                        darnavan->m_Events.AddEvent(new DarnavanMoveEvent(*darnavan), darnavan->m_Events.CalculateTime(10000));
                         darnavan->AI()->Talk(SAY_DARNAVAN_RESCUED);
 
                         if (!killer)
@@ -409,13 +408,13 @@ class boss_lady_deathwhisper : public CreatureScript
             void DamageTaken(Unit* /*damageDealer*/, uint32& damage) override
             {
                 // phase transition
-                if (_phase == PHASE_ONE && damage > me->GetPower(POWER_MANA))
+                if (_phase == PHASE_ONE && damage > uint32(me->GetPower(POWER_MANA)))
                 {
                     _phase = PHASE_TWO;
                     Talk(SAY_PHASE_2);
                     Talk(EMOTE_PHASE_2);
                     DoStartMovement(me->GetVictim());
-                    ResetThreatList();
+                    DoResetThreat();
                     damage -= me->GetPower(POWER_MANA);
                     me->SetPower(POWER_MANA, 0);
                     me->RemoveAurasDueToSpell(SPELL_MANA_BARRIER);
@@ -440,9 +439,7 @@ class boss_lady_deathwhisper : public CreatureScript
                         })
                         .Schedule(Seconds(12), GROUP_TWO, [this](TaskContext summonShade)
                         {
-                            CastSpellExtraArgs args;
-                            args.AddSpellMod(SPELLVALUE_MAX_TARGETS, Is25ManRaid() ? 2 : 1);
-                            me->CastSpell(nullptr, SPELL_SUMMON_SPIRITS, args);
+                            me->CastCustomSpell(SPELL_SUMMON_SPIRITS, SPELLVALUE_MAX_TARGETS, Is25ManRaid() ? 2 : 1);
                             summonShade.Repeat();
                         });
 
@@ -512,7 +509,7 @@ class boss_lady_deathwhisper : public CreatureScript
                 uint8 addIndexOther = uint8(addIndex ^ 1);
 
                 // Summon first add, replace it with Darnavan if weekly quest is active
-                if (_waveCounter || !sQuestPoolMgr->IsQuestActive(QUEST_DEPROGRAMMING))
+                if (_waveCounter || !sPoolMgr->IsSpawnedObject<Quest>(QUEST_DEPROGRAMMING))
                     Summon(SummonEntries[addIndex], SummonPositions[addIndex * 3]);
                 else
                     Summon(NPC_DARNAVAN, SummonPositions[addIndex * 3]);
@@ -547,7 +544,7 @@ class boss_lady_deathwhisper : public CreatureScript
             }
 
             // helper for summoning wave mobs
-            void Summon(uint32 entry, Position const& pos)
+            void Summon(uint32 entry, const Position& pos)
             {
                 if (TempSummon* summon = me->SummonCreature(entry, pos, TEMPSUMMON_CORPSE_TIMED_DESPAWN, 10000))
                     summon->CastSpell(summon, SPELL_TELEPORT_VISUAL);
@@ -884,10 +881,10 @@ class npc_darnavan : public CreatureScript
             void Reset() override
             {
                 _events.Reset();
-                _events.ScheduleEvent(EVENT_DARNAVAN_BLADESTORM, 10s);
-                _events.ScheduleEvent(EVENT_DARNAVAN_INTIMIDATING_SHOUT, 20s, 25s);
-                _events.ScheduleEvent(EVENT_DARNAVAN_MORTAL_STRIKE, 25s, 30s);
-                _events.ScheduleEvent(EVENT_DARNAVAN_SUNDER_ARMOR, 5s, 8s);
+                _events.ScheduleEvent(EVENT_DARNAVAN_BLADESTORM, Seconds(10));
+                _events.ScheduleEvent(EVENT_DARNAVAN_INTIMIDATING_SHOUT, Seconds(20), Seconds(25));
+                _events.ScheduleEvent(EVENT_DARNAVAN_MORTAL_STRIKE, Seconds(25), Seconds(30));
+                _events.ScheduleEvent(EVENT_DARNAVAN_SUNDER_ARMOR, Seconds(5), Seconds(8));
                 Initialize();
             }
 
@@ -939,7 +936,7 @@ class npc_darnavan : public CreatureScript
                 {
                     DoCastVictim(SPELL_SHATTERING_THROW);
                     _canShatter = false;
-                    _events.ScheduleEvent(EVENT_DARNAVAN_SHATTERING_THROW, 30s);
+                    _events.ScheduleEvent(EVENT_DARNAVAN_SHATTERING_THROW, Seconds(30));
                     return;
                 }
 
@@ -947,7 +944,7 @@ class npc_darnavan : public CreatureScript
                 {
                     DoCastVictim(SPELL_CHARGE);
                     _canCharge = false;
-                    _events.ScheduleEvent(EVENT_DARNAVAN_CHARGE, 20s);
+                    _events.ScheduleEvent(EVENT_DARNAVAN_CHARGE, Seconds(20));
                     return;
                 }
 
@@ -957,7 +954,7 @@ class npc_darnavan : public CreatureScript
                     {
                         case EVENT_DARNAVAN_BLADESTORM:
                             DoCast(SPELL_BLADESTORM);
-                            _events.ScheduleEvent(EVENT_DARNAVAN_BLADESTORM, 90s, 100s);
+                            _events.ScheduleEvent(EVENT_DARNAVAN_BLADESTORM, Seconds(90), Seconds(100));
                             break;
                         case EVENT_DARNAVAN_CHARGE:
                             _canCharge = true;
@@ -968,14 +965,14 @@ class npc_darnavan : public CreatureScript
                             break;
                         case EVENT_DARNAVAN_MORTAL_STRIKE:
                             DoCastVictim(SPELL_MORTAL_STRIKE);
-                            _events.ScheduleEvent(EVENT_DARNAVAN_MORTAL_STRIKE, 15s, 30s);
+                            _events.ScheduleEvent(EVENT_DARNAVAN_MORTAL_STRIKE, Seconds(15), Seconds(30));
                             break;
                         case EVENT_DARNAVAN_SHATTERING_THROW:
                             _canShatter = true;
                             break;
                         case EVENT_DARNAVAN_SUNDER_ARMOR:
                             DoCastVictim(SPELL_SUNDER_ARMOR);
-                            _events.ScheduleEvent(EVENT_DARNAVAN_SUNDER_ARMOR, 3s, 7s);
+                            _events.ScheduleEvent(EVENT_DARNAVAN_SUNDER_ARMOR, Seconds(3), Seconds(7));
                             break;
                     }
                 }

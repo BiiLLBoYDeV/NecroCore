@@ -40,6 +40,7 @@ class TC_GAME_API BattlefieldMgr
         // return assigned battlefield
         Battlefield* GetBattlefieldToZoneId(uint32 zoneId);
         Battlefield* GetBattlefieldByBattleId(uint32 battleId);
+        Battlefield* GetBattlefieldByGUID(ObjectGuid guid);
 
         ZoneScript* GetZoneScript(uint32 zoneId);
 

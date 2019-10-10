@@ -35,9 +35,7 @@
 #include "Player.h"
 #include "WorldSession.h"
 #include "Opcodes.h"
-#ifdef ELUNA
-#include "LuaEngine.h"
-#endif
+#include "AchievementMgr.h"
 
 MapManager::MapManager()
     : _nextInstanceId(0), _scheduledScripts(0)
@@ -53,24 +51,20 @@ void MapManager::Initialize()
     Map::InitStateMachine();
 
     int num_threads(sWorld->getIntConfig(CONFIG_NUMTHREADS));
-#if ELUNA
-    if (num_threads > 1)
-    {
-        // Force 1 thread for Eluna as lua is single threaded. By default thread count is 1
-        // This should allow us not to use mutex locks
-        TC_LOG_ERROR("maps", "Map update threads set to %i, when Eluna only allows 1, changing to 1", num_threads);
-        num_threads = 1;
-    }
-#endif
     // Start mtmaps if needed.
     if (num_threads > 0)
         m_updater.activate(num_threads);
 }
 
+void MapManager::InitializeParentMapData(std::unordered_map<uint32, std::vector<uint32>> const& mapData)
+{
+    _parentMapData = mapData;
+}
+
 void MapManager::InitializeVisibilityDistanceInfo()
 {
-    for (MapMapType::iterator iter = i_maps.begin(); iter != i_maps.end(); ++iter)
-        (*iter).second->InitVisibilityDistance();
+    for (auto iter = i_maps.begin(); iter != i_maps.end(); ++iter)
+        iter->second->InitVisibilityDistance();
 }
 
 MapManager* MapManager::instance()
@@ -83,26 +77,43 @@ Map* MapManager::CreateBaseMap(uint32 id)
 {
     Map* map = FindBaseMap(id);
 
-    if (map == nullptr)
+    if (!map)
     {
-        std::lock_guard<std::mutex> lock(_mapsLock);
-
-        MapEntry const* entry = sMapStore.LookupEntry(id);
-        ASSERT(entry);
-
-        if (entry->Instanceable())
-            map = new MapInstanced(id, i_gridCleanUpDelay);
-        else
+        MapEntry const* entry = sMapStore.AssertEntry(id);
+        if (entry->rootPhaseMap != -1)
         {
-            map = new Map(id, i_gridCleanUpDelay, 0, REGULAR_DIFFICULTY);
-            map->LoadRespawnTimes();
-            map->LoadCorpseData();
+            CreateBaseMap(entry->rootPhaseMap);
+
+            // must have been created by parent map
+            map = FindBaseMap(id);
+            return ASSERT_NOTNULL(map);
         }
 
-        i_maps[id] = map;
+        std::lock_guard<std::mutex> lock(_mapsLock);
+        map = CreateBaseMap_i(entry);
     }
 
     ASSERT(map);
+    return map;
+}
+
+Map* MapManager::CreateBaseMap_i(MapEntry const* mapEntry)
+{
+    Map* map;
+    if (mapEntry->Instanceable())
+        map = new MapInstanced(mapEntry->MapID, i_gridCleanUpDelay);
+    else
+    {
+        map = new Map(mapEntry->MapID, i_gridCleanUpDelay, 0, REGULAR_DIFFICULTY);
+        map->LoadRespawnTimes();
+        map->LoadCorpseData();
+    }
+
+    i_maps[mapEntry->MapID] = map;
+
+    for (uint32 childMapId : _parentMapData[mapEntry->MapID])
+        map->AddChildTerrainMap(CreateBaseMap_i(sMapStore.AssertEntry(childMapId)));
+
     return map;
 }
 
@@ -160,11 +171,7 @@ Map::EnterState MapManager::PlayerCannotEnter(uint32 mapid, Player* player, bool
     if (player->IsGameMaster())
         return Map::CAN_ENTER;
 
-    //Other requirements
-    if (!player->Satisfy(sObjectMgr->GetAccessRequirement(mapid, targetDifficulty), mapid, true))
-        return Map::CANNOT_ENTER_UNSPECIFIED_REASON;
-
-    char const* mapName = entry->name[player->GetSession()->GetSessionDbcLocale()];
+    char const* mapName = entry->name;
 
     Group* group = player->GetGroup();
     if (entry->IsRaid()) // can only enter in a raid group
@@ -217,7 +224,11 @@ Map::EnterState MapManager::PlayerCannotEnter(uint32 mapid, Player* player, bool
             return Map::CANNOT_ENTER_TOO_MANY_INSTANCES;
     }
 
-    return Map::CAN_ENTER;
+    //Other requirements
+    if (player->Satisfy(sObjectMgr->GetAccessRequirement(mapid, targetDifficulty), mapid, true))
+        return Map::CAN_ENTER;
+    else
+        return Map::CANNOT_ENTER_UNSPECIFIED_REASON;
 }
 
 void MapManager::Update(uint32 diff)
@@ -269,6 +280,10 @@ bool MapManager::IsValidMAP(uint32 mapid, bool startUp)
 
 void MapManager::UnloadAll()
 {
+    // first unlink child maps
+    for (auto iter = i_maps.begin(); iter != i_maps.end(); ++iter)
+        iter->second->UnlinkAllChildTerrainMaps();
+
     for (MapMapType::iterator iter = i_maps.begin(); iter != i_maps.end();)
     {
         iter->second->UnloadAll();
@@ -372,7 +387,5 @@ void MapManager::FreeInstanceId(uint32 instanceId)
     // If freed instance id is lower than the next id available for new instances, use the freed one instead
     _nextInstanceId = std::min(instanceId, _nextInstanceId);
     _freeInstanceIds[instanceId] = true;
-#ifdef ELUNA
-    sEluna->FreeInstanceId(instanceId);
-#endif
+    sAchievementMgr->OnInstanceDestroyed(instanceId);
 }

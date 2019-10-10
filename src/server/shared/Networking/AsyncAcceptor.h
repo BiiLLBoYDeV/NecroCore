@@ -68,7 +68,6 @@ public:
                     TC_LOG_INFO("network", "Failed to initialize client's socket %s", err.what());
                 }
             }
-
             if (!_closed)
                 this->AsyncAcceptWithCallback<acceptCallback>();
         });

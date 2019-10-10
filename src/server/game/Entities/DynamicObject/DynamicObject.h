@@ -30,7 +30,8 @@ enum DynamicObjectType
 {
     DYNAMIC_OBJECT_PORTAL           = 0x0,      // unused
     DYNAMIC_OBJECT_AREA_SPELL       = 0x1,
-    DYNAMIC_OBJECT_FARSIGHT_FOCUS   = 0x2
+    DYNAMIC_OBJECT_FARSIGHT_FOCUS   = 0x2,
+    DYNAMIC_OBJECT_RAID_MARKER      = 0x3
 };
 
 class TC_GAME_API DynamicObject : public WorldObject, public GridObject<DynamicObject>, public MapObject
@@ -42,7 +43,7 @@ class TC_GAME_API DynamicObject : public WorldObject, public GridObject<DynamicO
         void AddToWorld() override;
         void RemoveFromWorld() override;
 
-        bool CreateDynamicObject(ObjectGuid::LowType guidlow, Unit* caster, uint32 spellId, Position const& pos, float radius, DynamicObjectType type);
+        bool CreateDynamicObject(ObjectGuid::LowType guidlow, Unit* caster, SpellInfo const* spell, Position const& pos, float radius, DynamicObjectType type);
         void Update(uint32 p_time) override;
         void Remove();
         void SetDuration(int32 newDuration);
@@ -53,13 +54,11 @@ class TC_GAME_API DynamicObject : public WorldObject, public GridObject<DynamicO
         void SetCasterViewpoint();
         void RemoveCasterViewpoint();
         Unit* GetCaster() const { return _caster; }
-        uint32 GetFaction() const override;
         void BindToCaster();
         void UnbindFromCaster();
         uint32 GetSpellId() const { return GetUInt32Value(DYNAMICOBJECT_SPELLID); }
         SpellInfo const* GetSpellInfo() const;
         ObjectGuid GetCasterGUID() const { return GetGuidValue(DYNAMICOBJECT_CASTER); }
-        ObjectGuid GetOwnerGUID() const override { return GetCasterGUID(); }
         float GetRadius() const { return GetFloatValue(DYNAMICOBJECT_RADIUS); }
 
     protected:

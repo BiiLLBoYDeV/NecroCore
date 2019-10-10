@@ -55,11 +55,6 @@ class boss_mr_smite : public CreatureScript
 public:
     boss_mr_smite() : CreatureScript("boss_mr_smite") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetDeadminesAI<boss_mr_smiteAI>(creature);
-    }
-
     struct boss_mr_smiteAI : public ScriptedAI
     {
         boss_mr_smiteAI(Creature* creature) : ScriptedAI(creature)
@@ -229,6 +224,11 @@ public:
             uiPhase = 2;
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetDeadminesAI<boss_mr_smiteAI>(creature);
+    }
 };
 
 void AddSC_boss_mr_smite()

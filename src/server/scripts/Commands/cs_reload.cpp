@@ -28,8 +28,6 @@ EndScriptData */
 #include "AuctionHouseMgr.h"
 #include "BattlegroundMgr.h"
 #include "Chat.h"
-#include "Creature.h"
-#include "CreatureOutfit.h"
 #include "CreatureTextMgr.h"
 #include "DatabaseEnv.h"
 #include "DisableMgr.h"
@@ -76,7 +74,7 @@ public:
             { "access_requirement",            rbac::RBAC_PERM_COMMAND_RELOAD_ACCESS_REQUIREMENT,               true,  &HandleReloadAccessRequirementCommand,          "" },
             { "achievement_criteria_data",     rbac::RBAC_PERM_COMMAND_RELOAD_ACHIEVEMENT_CRITERIA_DATA,        true,  &HandleReloadAchievementCriteriaDataCommand,    "" },
             { "achievement_reward",            rbac::RBAC_PERM_COMMAND_RELOAD_ACHIEVEMENT_REWARD,               true,  &HandleReloadAchievementRewardCommand,          "" },
-            { "all",                           rbac::RBAC_PERM_COMMAND_RELOAD_ALL,                              true,  nullptr,                                           "", reloadAllCommandTable },
+            { "all",                           rbac::RBAC_PERM_COMMAND_RELOAD_ALL,                              true,  nullptr,                                        "", reloadAllCommandTable },
             { "areatrigger_involvedrelation",  rbac::RBAC_PERM_COMMAND_RELOAD_AREATRIGGER_INVOLVEDRELATION,     true,  &HandleReloadQuestAreaTriggersCommand,          "" },
             { "areatrigger_tavern",            rbac::RBAC_PERM_COMMAND_RELOAD_AREATRIGGER_TAVERN,               true,  &HandleReloadAreaTriggerTavernCommand,          "" },
             { "areatrigger_teleport",          rbac::RBAC_PERM_COMMAND_RELOAD_AREATRIGGER_TELEPORT,             true,  &HandleReloadAreaTriggerTeleportCommand,        "" },
@@ -90,12 +88,10 @@ public:
             { "creature_questender",           rbac::RBAC_PERM_COMMAND_RELOAD_CREATURE_QUESTENDER,              true,  &HandleReloadCreatureQuestEnderCommand,         "" },
             { "creature_linked_respawn",       rbac::RBAC_PERM_COMMAND_RELOAD_CREATURE_LINKED_RESPAWN,          true,  &HandleReloadLinkedRespawnCommand,              "" },
             { "creature_loot_template",        rbac::RBAC_PERM_COMMAND_RELOAD_CREATURE_LOOT_TEMPLATE,           true,  &HandleReloadLootTemplatesCreatureCommand,      "" },
-            { "creature_movement_override",    rbac::RBAC_PERM_COMMAND_RELOAD_CREATURE_MOVEMENT_OVERRIDE,       true,  &HandleReloadCreatureMovementOverrideCommand,   "" },
             { "creature_onkill_reputation",    rbac::RBAC_PERM_COMMAND_RELOAD_CREATURE_ONKILL_REPUTATION,       true,  &HandleReloadOnKillReputationCommand,           "" },
             { "creature_queststarter",         rbac::RBAC_PERM_COMMAND_RELOAD_CREATURE_QUESTSTARTER,            true,  &HandleReloadCreatureQuestStarterCommand,       "" },
             { "creature_summon_groups",        rbac::RBAC_PERM_COMMAND_RELOAD_CREATURE_SUMMON_GROUPS,           true,  &HandleReloadCreatureSummonGroupsCommand,       "" },
             { "creature_template",             rbac::RBAC_PERM_COMMAND_RELOAD_CREATURE_TEMPLATE,                true,  &HandleReloadCreatureTemplateCommand,           "" },
-            { "creature_template_outfits",     rbac::RBAC_PERM_COMMAND_RELOAD_CREATURE_TEMPLATE,                true,  &HandleReloadCreatureTemplateOutfitsCommand,    "" },
             { "disables",                      rbac::RBAC_PERM_COMMAND_RELOAD_DISABLES,                         true,  &HandleReloadDisablesCommand,                   "" },
             { "disenchant_loot_template",      rbac::RBAC_PERM_COMMAND_RELOAD_DISENCHANT_LOOT_TEMPLATE,         true,  &HandleReloadLootTemplatesDisenchantCommand,    "" },
             { "event_scripts",                 rbac::RBAC_PERM_COMMAND_RELOAD_EVENT_SCRIPTS,                    true,  &HandleReloadEventScriptsCommand,               "" },
@@ -110,7 +106,6 @@ public:
             { "gossip_menu_option",            rbac::RBAC_PERM_COMMAND_RELOAD_GOSSIP_MENU_OPTION,               true,  &HandleReloadGossipMenuOptionCommand,           "" },
             { "item_enchantment_template",     rbac::RBAC_PERM_COMMAND_RELOAD_ITEM_ENCHANTMENT_TEMPLATE,        true,  &HandleReloadItemEnchantementsCommand,          "" },
             { "item_loot_template",            rbac::RBAC_PERM_COMMAND_RELOAD_ITEM_LOOT_TEMPLATE,               true,  &HandleReloadLootTemplatesItemCommand,          "" },
-            { "item_set_names",                rbac::RBAC_PERM_COMMAND_RELOAD_ITEM_SET_NAMES,                   true,  &HandleReloadItemSetNamesCommand,               "" },
             { "lfg_dungeon_rewards",           rbac::RBAC_PERM_COMMAND_RELOAD_LFG_DUNGEON_REWARDS,              true,  &HandleReloadLfgRewardsCommand,                 "" },
             { "achievement_reward_locale",     rbac::RBAC_PERM_COMMAND_RELOAD_ACHIEVEMENT_REWARD_LOCALE,        true,  &HandleReloadLocalesAchievementRewardCommand,   "" },
             { "creature_template_locale",      rbac::RBAC_PERM_COMMAND_RELOAD_CRETURE_TEMPLATE_LOCALE,          true,  &HandleReloadLocalesCreatureCommand,            "" },
@@ -118,7 +113,6 @@ public:
             { "gameobject_template_locale",    rbac::RBAC_PERM_COMMAND_RELOAD_GAMEOBJECT_TEMPLATE_LOCALE,       true,  &HandleReloadLocalesGameobjectCommand,          "" },
             { "gossip_menu_option_locale",     rbac::RBAC_PERM_COMMAND_RELOAD_GOSSIP_MENU_OPTION_LOCALE,        true,  &HandleReloadLocalesGossipMenuOptionCommand,    "" },
             { "item_template_locale",          rbac::RBAC_PERM_COMMAND_RELOAD_ITEM_TEMPLATE_LOCALE,             true,  &HandleReloadLocalesItemCommand,                "" },
-            { "item_set_name_locale",          rbac::RBAC_PERM_COMMAND_RELOAD_ITEM_SET_NAME_LOCALE,             true,  &HandleReloadLocalesItemSetNameCommand,         "" },
             { "npc_text_locale",               rbac::RBAC_PERM_COMMAND_RELOAD_NPC_TEXT_LOCALE,                  true,  &HandleReloadLocalesNpcTextCommand,             "" },
             { "page_text_locale",              rbac::RBAC_PERM_COMMAND_RELOAD_PAGE_TEXT_LOCALE,                 true,  &HandleReloadLocalesPageTextCommand,            "" },
             { "points_of_interest_locale",     rbac::RBAC_PERM_COMMAND_RELOAD_POINTS_OF_INTEREST_LOCALE,        true,  &HandleReloadLocalesPointsOfInterestCommand,    "" },
@@ -127,6 +121,7 @@ public:
             { "mail_loot_template",            rbac::RBAC_PERM_COMMAND_RELOAD_MAIL_LOOT_TEMPLATE,               true,  &HandleReloadLootTemplatesMailCommand,          "" },
             { "milling_loot_template",         rbac::RBAC_PERM_COMMAND_RELOAD_MILLING_LOOT_TEMPLATE,            true,  &HandleReloadLootTemplatesMillingCommand,       "" },
             { "npc_spellclick_spells",         rbac::RBAC_PERM_COMMAND_RELOAD_NPC_SPELLCLICK_SPELLS,            true,  &HandleReloadSpellClickSpellsCommand,           "" },
+            { "npc_trainer",                   rbac::RBAC_PERM_COMMAND_RELOAD_NPC_TRAINER,                      true,  &HandleReloadNpcTrainerCommand,                 "" },
             { "npc_vendor",                    rbac::RBAC_PERM_COMMAND_RELOAD_NPC_VENDOR,                       true,  &HandleReloadNpcVendorCommand,                  "" },
             { "page_text",                     rbac::RBAC_PERM_COMMAND_RELOAD_PAGE_TEXT,                        true,  &HandleReloadPageTextsCommand,                  "" },
             { "pickpocketing_loot_template",   rbac::RBAC_PERM_COMMAND_RELOAD_PICKPOCKETING_LOOT_TEMPLATE,      true,  &HandleReloadLootTemplatesPickpocketingCommand, "" },
@@ -159,7 +154,6 @@ public:
             { "spell_target_position",         rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_TARGET_POSITION,            true,  &HandleReloadSpellTargetPositionCommand,        "" },
             { "spell_threats",                 rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_THREATS,                    true,  &HandleReloadSpellThreatsCommand,               "" },
             { "spell_group_stack_rules",       rbac::RBAC_PERM_COMMAND_RELOAD_SPELL_GROUP_STACK_RULES,          true,  &HandleReloadSpellGroupStackRulesCommand,       "" },
-            { "trainer",                       rbac::RBAC_PERM_COMMAND_RELOAD_TRAINER,                          true,  &HandleReloadTrainerCommand,                    "" },
             { "trinity_string",                rbac::RBAC_PERM_COMMAND_RELOAD_TRINITY_STRING,                   true,  &HandleReloadTrinityStringCommand,              "" },
             { "warden_action",                 rbac::RBAC_PERM_COMMAND_RELOAD_WARDEN_ACTION,                    true,  &HandleReloadWardenactionCommand,               "" },
             { "waypoint_scripts",              rbac::RBAC_PERM_COMMAND_RELOAD_WAYPOINT_SCRIPTS,                 true,  &HandleReloadWpScriptsCommand,                  "" },
@@ -169,7 +163,7 @@ public:
         };
         static std::vector<ChatCommand> commandTable =
         {
-            { "reload",                        rbac::RBAC_PERM_COMMAND_RELOAD,                                  true,  nullptr,                                           "", reloadCommandTable },
+            { "reload",                        rbac::RBAC_PERM_COMMAND_RELOAD,                                  true,  nullptr,                                        "", reloadCommandTable },
         };
         return commandTable;
     }
@@ -202,9 +196,7 @@ public:
         HandleReloadTrinityStringCommand(handler, "");
         HandleReloadGameTeleCommand(handler, "");
 
-        HandleReloadCreatureMovementOverrideCommand(handler, "");
         HandleReloadCreatureSummonGroupsCommand(handler, "");
-        HandleReloadCreatureTemplateOutfitsCommand(handler, "");
 
         HandleReloadVehicleAccessoryCommand(handler, "");
         HandleReloadVehicleTemplateAccessoryCommand(handler, "");
@@ -223,6 +215,7 @@ public:
 
     static bool HandleReloadAllAreaCommand(ChatHandler* handler, char const* /*args*/)
     {
+        HandleReloadQuestGreetingCommand(handler, "");
         //HandleReloadQuestAreaTriggersCommand(handler, ""); -- reloaded in HandleReloadAllQuestCommand
         HandleReloadAreaTriggerTeleportCommand(handler, "");
         HandleReloadAreaTriggerTavernCommand(handler, "");
@@ -242,7 +235,7 @@ public:
     static bool HandleReloadAllNpcCommand(ChatHandler* handler, char const* args)
     {
         if (*args != 'a')                                          // will be reloaded from all_gossips
-        HandleReloadTrainerCommand(handler, "a");
+        HandleReloadNpcTrainerCommand(handler, "a");
         HandleReloadNpcVendorCommand(handler, "a");
         HandleReloadPointsOfInterestCommand(handler, "a");
         HandleReloadSpellClickSpellsCommand(handler, "a");
@@ -251,7 +244,6 @@ public:
 
     static bool HandleReloadAllQuestCommand(ChatHandler* handler, char const* /*args*/)
     {
-        HandleReloadQuestGreetingCommand(handler, "");
         HandleReloadQuestAreaTriggersCommand(handler, "a");
         HandleReloadQuestPOICommand(handler, "a");
         HandleReloadQuestTemplateCommand(handler, "a");
@@ -464,26 +456,7 @@ public:
             sObjectMgr->CheckCreatureTemplate(cInfo);
         }
 
-        sObjectMgr->InitializeQueriesData(QUERY_DATA_CREATURES);
         handler->SendGlobalGMSysMessage("Creature template reloaded.");
-        return true;
-    }
-
-    static bool HandleReloadCreatureTemplateOutfitsCommand(ChatHandler* handler, const char* /*args*/)
-    {
-        TC_LOG_INFO("misc", "Loading Creature Outfits... (`creature_template_outfits`)");
-        sObjectMgr->LoadCreatureOutfits();
-        sMapMgr->DoForAllMaps([](Map* map)
-        {
-            for (auto e : map->GetCreatureBySpawnIdStore())
-            {
-                auto const & outfit = e.second->GetOutfit();
-                if (outfit && outfit->GetId())
-                    e.second->SetDisplayId(outfit->GetId());
-            }
-        });
-
-        handler->SendGlobalGMSysMessage("DB table `creature_template_outfits` reloaded.");
         return true;
     }
 
@@ -573,7 +546,6 @@ public:
     {
         TC_LOG_INFO("misc", "Re-Loading Quest Templates...");
         sObjectMgr->LoadQuests();
-        sObjectMgr->InitializeQueriesData(QUERY_DATA_QUESTS);
         handler->SendGlobalGMSysMessage("DB table `quest_template` (quest definitions) reloaded.");
 
         /// dependent also from `gameobject` but this table not reloaded anyway
@@ -590,14 +562,6 @@ public:
         LootTemplates_Creature.CheckLootRefs();
         handler->SendGlobalGMSysMessage("DB table `creature_loot_template` reloaded.");
         sConditionMgr->LoadConditions(true);
-        return true;
-    }
-
-    static bool HandleReloadCreatureMovementOverrideCommand(ChatHandler* handler, char const* /*args*/)
-    {
-        TC_LOG_INFO("misc", "Re-Loading Creature movement overrides...");
-        sObjectMgr->LoadCreatureMovementOverrides();
-        handler->SendGlobalGMSysMessage("DB table `creature_movement_override` reloaded.");
         return true;
     }
 
@@ -733,15 +697,11 @@ public:
         return true;
     }
 
-    static bool HandleReloadTrainerCommand(ChatHandler* handler, char const* /*args*/)
+    static bool HandleReloadNpcTrainerCommand(ChatHandler* handler, char const* /*args*/)
     {
-        TC_LOG_INFO("misc", "Re-Loading `trainer` Table!");
-        sObjectMgr->LoadTrainers();
-        sObjectMgr->LoadCreatureDefaultTrainers();
-        handler->SendGlobalGMSysMessage("DB table `trainer` reloaded.");
-        handler->SendGlobalGMSysMessage("DB table `trainer_locale` reloaded.");
-        handler->SendGlobalGMSysMessage("DB table `trainer_spell` reloaded.");
-        handler->SendGlobalGMSysMessage("DB table `creature_default_trainer` reloaded.");
+        TC_LOG_INFO("misc", "Re-Loading `npc_trainer` Table!");
+        sObjectMgr->LoadTrainerSpell();
+        handler->SendGlobalGMSysMessage("DB table `npc_trainer` reloaded.");
         return true;
     }
 
@@ -765,7 +725,6 @@ public:
     {
         TC_LOG_INFO("misc", "Re-Loading Quest POI ..." );
         sObjectMgr->LoadQuestPOI();
-        sObjectMgr->InitializeQueriesData(QUERY_DATA_POIS);
         handler->SendGlobalGMSysMessage("DB Table `quest_poi` and `quest_poi_points` reloaded.");
         return true;
     }
@@ -939,14 +898,6 @@ public:
         return true;
     }
 
-    static bool HandleReloadItemSetNamesCommand(ChatHandler* handler, char const* /*args*/)
-    {
-        TC_LOG_INFO("misc", "Re-Loading Item set names...");
-        sObjectMgr->LoadItemSetNames();
-        handler->SendGlobalGMSysMessage("DB table `item_set_names` reloaded.");
-        return true;
-    }
-
     static bool HandleReloadEventScriptsCommand(ChatHandler* handler, char const* args)
     {
         if (sMapMgr->IsScriptScheduled())
@@ -1108,14 +1059,6 @@ public:
         return true;
     }
 
-    static bool HandleReloadLocalesItemSetNameCommand(ChatHandler* handler, char const* /*args*/)
-    {
-        TC_LOG_INFO("misc", "Re-Loading Item set name Locale... ");
-        sObjectMgr->LoadItemSetNameLocales();
-        handler->SendGlobalGMSysMessage("DB table `item_set_name_locale` reloaded.");
-        return true;
-    }
-
     static bool HandleReloadLocalesNpcTextCommand(ChatHandler* handler, char const* /*args*/)
     {
         TC_LOG_INFO("misc", "Re-Loading NPC Text Locale... ");
@@ -1128,7 +1071,7 @@ public:
     {
         TC_LOG_INFO("misc", "Re-Loading Page Text Locale... ");
         sObjectMgr->LoadPageTextLocales();
-        handler->SendGlobalGMSysMessage("DB table `page_text_locale` reloaded.");
+        handler->SendGlobalGMSysMessage("DB table `locales_page_text` reloaded.");
         return true;
     }
 

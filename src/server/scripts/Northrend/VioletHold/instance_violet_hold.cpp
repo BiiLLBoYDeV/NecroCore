@@ -15,16 +15,16 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "violet_hold.h"
+#include "ScriptMgr.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
 #include "MotionMaster.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
-#include "ScriptMgr.h"
 #include "TemporarySummon.h"
-#include "WorldStatePackets.h"
+#include "violet_hold.h"
+#include "WorldPacket.h"
 
 /*
  * TODO:
@@ -195,7 +195,7 @@ class instance_violet_hold : public InstanceMapScript
 
         struct instance_violet_hold_InstanceMapScript : public InstanceScript
         {
-            instance_violet_hold_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_violet_hold_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -290,11 +290,11 @@ class instance_violet_hold : public InstanceMapScript
                 }
             }
 
-            void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override
+            void FillInitialWorldStates(WorldPacket& data) override
             {
-                packet.Worldstates.emplace_back(WORLD_STATE_VH_SHOW, EventState == IN_PROGRESS ? 1 : 0);
-                packet.Worldstates.emplace_back(WORLD_STATE_VH_PRISON_STATE, DoorIntegrity);
-                packet.Worldstates.emplace_back(WORLD_STATE_VH_WAVE_COUNT, WaveCount);
+                data << uint32(WORLD_STATE_VH_SHOW) << uint32(EventState == IN_PROGRESS ? 1 : 0);
+                data << uint32(WORLD_STATE_VH_PRISON_STATE) << uint32(DoorIntegrity);
+                data << uint32(WORLD_STATE_VH_WAVE_COUNT) << uint32(WaveCount);
             }
 
             bool CheckRequiredBosses(uint32 bossId, Player const* player = nullptr) const override
@@ -557,8 +557,8 @@ class instance_violet_hold : public InstanceMapScript
                                 {
                                     if (Creature* moragg = GetCreature(DATA_MORAGG))
                                     {
-                                        moragg->SetImmuneToAll(false);
-                                        moragg->AI()->DoZoneInCombat(moragg);
+                                        moragg->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
+                                        moragg->AI()->DoZoneInCombat(moragg, 200.0f);
                                     }
                                 });
                             });
@@ -590,13 +590,13 @@ class instance_violet_hold : public InstanceMapScript
                                         for (uint32 i = DATA_EREKEM_GUARD_1; i <= DATA_EREKEM_GUARD_2; ++i)
                                         {
                                             if (Creature* guard = instance->GetCreature(GetGuidData(i)))
-                                                guard->SetImmuneToAll(false);
+                                                guard->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
                                         }
 
                                         if (Creature* erekem = GetCreature(DATA_EREKEM))
                                         {
-                                            erekem->SetImmuneToAll(false);
-                                            erekem->AI()->DoZoneInCombat(erekem);
+                                            erekem->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
+                                            erekem->AI()->DoZoneInCombat(erekem, 200.0f);
                                         }
                                     });
                                 });
@@ -618,8 +618,8 @@ class instance_violet_hold : public InstanceMapScript
                                 {
                                     if (Creature* ichoron = GetCreature(DATA_ICHORON))
                                     {
-                                        ichoron->SetImmuneToAll(false);
-                                        ichoron->AI()->DoZoneInCombat(ichoron);
+                                        ichoron->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
+                                        ichoron->AI()->DoZoneInCombat(ichoron, 200.0f);
                                     }
                                 });
                             });
@@ -640,8 +640,8 @@ class instance_violet_hold : public InstanceMapScript
                                 {
                                     if (Creature* lavanthor = GetCreature(DATA_LAVANTHOR))
                                     {
-                                        lavanthor->SetImmuneToAll(false);
-                                        lavanthor->AI()->DoZoneInCombat(lavanthor);
+                                        lavanthor->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
+                                        lavanthor->AI()->DoZoneInCombat(lavanthor, 200.0f);
                                     }
                                 });
                             });
@@ -667,8 +667,8 @@ class instance_violet_hold : public InstanceMapScript
                                     {
                                         if (Creature* xevozz = GetCreature(DATA_XEVOZZ))
                                         {
-                                            xevozz->SetImmuneToAll(false);
-                                            xevozz->AI()->DoZoneInCombat(xevozz);
+                                            xevozz->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
+                                            xevozz->AI()->DoZoneInCombat(xevozz, 200.0f);
                                         }
                                     });
                                 });
@@ -693,8 +693,8 @@ class instance_violet_hold : public InstanceMapScript
                                 {
                                     if (Creature* zuramat = GetCreature(DATA_ZURAMAT))
                                     {
-                                        zuramat->SetImmuneToAll(false);
-                                        zuramat->AI()->DoZoneInCombat(zuramat);
+                                        zuramat->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
+                                        zuramat->AI()->DoZoneInCombat(zuramat, 200.0f);
                                     }
                                 });
                             });
@@ -733,10 +733,10 @@ class instance_violet_hold : public InstanceMapScript
                                     UpdateKilledBoss(guard);
 
                                 guard->GetMotionMaster()->MoveTargetedHome();
-                                guard->SetImmuneToAll(true);
+                                guard->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
                             }
                         }
-                        /* fallthrough */
+                        // no break
                     default:
                         if (boss->isDead())
                         {
@@ -746,7 +746,7 @@ class instance_violet_hold : public InstanceMapScript
                         }
 
                         boss->GetMotionMaster()->MoveTargetedHome();
-                        boss->SetImmuneToAll(true);
+                        boss->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
                         break;
                 }
             }
@@ -901,7 +901,7 @@ class instance_violet_hold : public InstanceMapScript
                             {
                                 cyanigosa->RemoveAurasDueToSpell(SPELL_CYANIGOSA_ARCANE_POWER_STATE);
                                 cyanigosa->CastSpell(cyanigosa, SPELL_CYANIGOSA_TRANSFORM, true);
-                                cyanigosa->SetImmuneToAll(false);
+                                cyanigosa->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_IMMUNE_TO_NPC);
                             }
                         });
                     });

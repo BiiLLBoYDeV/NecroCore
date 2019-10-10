@@ -22,9 +22,8 @@
 #include "MotionMaster.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
-#include "SpellAuraEffects.h"
-#include "SpellAuras.h"
 #include "SpellScript.h"
+#include "SpellAuraEffects.h"
 #include "TemporarySummon.h"
 
 enum Events
@@ -163,9 +162,13 @@ public:
 
         bool IsInCombatWithPlayer() const
         {
-            for (auto const& pair : me->GetCombatManager().GetPvECombatRefs())
-                if (pair.second->GetOther(me)->IsControlledByPlayer())
-                    return true;
+            std::list<HostileReference*> const& refs = me->getThreatManager().getThreatList();
+            for (HostileReference const* hostileRef : refs)
+            {
+                if (Unit const* target = hostileRef->getTarget())
+                    if (target->IsControlledByPlayer())
+                        return true;
+            }
             return false;
         }
 
@@ -175,10 +178,10 @@ public:
                 return;
 
             _step = step;
-            me->SetReactState(REACT_PASSIVE);
             me->SetHomePosition(hadronoxStep[step]);
             me->GetMotionMaster()->Clear();
             me->AttackStop();
+            SetCombatMovement(false);
             me->GetMotionMaster()->MovePoint(0, hadronoxStep[step]);
         }
 
@@ -197,7 +200,8 @@ public:
         {
             if (type != POINT_MOTION_TYPE)
                 return;
-            me->SetReactState(REACT_AGGRESSIVE);
+            SetCombatMovement(true);
+            AttackStart(me->GetVictim());
             if (_step < NUM_STEPS-1)
                 return;
             DoCastAOE(SPELL_WEB_FRONT_DOORS);
@@ -229,7 +233,7 @@ public:
             events.ScheduleEvent(EVENT_ACID_CLOUD, randtime(Seconds(7), Seconds(13)));
             events.ScheduleEvent(EVENT_WEB_GRAB, randtime(Seconds(13), Seconds(19)));
             events.ScheduleEvent(EVENT_PIERCE_ARMOR, randtime(Seconds(4), Seconds(7)));
-            events.ScheduleEvent(EVENT_PLAYER_CHECK, 1s);
+            events.ScheduleEvent(EVENT_PLAYER_CHECK, Seconds(1));
             me->setActive(true);
         }
 
@@ -277,7 +281,6 @@ public:
         void InitializeAI() override
         {
             BossAI::InitializeAI();
-            me->SetReactState(REACT_AGGRESSIVE);
             me->SetFloatValue(UNIT_FIELD_BOUNDINGRADIUS, 9.0f);
             me->SetFloatValue(UNIT_FIELD_COMBATREACH, 9.0f);
             _enteredCombat = false;
@@ -769,7 +772,7 @@ struct npc_hadronox_foeAI : public ScriptedAI
                         me->GetMotionMaster()->MovePoint(MOVE_DOWNSTAIRS_2, downstairsMoves2[_mySpawn]);
                         break;
                     }
-                    /* fallthrough */
+                    // intentional missing break
                 case MOVE_HADRONOX:
                 case MOVE_HADRONOX_REAL:
                 {
@@ -945,7 +948,6 @@ class spell_hadronox_periodic_summon_template_AuraScript : public AuraScript
         spell_hadronox_periodic_summon_template_AuraScript(uint32 topSpellId, uint32 bottomSpellId) : AuraScript(), _topSpellId(topSpellId), _bottomSpellId(bottomSpellId) { }
         PrepareAuraScript(spell_hadronox_periodic_summon_template_AuraScript);
 
-    private:
         bool Validate(SpellInfo const* /*spell*/) override
         {
             return ValidateSpellInfo({ _topSpellId, _bottomSpellId });
@@ -984,6 +986,7 @@ class spell_hadronox_periodic_summon_template_AuraScript : public AuraScript
             OnEffectPeriodic += AuraEffectPeriodicFn(spell_hadronox_periodic_summon_template_AuraScript::HandlePeriodic, EFFECT_0, SPELL_AURA_PERIODIC_DUMMY);
         }
 
+    private:
         uint32 _topSpellId;
         uint32 _bottomSpellId;
 };

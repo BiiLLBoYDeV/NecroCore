@@ -820,9 +820,9 @@ class npc_violet_hold_teleportation_portal_intro : public CreatureScript
         }
 };
 
-struct violet_hold_trashAI : public EscortAI
+struct violet_hold_trashAI : public npc_escortAI
 {
-    violet_hold_trashAI(Creature* creature) : EscortAI(creature)
+    violet_hold_trashAI(Creature* creature) : npc_escortAI(creature)
     {
         _instance = creature->GetInstanceScript();
 
@@ -898,7 +898,7 @@ struct violet_hold_trashAI : public EscortAI
         }
     }
 
-    void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+    void WaypointReached(uint32 waypointId) override
     {
         if (waypointId == _lastWaypointId)
             CreatureStartAttackDoor();
@@ -906,7 +906,7 @@ struct violet_hold_trashAI : public EscortAI
 
     void JustEngagedWith(Unit* who) override
     {
-        EscortAI::JustEngagedWith(who);
+        npc_escortAI::JustEngagedWith(who);
         ScheduledTasks();
     }
 
@@ -919,7 +919,7 @@ struct violet_hold_trashAI : public EscortAI
             return;
 
         _scheduler.Update(diff,
-            std::bind(&EscortAI::DoMeleeAttackIfReady, this));
+            std::bind(&npc_escortAI::DoMeleeAttackIfReady, this));
     }
 
     virtual void ScheduledTasks() { }
@@ -1122,7 +1122,7 @@ class npc_azure_stalker : public CreatureScript
 
                     task.Schedule(Milliseconds(1300), [this](TaskContext /*task*/)
                     {
-                        if (Unit* target = SelectTarget(SELECT_TARGET_MINDISTANCE, 0, 5.0f))
+                        if (Unit* target = SelectTarget(SELECT_TARGET_NEAREST, 0, 5.0f))
                             DoCast(target, SPELL_BACKSTAB);
                     });
 
@@ -1367,8 +1367,8 @@ class spell_violet_hold_portal_periodic : public SpellScriptLoader
             void PeriodicTick(AuraEffect const* aurEff)
             {
                 PreventDefaultAction();
-                if (UnitAI* targetAI = GetTarget()->GetAI())
-                    targetAI->SetData(DATA_PORTAL_PERIODIC_TICK, aurEff->GetTickNumber());
+                if (GetTarget()->IsAIEnabled)
+                    GetTarget()->GetAI()->SetData(DATA_PORTAL_PERIODIC_TICK, aurEff->GetTickNumber());
             }
 
             void Register() override

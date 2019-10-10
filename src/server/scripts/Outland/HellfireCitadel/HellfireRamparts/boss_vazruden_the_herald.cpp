@@ -94,7 +94,7 @@ class boss_nazan : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override { }
 
-            void IsSummonedBy(WorldObject* summoner) override
+            void IsSummonedBy(Unit* summoner) override
             {
                 if (summoner->GetEntry() == NPC_VAZRUDEN_HERALD)
                     VazrudenGUID = summoner->GetGUID();
@@ -142,7 +142,7 @@ class boss_nazan : public CreatureScript
                         me->SetDisableGravity(false);
                         me->SetWalk(true);
                         me->GetMotionMaster()->Clear();
-                        if (Unit* victim = SelectTarget(SELECT_TARGET_MINDISTANCE, 0))
+                        if (Unit* victim = SelectTarget(SELECT_TARGET_NEAREST, 0))
                             AttackStart(victim);
                         DoStartMovement(me->GetVictim());
                         Talk(EMOTE);

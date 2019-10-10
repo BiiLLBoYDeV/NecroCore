@@ -21,8 +21,8 @@
 #include "Log.h"
 #include "Player.h"
 #include "Random.h"
-#include "SpellMgr.h"
 #include "SpellInfo.h"
+#include "SpellMgr.h"
 #include "Util.h"
 #include "World.h"
 #include <map>
@@ -56,7 +56,7 @@ void LoadSkillDiscoveryTable()
 
     if (!result)
     {
-        TC_LOG_INFO("server.loading", ">> Loaded 0 skill discovery definitions. DB table `skill_discovery_template` is empty.");
+        TC_LOG_ERROR("server.loading", ">> Loaded 0 skill discovery definitions. DB table `skill_discovery_template` is empty.");
         return;
     }
 

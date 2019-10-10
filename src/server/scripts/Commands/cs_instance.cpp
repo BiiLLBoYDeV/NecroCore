@@ -24,7 +24,6 @@ EndScriptData */
 
 #include "ScriptMgr.h"
 #include "Chat.h"
-#include "GameTime.h"
 #include "Group.h"
 #include "InstanceSaveMgr.h"
 #include "InstanceScript.h"
@@ -86,7 +85,7 @@ public:
             for (Player::BoundInstancesMap::const_iterator itr = binds.begin(); itr != binds.end(); ++itr)
             {
                 InstanceSave* save = itr->second.save;
-                std::string timeleft = GetTimeString(save->GetResetTime() - GameTime::GetGameTime());
+                std::string timeleft = GetTimeString(save->GetResetTime() - time(nullptr));
                 handler->PSendSysMessage(LANG_COMMAND_LIST_BIND_INFO, itr->first, save->GetInstanceId(), itr->second.perm ? "yes" : "no", itr->second.extendState == EXTEND_STATE_EXPIRED ? "expired" : itr->second.extendState == EXTEND_STATE_EXTENDED ? "yes" : "no", save->GetDifficulty(), save->CanReset() ? "yes" : "no", timeleft.c_str());
                 counter++;
             }
@@ -102,7 +101,7 @@ public:
                 for (Group::BoundInstancesMap::const_iterator itr = binds.begin(); itr != binds.end(); ++itr)
                 {
                     InstanceSave* save = itr->second.save;
-                    std::string timeleft = GetTimeString(save->GetResetTime() - GameTime::GetGameTime());
+                    std::string timeleft = GetTimeString(save->GetResetTime() - time(nullptr));
                     handler->PSendSysMessage(LANG_COMMAND_LIST_BIND_INFO, itr->first, save->GetInstanceId(), itr->second.perm ? "yes" : "no", "-", save->GetDifficulty(), save->CanReset() ? "yes" : "no", timeleft.c_str());
                     counter++;
                 }
@@ -145,7 +144,7 @@ public:
                 InstanceSave* save = itr->second.save;
                 if (itr->first != player->GetMapId() && (!MapId || MapId == itr->first) && (diff == -1 || diff == save->GetDifficulty()))
                 {
-                    std::string timeleft = GetTimeString(save->GetResetTime() - GameTime::GetGameTime());
+                    std::string timeleft = GetTimeString(save->GetResetTime() - time(nullptr));
                     handler->PSendSysMessage(LANG_COMMAND_INST_UNBIND_UNBINDING, itr->first, save->GetInstanceId(), itr->second.perm ? "yes" : "no", save->GetDifficulty(), save->CanReset() ? "yes" : "no", timeleft.c_str());
                     player->UnbindInstance(itr, Difficulty(i));
                     counter++;
@@ -257,7 +256,8 @@ public:
         }
 
         map->GetInstanceScript()->SetBossState(encounterId, EncounterState(state));
-        handler->PSendSysMessage(LANG_COMMAND_INST_SET_BOSS_STATE, encounterId, state, InstanceScript::GetBossStateName(state));
+        std::string stateName = InstanceScript::GetBossStateName(state);
+        handler->PSendSysMessage(LANG_COMMAND_INST_SET_BOSS_STATE, encounterId, state, stateName);
         return true;
     }
 
@@ -321,7 +321,8 @@ public:
         }
 
         uint32 state = map->GetInstanceScript()->GetBossState(encounterId);
-        handler->PSendSysMessage(LANG_COMMAND_INST_GET_BOSS_STATE, encounterId, state, InstanceScript::GetBossStateName(state));
+        std::string stateName = InstanceScript::GetBossStateName(state);
+        handler->PSendSysMessage(LANG_COMMAND_INST_GET_BOSS_STATE, encounterId, state, stateName);
         return true;
     }
 };

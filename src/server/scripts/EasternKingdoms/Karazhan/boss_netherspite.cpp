@@ -74,11 +74,6 @@ class boss_netherspite : public CreatureScript
 public:
     boss_netherspite() : CreatureScript("boss_netherspite") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_netherspiteAI>(creature);
-    }
-
     struct boss_netherspiteAI : public ScriptedAI
     {
         boss_netherspiteAI(Creature* creature) : ScriptedAI(creature)
@@ -227,7 +222,7 @@ public:
                     }
                     // aggro target if Red Beam
                     if (j == RED_PORTAL && me->GetVictim() != target && target->GetTypeId() == TYPEID_PLAYER)
-                        AddThreat(target, 100000.0f);
+                        me->getThreatManager().addThreat(target, 100000.0f+DoGetThreat(me->GetVictim()));
                 }
         }
 
@@ -345,6 +340,11 @@ public:
             DoMeleeAttackIfReady();
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_netherspiteAI>(creature);
+    }
 };
 
 void AddSC_boss_netherspite()

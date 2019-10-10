@@ -19,7 +19,7 @@
 /* ScriptData
 SDName: Ghostlands
 SD%Complete: 100
-SDComment: Quest support: 9212.
+SDComment:
 SDCategory: Ghostlands
 EndScriptData */
 
@@ -36,6 +36,7 @@ EndContentData */
 #include "WorldSession.h"
 
 /*######
+
 ## npc_ranger_lilatha
 ######*/
 
@@ -60,11 +61,11 @@ class npc_ranger_lilatha : public CreatureScript
 public:
     npc_ranger_lilatha() : CreatureScript("npc_ranger_lilatha") { }
 
-    struct npc_ranger_lilathaAI : public EscortAI
+    struct npc_ranger_lilathaAI : public npc_escortAI
     {
-        npc_ranger_lilathaAI(Creature* creature) : EscortAI(creature) { }
+        npc_ranger_lilathaAI(Creature* creature) : npc_escortAI(creature) { }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             Player* player = GetPlayerForEscort();
             if (!player)
@@ -141,7 +142,6 @@ public:
     {
         return new npc_ranger_lilathaAI(creature);
     }
-
 };
 
 void AddSC_ghostlands()

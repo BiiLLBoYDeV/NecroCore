@@ -89,14 +89,9 @@ class npc_blastmaster_emi_shortfuse : public CreatureScript
 public:
     npc_blastmaster_emi_shortfuse() : CreatureScript("npc_blastmaster_emi_shortfuse") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
+    struct npc_blastmaster_emi_shortfuseAI : public npc_escortAI
     {
-        return GetGnomereganAI<npc_blastmaster_emi_shortfuseAI>(creature);
-    }
-
-    struct npc_blastmaster_emi_shortfuseAI : public EscortAI
-    {
-        npc_blastmaster_emi_shortfuseAI(Creature* creature) : EscortAI(creature)
+        npc_blastmaster_emi_shortfuseAI(Creature* creature) : npc_escortAI(creature)
         {
             instance = creature->GetInstanceScript();
             creature->RestoreFaction();
@@ -198,7 +193,10 @@ public:
                 {
                     if (Creature* summon = ObjectAccessor::GetCreature(*me, *itr))
                     {
-                        summon->DespawnOrUnsummon();
+                        if (summon->IsAlive())
+                            summon->DisappearAndDie();
+                        else
+                            summon->RemoveCorpse();
                     }
                 }
         }
@@ -214,12 +212,16 @@ public:
                         continue;
 
                     if (player->IsAlive())
-                        AddThreat(player, 0.0f, temp);
+                    {
+                        temp->SetInCombatWith(player);
+                        player->SetInCombatWith(temp);
+                        temp->AddThreat(player, 0.0f);
+                    }
                 }
             }
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             //just in case
             if (GetPlayerForEscort())
@@ -276,10 +278,10 @@ public:
                     switch (uiValue)
                     {
                         case 1:
-                            instance->SetBossState(DATA_BLASTMASTER_EVENT, IN_PROGRESS);
+                            instance->SetData(TYPE_EVENT, IN_PROGRESS);
                             break;
                         case 2:
-                            instance->SetBossState(DATA_BLASTMASTER_EVENT, DONE);
+                            instance->SetData(TYPE_EVENT, DONE);
                             NextStep(5000, false, 22);
                             break;
                     }
@@ -494,17 +496,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetGnomereganAI<npc_blastmaster_emi_shortfuseAI>(creature);
+    }
 };
 
 class boss_grubbis : public CreatureScript
 {
 public:
     boss_grubbis() : CreatureScript("boss_grubbis") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetGnomereganAI<boss_grubbisAI>(creature);
-    }
 
     struct boss_grubbisAI : public ScriptedAI
     {
@@ -518,7 +519,7 @@ public:
             if (!me->IsSummon())
                 return;
 
-            if (Unit* summon = me->ToTempSummon()->GetSummonerUnit())
+            if (Unit* summon = me->ToTempSummon()->GetSummoner())
                 if (Creature* creature = summon->ToCreature())
                     creature->AI()->SetData(2, 1);
         }
@@ -536,12 +537,16 @@ public:
             if (!me->IsSummon())
                 return;
 
-            if (Unit* summoner = me->ToTempSummon()->GetSummonerUnit())
+            if (Unit* summoner = me->ToTempSummon()->GetSummoner())
                 if (Creature* creature = summoner->ToCreature())
                     creature->AI()->SetData(2, 2);
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetGnomereganAI<boss_grubbisAI>(creature);
+    }
 };
 
 // 12709 - Collecting Fallout

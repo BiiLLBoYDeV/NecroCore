@@ -43,12 +43,12 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetAQ40AI<boss_ouroAI>(creature);
+        return new boss_ouroAI(creature);
     }
 
-    struct boss_ouroAI : public BossAI
+    struct boss_ouroAI : public ScriptedAI
     {
-        boss_ouroAI(Creature* creature) : BossAI(creature, DATA_OURO)
+        boss_ouroAI(Creature* creature) : ScriptedAI(creature)
         {
             Initialize();
         }
@@ -79,13 +79,11 @@ public:
         void Reset() override
         {
             Initialize();
-            _Reset();
         }
 
         void JustEngagedWith(Unit* /*who*/) override
         {
             DoCastVictim(SPELL_BIRTH);
-            _JustEngagedWith();
         }
 
         void UpdateAI(uint32 diff) override

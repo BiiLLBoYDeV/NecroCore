@@ -31,6 +31,7 @@ EndScriptData */
 #include "Map.h"
 #include "MotionMaster.h"
 #include "TemporarySummon.h"
+#include "WorldPacket.h"
 
 enum Sounds
 {
@@ -48,13 +49,11 @@ enum Misc
 class instance_deadmines : public InstanceMapScript
 {
     public:
-        instance_deadmines() : InstanceMapScript(DMScriptName, 36)
-        {
-        }
+        instance_deadmines() : InstanceMapScript(DMScriptName, 36) { }
 
         struct instance_deadmines_InstanceMapScript : public InstanceScript
         {
-            instance_deadmines_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_deadmines_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
 
@@ -74,8 +73,8 @@ class instance_deadmines : public InstanceMapScript
             ObjectGuid MrSmiteGUID;
 
             uint32 State;
-            uint32 CannonBlast_Timer;
-            uint32 PiratesDelay_Timer;
+            uint32 CannonBlast_Timer =0;
+            uint32 PiratesDelay_Timer =0;
             uint32 SmiteAlarmDelay_Timer;
             ObjectGuid uiSmiteChestGUID;
 
@@ -215,15 +214,15 @@ class instance_deadmines : public InstanceMapScript
             {
                 switch (type)
                 {
-                    case EVENT_STATE:
-                        if (DefiasCannonGUID && IronCladDoorGUID)
-                            State = data;
-                        break;
-                    case EVENT_RHAHKZOR:
-                        if (data == DONE)
-                            if (GameObject* go = instance->GetGameObject(FactoryDoorGUID))
-                                go->SetGoState(GO_STATE_ACTIVE);
-                        break;
+                case EVENT_STATE:
+                    if (DefiasCannonGUID && IronCladDoorGUID)
+                        State=data;
+                    break;
+                case EVENT_RHAHKZOR:
+                    if (data == DONE)
+                        if (GameObject* go = instance->GetGameObject(FactoryDoorGUID))
+                            go->SetGoState(GO_STATE_ACTIVE);
+                    break;
                 }
             }
 

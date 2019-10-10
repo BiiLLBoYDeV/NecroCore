@@ -57,7 +57,7 @@ enum STRCreatureIds
     NPC_BLACK_GUARD                     = 10394,
     NPC_YSIDA                           = 16031,
 
-    // Scarlet side creatures
+   // Scarlet side creatures
     NPC_CRIMSON_GUARDSMAN               = 10418,
     NPC_CRIMSON_CONJUROR                = 10419,
     NPC_CRIMSON_INITATE                 = 10420,

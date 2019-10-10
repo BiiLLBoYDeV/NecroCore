@@ -26,7 +26,6 @@
 #include "ScriptedCreature.h"
 #include "Spell.h"
 #include "SpellAuraEffects.h"
-#include "SpellInfo.h"
 #include "SpellScript.h"
 #include "TemporarySummon.h"
 
@@ -107,7 +106,6 @@ enum Spells
     SPELL_KINETIC_BOMB                  = 72080,
     SPELL_SHOCK_VORTEX                  = 72037,
     SPELL_EMPOWERED_SHOCK_VORTEX        = 72039,
-    SPELL_REMOVE_EMPOWERED_BLOOD        = 72131,
 
     // Kinetic Bomb
     SPELL_UNSTABLE                      = 72059,
@@ -245,13 +243,9 @@ class boss_blood_council_controller : public CreatureScript
                     for (uint32 bossData : PrincesData)
                         if (Creature* prince = ObjectAccessor::GetCreature(*me, instance->GetGuidData(bossData)))
                         {
-                            prince->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                            prince->SetImmuneToPC(false);
+                            prince->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
                             if (bossData == DATA_PRINCE_VALANAR)
-                            {
                                 prince->SetHealth(prince->GetMaxHealth());
-                                prince->CastSpell(prince, SPELL_REMOVE_EMPOWERED_BLOOD, true);
-                            }
                         }
             }
 
@@ -335,7 +329,7 @@ class boss_blood_council_controller : public CreatureScript
                         // Make sure looting is allowed
                         if (me->IsDamageEnoughForLootingAndReward())
                             prince->LowerPlayerDamageReq(prince->GetMaxHealth());
-                        Unit::Kill(killer, prince);
+                        killer->Kill(prince);
                     }
                 }
             }
@@ -457,7 +451,7 @@ struct BloodPrincesBossAI : public BossAI
         summons.DespawnAll();
         me->SetCombatPulseDelay(0);
 
-        me->SetImmuneToPC(false);
+        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
         _isEmpowered = false;
         me->SetHealth(_spawnHealth);
         instance->SetData(DATA_ORB_WHISPERER_ACHIEVEMENT, uint32(true));
@@ -509,7 +503,7 @@ struct BloodPrincesBossAI : public BossAI
     {
         if (!_isEmpowered)
         {
-            AddThreat(attacker, float(damage));
+            me->AddThreat(attacker, float(damage));
             damage = 0;
         }
     }
@@ -566,8 +560,7 @@ struct BloodPrincesBossAI : public BossAI
         {
             case ACTION_STAND_UP:
                 me->RemoveAurasDueToSpell(SPELL_FEIGN_DEATH);
-                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                me->SetImmuneToPC(false);
+                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE_TO_PC);
                 me->RemoveFlag(UNIT_DYNAMIC_FLAGS, UNIT_DYNFLAG_DEAD);
                 me->RemoveFlag(UNIT_FIELD_FLAGS_2, UNIT_FLAG2_FEIGN_DEATH);
                 me->ForceValuesUpdateAtIndex(UNIT_NPC_FLAGS);   // was in sniff. don't ask why
@@ -635,9 +628,9 @@ class boss_prince_keleseth_icc : public CreatureScript
 
             void ScheduleEvents() override
             {
-                events.ScheduleEvent(EVENT_BERSERK, 10min);
-                events.ScheduleEvent(EVENT_SHADOW_RESONANCE, 10s, 15s);
-                events.ScheduleEvent(EVENT_SHADOW_LANCE, 2s);
+                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
+                events.ScheduleEvent(EVENT_SHADOW_RESONANCE, Seconds(10), Seconds(15));
+                events.ScheduleEvent(EVENT_SHADOW_LANCE, Seconds(2));
 
                 if (IsHeroic())
                 {
@@ -651,7 +644,7 @@ class boss_prince_keleseth_icc : public CreatureScript
                 summons.Summon(summon);
                 Position pos = me->GetPosition();
                 float maxRange = me->GetDistance2d(summon);
-                float angle = me->GetAbsoluteAngle(summon);
+                float angle = me->GetAngle(summon);
                 me->MovePositionToFirstCollision(pos, maxRange, angle);
                 summon->NearTeleportTo(pos.GetPositionX(), pos.GetPositionY(), pos.GetPositionZ(), pos.GetOrientation());
                 summon->ToTempSummon()->SetTempSummonType(TEMPSUMMON_CORPSE_DESPAWN);
@@ -713,9 +706,9 @@ class boss_prince_taldaram_icc : public CreatureScript
 
             void ScheduleEvents() override
             {
-                events.ScheduleEvent(EVENT_BERSERK, 10min);
-                events.ScheduleEvent(EVENT_GLITTERING_SPARKS, 12s, 15s);
-                events.ScheduleEvent(EVENT_CONJURE_FLAME, 20s);
+                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
+                events.ScheduleEvent(EVENT_GLITTERING_SPARKS, Seconds(12), Seconds(15));
+                events.ScheduleEvent(EVENT_CONJURE_FLAME, Seconds(20));
                 if (IsHeroic())
                     DoCastSelf(SPELL_SHADOW_PRISON, true);
             }
@@ -798,9 +791,9 @@ class boss_prince_valanar_icc : public CreatureScript
 
             void ScheduleEvents() override
             {
-                events.ScheduleEvent(EVENT_BERSERK, 10min);
-                events.ScheduleEvent(EVENT_KINETIC_BOMB, 18s, 24s);
-                events.ScheduleEvent(EVENT_SHOCK_VORTEX, 15s, 20s);
+                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
+                events.ScheduleEvent(EVENT_KINETIC_BOMB, Seconds(18), Seconds(24));
+                events.ScheduleEvent(EVENT_SHOCK_VORTEX, Seconds(15), Seconds(20));
                 if (IsHeroic())
                     DoCastSelf(SPELL_SHADOW_PRISON, true);
             }
@@ -811,13 +804,13 @@ class boss_prince_valanar_icc : public CreatureScript
                 {
                     case NPC_KINETIC_BOMB_TARGET:
                         summon->SetReactState(REACT_PASSIVE);
-                        summon->CastSpell(summon, SPELL_KINETIC_BOMB, me->GetGUID());
+                        summon->CastSpell(summon, SPELL_KINETIC_BOMB, true, nullptr, nullptr, me->GetGUID());
                         break;
                     case NPC_KINETIC_BOMB:
                     {
                         float x, y, z;
                         summon->GetPosition(x, y, z);
-                        float ground_Z = summon->GetMap()->GetHeight(summon->GetPhaseMask(), x, y, z, true, 500.0f);
+                        float ground_Z = summon->GetMap()->GetHeight(summon->GetPhaseShift(), x, y, z, true, 500.0f);
                         summon->GetMotionMaster()->MovePoint(POINT_KINETIC_BOMB_IMPACT, x, y, ground_Z);
                         summon->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                         break;
@@ -1059,13 +1052,13 @@ class npc_kinetic_bomb : public CreatureScript
                 me->SetReactState(REACT_PASSIVE);
                 me->GetPosition(_x, _y, _groundZ);
                 me->DespawnOrUnsummon(60000);
-                _groundZ = me->GetMap()->GetHeight(me->GetPhaseMask(), _x, _y, _groundZ, true, 500.0f);
+                _groundZ = me->GetMap()->GetHeight(me->GetPhaseShift(), _x, _y, _groundZ, true, 500.0f);
             }
 
             void DoAction(int32 action) override
             {
                 if (action == SPELL_KINETIC_BOMB_EXPLOSION)
-                    _events.ScheduleEvent(EVENT_BOMB_DESPAWN, 1s);
+                    _events.ScheduleEvent(EVENT_BOMB_DESPAWN, Seconds(1));
 
                 else if (action == ACTION_KINETIC_BOMB_JUMP)
                 {
@@ -1156,8 +1149,8 @@ class npc_dark_nucleus : public CreatureScript
                 if (attacker == me)
                     return;
 
-                me->GetThreatManager().ResetAllThreat();
-                AddThreat(attacker, 500000000.0f);
+                me->DeleteThreatList();
+                me->AddThreat(attacker, 500000000.0f);
             }
 
             void UpdateAI(uint32 diff) override
@@ -1410,18 +1403,15 @@ class spell_valanar_kinetic_bomb_knockback : public SpellScriptLoader
         {
             PrepareSpellScript(spell_valanar_kinetic_bomb_knockback_SpellScript);
 
-            void KnockIntoAir(SpellMissInfo missInfo)
+            void KnockIntoAir()
             {
-                if (missInfo != SPELL_MISS_NONE)
-                    return;
-
                 if (Creature* target = GetHitCreature())
                     target->AI()->DoAction(ACTION_KINETIC_BOMB_JUMP);
             }
 
             void Register() override
             {
-                BeforeHit += BeforeSpellHitFn(spell_valanar_kinetic_bomb_knockback_SpellScript::KnockIntoAir);
+                BeforeHit += SpellHitFn(spell_valanar_kinetic_bomb_knockback_SpellScript::KnockIntoAir);
             }
         };
 
@@ -1478,7 +1468,7 @@ class spell_blood_council_shadow_prison : public SpellScriptLoader
             void HandleDummyTick(AuraEffect const* aurEff)
             {
                 if (GetTarget()->isMoving())
-                    GetTarget()->CastSpell(GetTarget(), SPELL_SHADOW_PRISON_DAMAGE, aurEff);
+                    GetTarget()->CastSpell(GetTarget(), SPELL_SHADOW_PRISON_DAMAGE, true, nullptr, aurEff);
             }
 
             void Register() override
@@ -1503,16 +1493,16 @@ class spell_blood_council_shadow_prison_damage : public SpellScriptLoader
         {
             PrepareSpellScript(spell_blood_council_shadow_prison_SpellScript);
 
-            void AddExtraDamage(SpellEffIndex /*effIndex*/)
+            void AddExtraDamage()
             {
                 if (Aura* aur = GetHitUnit()->GetAura(GetSpellInfo()->Id))
                     if (AuraEffect const* eff = aur->GetEffect(EFFECT_1))
-                        SetEffectValue(GetEffectValue() + eff->GetAmount());
+                        SetHitDamage(GetHitDamage() + eff->GetAmount());
             }
 
             void Register() override
             {
-                OnEffectLaunchTarget += SpellEffectFn(spell_blood_council_shadow_prison_SpellScript::AddExtraDamage, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
+                OnHit += SpellHitFn(spell_blood_council_shadow_prison_SpellScript::AddExtraDamage);
             }
         };
 

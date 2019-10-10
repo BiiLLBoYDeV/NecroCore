@@ -55,6 +55,7 @@ inline uint32 getMSTimeDiff(uint32 oldMSTime, std::chrono::steady_clock::time_po
     return getMSTimeDiff(oldMSTime, newMSTime);
 }
 
+
 inline uint32 GetMSTimeDiffToNow(uint32 oldMSTime)
 {
     return getMSTimeDiff(oldMSTime, getMSTime());
@@ -151,7 +152,7 @@ struct TimeTrackerSmall
 {
 public:
 
-    TimeTrackerSmall(int32 expiry = 0)
+    TimeTrackerSmall(uint32 expiry = 0)
         : i_expiryTime(expiry)
     {
     }
@@ -166,7 +167,7 @@ public:
         return i_expiryTime <= 0;
     }
 
-    void Reset(int32 interval)
+    void Reset(uint32 interval)
     {
         i_expiryTime = interval;
     }

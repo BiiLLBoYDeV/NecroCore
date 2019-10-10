@@ -25,6 +25,7 @@ Script Data End */
 
 #include "ScriptMgr.h"
 #include "ObjectAccessor.h"
+#include "Player.h"
 #include "ScriptedCreature.h"
 
 /*******************************************************
@@ -97,6 +98,7 @@ public:
 
             if (Creature* pOrb = ObjectAccessor::GetCreature(*me, targetGUID))
                 DoCast(pOrb, SPELL_TRANSITUS_SHIELD_BEAM);
+
         }
     };
 

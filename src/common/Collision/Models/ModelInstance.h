@@ -36,8 +36,9 @@ namespace VMAP
     enum ModelFlags
     {
         MOD_M2 = 1,
-        MOD_WORLDSPAWN = 1<<1,
-        MOD_HAS_BOUND = 1<<2
+        MOD_WORLDSPAWN = 1 << 1,
+        MOD_HAS_BOUND = 1 << 2,
+        MOD_PARENT_SPAWN = 1 << 3
     };
 
     class TC_COMMON_API ModelSpawn
@@ -52,25 +53,25 @@ namespace VMAP
             float iScale;
             G3D::AABox iBound;
             std::string name;
-            bool operator==(ModelSpawn const& other) const { return ID == other.ID; }
+            bool operator==(const ModelSpawn &other) const { return ID == other.ID; }
             //uint32 hashCode() const { return ID; }
             // temp?
             const G3D::AABox& getBounds() const { return iBound; }
 
             static bool readFromFile(FILE* rf, ModelSpawn &spawn);
-            static bool writeToFile(FILE* rw, ModelSpawn const& spawn);
+            static bool writeToFile(FILE* rw, const ModelSpawn &spawn);
     };
 
     class TC_COMMON_API ModelInstance: public ModelSpawn
     {
         public:
             ModelInstance(): iInvScale(0.0f), iModel(nullptr) { }
-            ModelInstance(ModelSpawn const& spawn, WorldModel* model);
+            ModelInstance(const ModelSpawn &spawn, WorldModel* model);
             void setUnloaded() { iModel = nullptr; }
-            bool intersectRay(G3D::Ray const& pRay, float& pMaxDist, bool pStopAtFirstHit, ModelIgnoreFlags ignoreFlags) const;
-            void intersectPoint(G3D::Vector3 const& p, AreaInfo &info) const;
-            bool GetLocationInfo(G3D::Vector3 const& p, LocationInfo &info) const;
-            bool GetLiquidLevel(G3D::Vector3 const& p, LocationInfo &info, float &liqHeight) const;
+            bool intersectRay(const G3D::Ray& pRay, float& pMaxDist, bool pStopAtFirstHit, ModelIgnoreFlags ignoreFlags) const;
+            void intersectPoint(const G3D::Vector3& p, AreaInfo &info) const;
+            bool GetLocationInfo(const G3D::Vector3& p, LocationInfo &info) const;
+            bool GetLiquidLevel(const G3D::Vector3& p, LocationInfo &info, float &liqHeight) const;
             WorldModel* getWorldModel() { return iModel; }
         protected:
             G3D::Matrix3 iInvRot;

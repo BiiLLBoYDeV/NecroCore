@@ -28,14 +28,13 @@
 
     @brief This file contains definitions of functions used for reporting critical application errors
 
-    It is very important that (std::)abort is NEVER called in place of *((volatile int*)NULL) = 0;
+    It is very important that (std::)abort is NEVER called in place of *((volatile int*)nullptr) = 0;
     Calling abort() on Windows does not invoke unhandled exception filters - a mechanism used by WheatyExceptionReport
     to log crashes. exit(1) calls here are for static analysis tools to indicate that calling functions defined in this file
     terminates the application.
  */
 
 #if TRINITY_PLATFORM == TRINITY_PLATFORM_WINDOWS
-#include <Windows.h>
 #define Crash(message) \
     ULONG_PTR execeptionArgs[] = { reinterpret_cast<ULONG_PTR>(strdup(message)), reinterpret_cast<ULONG_PTR>(_ReturnAddress()) }; \
     RaiseException(EXCEPTION_ASSERTION_FAILURE, 0, 2, execeptionArgs);

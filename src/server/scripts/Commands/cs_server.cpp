@@ -35,7 +35,6 @@ EndScriptData */
 #include "Player.h"
 #include "RBAC.h"
 #include "Realm.h"
-#include "ServerMotd.h"
 #include "UpdateTime.h"
 #include "Util.h"
 #include "VMapFactory.h"
@@ -200,7 +199,7 @@ public:
         for (std::string const& subDir : subDirs)
         {
             boost::filesystem::path mapPath(dataDir);
-            mapPath /= subDir;
+            mapPath.append(subDir);
 
             if (!boost::filesystem::exists(mapPath))
             {
@@ -274,7 +273,7 @@ public:
     // Display the 'Message of the day' for the realm
     static bool HandleServerMotdCommand(ChatHandler* handler, char const* /*args*/)
     {
-        handler->PSendSysMessage(LANG_MOTD_CURRENT, Motd::GetMotd());
+        handler->PSendSysMessage(LANG_MOTD_CURRENT, sWorld->GetMotd());
         return true;
     }
 
@@ -362,7 +361,7 @@ public:
 
     static bool HandleServerRestartCommand(ChatHandler* handler, char const* args)
     {
-        return ShutdownServer(handler, args, SHUTDOWN_MASK_RESTART, RESTART_EXIT_CODE);
+       return ShutdownServer(handler, args, SHUTDOWN_MASK_RESTART, RESTART_EXIT_CODE);
     }
 
     static bool HandleServerForceShutDownCommand(ChatHandler* handler, char const* args)
@@ -396,7 +395,7 @@ public:
     // Define the 'Message of the day' for the realm
     static bool HandleServerSetMotdCommand(ChatHandler* handler, char const* args)
     {
-        Motd::SetMotd(args);
+        sWorld->SetMotd(args);
         handler->PSendSysMessage(LANG_MOTD_NEW, args);
         return true;
     }
@@ -534,7 +533,7 @@ private:
         // Override parameter "delay" with the configuration value if there are still players connected and "force" parameter was not specified
         if (delay < (int32)sWorld->getIntConfig(CONFIG_FORCE_SHUTDOWN_THRESHOLD) && !(shutdownMask & SHUTDOWN_MASK_FORCE) && !IsOnlyUser(handler->GetSession()))
         {
-            delay = (int32)sWorld->getIntConfig(CONFIG_FORCE_SHUTDOWN_THRESHOLD);
+              delay = (int32)sWorld->getIntConfig(CONFIG_FORCE_SHUTDOWN_THRESHOLD);
             handler->PSendSysMessage(LANG_SHUTDOWN_DELAYED, delay);
         }
 

@@ -68,11 +68,11 @@ class boss_krystallus : public CreatureScript
                 Talk(SAY_AGGRO);
                 _JustEngagedWith();
 
-                events.ScheduleEvent(EVENT_BOULDER_TOSS, 3s, 9s);
-                events.ScheduleEvent(EVENT_GROUND_SLAM, 15s, 18s);
-                events.ScheduleEvent(EVENT_STOMP, 20s, 29s);
+                events.ScheduleEvent(EVENT_BOULDER_TOSS, urand(3000, 9000));
+                events.ScheduleEvent(EVENT_GROUND_SLAM, urand(15000, 18000));
+                events.ScheduleEvent(EVENT_STOMP, urand(20000, 29000));
                 if (IsHeroic())
-                    events.ScheduleEvent(EVENT_GROUND_SPIKE, 9s, 14s);
+                    events.ScheduleEvent(EVENT_GROUND_SPIKE, urand(9000, 14000));
             }
 
             void UpdateAI(uint32 diff) override
@@ -93,21 +93,21 @@ class boss_krystallus : public CreatureScript
                         case EVENT_BOULDER_TOSS:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 50.0f, true))
                                 DoCast(target, SPELL_BOULDER_TOSS);
-                            events.ScheduleEvent(EVENT_BOULDER_TOSS, 9s, 15s);
+                            events.ScheduleEvent(EVENT_BOULDER_TOSS, urand(9000, 15000));
                             break;
                         case EVENT_GROUND_SPIKE:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true))
                                 DoCast(target, SPELL_GROUND_SPIKE);
-                            events.ScheduleEvent(EVENT_GROUND_SPIKE, 12s, 17s);
+                            events.ScheduleEvent(EVENT_GROUND_SPIKE, urand(12000, 17000));
                             break;
                         case EVENT_GROUND_SLAM:
                             DoCast(me, SPELL_GROUND_SLAM);
-                            events.ScheduleEvent(EVENT_SHATTER, 10s);
-                            events.ScheduleEvent(EVENT_GROUND_SLAM, 15s, 18s);
+                            events.ScheduleEvent(EVENT_SHATTER, 10000);
+                            events.ScheduleEvent(EVENT_GROUND_SLAM, urand(15000, 18000));
                             break;
                         case EVENT_STOMP:
                             DoCast(me, SPELL_STOMP);
-                            events.ScheduleEvent(EVENT_STOMP, 20s, 29s);
+                            events.ScheduleEvent(EVENT_STOMP, urand(20000, 29000));
                             break;
                         case EVENT_SHATTER:
                             DoCast(me, SPELL_SHATTER);
@@ -156,7 +156,7 @@ class spell_krystallus_shatter : public SpellScriptLoader
                 if (Unit* target = GetHitUnit())
                 {
                     target->RemoveAurasDueToSpell(SPELL_STONED);
-                    target->CastSpell(nullptr, SPELL_SHATTER_EFFECT, true);
+                    target->CastSpell((Unit*)nullptr, SPELL_SHATTER_EFFECT, true);
                 }
             }
 

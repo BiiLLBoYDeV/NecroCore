@@ -60,11 +60,6 @@ class boss_patchwerk : public CreatureScript
 public:
     boss_patchwerk() : CreatureScript("boss_patchwerk") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetNaxxramasAI<boss_patchwerkAI>(creature);
-    }
-
     struct boss_patchwerkAI : public BossAI
     {
         boss_patchwerkAI(Creature* creature) : BossAI(creature, BOSS_PATCHWERK)
@@ -98,8 +93,8 @@ public:
             _JustEngagedWith();
             Enraged = false;
             Talk(SAY_AGGRO);
-            events.ScheduleEvent(EVENT_HATEFUL, 1s);
-            events.ScheduleEvent(EVENT_BERSERK, 6min);
+            events.ScheduleEvent(EVENT_HATEFUL, Seconds(1));
+            events.ScheduleEvent(EVENT_BERSERK, Minutes(6));
 
             instance->DoStartTimedAchievement(ACHIEVEMENT_TIMED_TYPE_EVENT, ACHIEV_MAKE_QUICK_WERK_OF_HIM_STARTING_EVENT);
         }
@@ -119,45 +114,54 @@ public:
                     {
                         // Hateful Strike targets the highest non-MT threat in melee range on 10man
                         // and the higher HP target out of the two highest non-MT threats in melee range on 25man
-                        ThreatReference* secondThreat = nullptr;
-                        ThreatReference* thirdThreat = nullptr;
+                        float MostThreat = 0.0f;
+                        Unit* secondThreatTarget = nullptr;
+                        Unit* thirdThreatTarget = nullptr;
 
-                        ThreatManager& mgr = me->GetThreatManager();
-                        Unit* currentVictim = mgr.GetCurrentVictim();
-                        auto list = mgr.GetModifiableThreatList();
-                        auto it = list.begin(), end = list.end();
-                        if (it == end)
-                        {
-                            EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
-                            return;
+                        std::list<HostileReference*>::const_iterator i = me->getThreatManager().getThreatList().begin();
+                        for (; i != me->getThreatManager().getThreatList().end(); ++i)
+                        { // find second highest
+                            Unit* target = (*i)->getTarget();
+                            if (target->IsAlive() && target != me->GetVictim() && (*i)->getThreat() >= MostThreat && me->IsWithinMeleeRange(target))
+                            {
+                                MostThreat = (*i)->getThreat();
+                                secondThreatTarget = target;
+                            }
                         }
 
-                        if ((*it)->GetVictim() != currentVictim)
-                            secondThreat = *it;
-                        if ((!secondThreat || Is25ManRaid()) && (++it != end && (*it)->IsAvailable()))
-                        {
-                            if ((*it)->GetVictim() != currentVictim)
-                                (secondThreat ? thirdThreat : secondThreat) = *it;
-                            if (!thirdThreat && Is25ManRaid() && (++it != end && (*it)->IsAvailable()))
-                                thirdThreat = *it;
+                        if (secondThreatTarget && Is25ManRaid())
+                        { // find third highest
+                            MostThreat = 0.0f;
+                            i = me->getThreatManager().getThreatList().begin();
+                            for (; i != me->getThreatManager().getThreatList().end(); ++i)
+                            {
+                                Unit* target = (*i)->getTarget();
+                                if (target->IsAlive() && target != me->GetVictim() && target != secondThreatTarget && (*i)->getThreat() >= MostThreat && me->IsWithinMeleeRange(target))
+                                {
+                                    MostThreat = (*i)->getThreat();
+                                    thirdThreatTarget = target;
+                                }
+                            }
                         }
 
                         Unit* pHatefulTarget = nullptr;
-                        if (!secondThreat)
-                            pHatefulTarget = currentVictim;
-                        else if (!thirdThreat)
-                            pHatefulTarget = secondThreat->GetVictim();
-                        else
-                            pHatefulTarget = (secondThreat->GetVictim()->GetHealth() < thirdThreat->GetVictim()->GetHealth()) ? thirdThreat->GetVictim() : secondThreat->GetVictim();
+                        if (!thirdThreatTarget)
+                            pHatefulTarget = secondThreatTarget;
+                        else if (secondThreatTarget)
+                            pHatefulTarget = (secondThreatTarget->GetHealth() < thirdThreatTarget->GetHealth()) ? thirdThreatTarget : secondThreatTarget;
 
-                        // add threat to highest threat targets
-                        AddThreat(currentVictim, HATEFUL_THREAT_AMT);
-                        if (secondThreat)
-                            secondThreat->AddThreat(HATEFUL_THREAT_AMT);
-                        if (thirdThreat)
-                            thirdThreat->AddThreat(HATEFUL_THREAT_AMT);
+                        if (!pHatefulTarget)
+                            pHatefulTarget = me->GetVictim();
 
                         DoCast(pHatefulTarget, SPELL_HATEFUL_STRIKE, true);
+
+                        // add threat to highest threat targets
+                        if (me->GetVictim() && me->IsWithinMeleeRange(me->GetVictim()))
+                            me->getThreatManager().addThreat(me->GetVictim(), HATEFUL_THREAT_AMT);
+                        if (secondThreatTarget)
+                            me->getThreatManager().addThreat(secondThreatTarget, HATEFUL_THREAT_AMT);
+                        if (thirdThreatTarget)
+                            me->getThreatManager().addThreat(thirdThreatTarget, HATEFUL_THREAT_AMT); // this will only ever be used in 25m
 
                         events.Repeat(Seconds(1));
                         break;
@@ -165,7 +169,7 @@ public:
                     case EVENT_BERSERK:
                         DoCast(me, SPELL_BERSERK, true);
                         Talk(EMOTE_BERSERK);
-                        events.ScheduleEvent(EVENT_SLIME, 2s);
+                        events.ScheduleEvent(EVENT_SLIME, Seconds(2));
                         break;
                     case EVENT_SLIME:
                         DoCastAOE(SPELL_SLIME_BOLT, true);
@@ -185,6 +189,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetNaxxramasAI<boss_patchwerkAI>(creature);
+    }
 };
 
 void AddSC_boss_patchwerk()

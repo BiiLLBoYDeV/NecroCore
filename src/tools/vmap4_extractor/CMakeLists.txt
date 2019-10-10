@@ -1,5 +1,5 @@
 # Copyright (C) 2005-2009 MaNGOS project <http://getmangos.com/>
-# Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+# Copyright (C) 2008-2018 TrinityCore <http://www.trinitycore.org/>
 #
 # This file is free software; as a special exception the author gives
 # unlimited permission to copy and/or distribute it, with or without
@@ -24,7 +24,18 @@ target_link_libraries(vmap4extractor
     trinity-core-interface
   PUBLIC
     common
-    mpq)
+    storm)
+
+CollectIncludeDirectories(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+  PUBLIC_INCLUDES
+)
+
+target_include_directories(vmap4extractor
+  PUBLIC
+    ${PUBLIC_INCLUDES}
+  PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR})
 
 set_target_properties(vmap4extractor
     PROPERTIES

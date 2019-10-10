@@ -33,6 +33,7 @@ EndScriptData */
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "PlayerDump.h"
+#include "RBAC.h"
 #include "ReputationMgr.h"
 #include "World.h"
 #include "WorldSession.h"
@@ -275,13 +276,11 @@ public:
         char const* knownStr = handler->GetTrinityString(LANG_KNOWN);
 
         // Search in CharTitles.dbc
-        for (uint32 id = 0; id < sCharTitlesStore.GetNumRows(); id++)
+        for (CharTitlesEntry const* titleInfo : sCharTitlesStore)
         {
-            CharTitlesEntry const* titleInfo = sCharTitlesStore.LookupEntry(id);
-
-            if (titleInfo && target->HasTitle(titleInfo))
+            if (target->HasTitle(titleInfo))
             {
-                std::string name = target->GetNativeGender() == GENDER_MALE ? titleInfo->nameMale[loc] : titleInfo->nameFemale[loc];
+                std::string name = target->GetNativeGender() == GENDER_MALE ? titleInfo->nameMale : titleInfo->nameFemale;
                 if (name.empty())
                     continue;
 
@@ -294,9 +293,9 @@ public:
 
                 // send title in "id (idx:idx) - [namedlink locale]" format
                 if (handler->GetSession())
-                    handler->PSendSysMessage(LANG_TITLE_LIST_CHAT, id, titleInfo->bit_index, id, titleNameStr, localeNames[loc], knownStr, activeStr);
+                    handler->PSendSysMessage(LANG_TITLE_LIST_CHAT, titleInfo->ID, titleInfo->bit_index, titleInfo->ID, titleNameStr, localeNames[loc], knownStr, activeStr);
                 else
-                    handler->PSendSysMessage(LANG_TITLE_LIST_CONSOLE, id, titleInfo->bit_index, name.c_str(), localeNames[loc], knownStr, activeStr);
+                    handler->PSendSysMessage(LANG_TITLE_LIST_CONSOLE, titleInfo->ID, titleInfo->bit_index, name.c_str(), localeNames[loc], knownStr, activeStr);
             }
         }
 
@@ -463,7 +462,7 @@ public:
             newlevel = STRONG_MAX_LEVEL;
 
         HandleCharacterLevel(target, targetGuid, oldlevel, newlevel, handler);
-        if (!handler->GetSession() || handler->GetSession()->GetPlayer() != target)      // including player == NULL
+        if (!handler->GetSession() || handler->GetSession()->GetPlayer() != target)      // including player == nullptr
         {
             std::string nameLink = handler->playerLink(targetName);
             handler->PSendSysMessage(LANG_YOU_CHANGE_LVL, nameLink.c_str(), newlevel);
@@ -650,7 +649,7 @@ public:
         {
             FactionState const& faction = itr->second;
             FactionEntry const* factionEntry = sFactionStore.LookupEntry(faction.ID);
-            char const* factionName = factionEntry ? factionEntry->name[loc] : "#Not found#";
+            char const* factionName = factionEntry ? factionEntry->name : "#Not found#";
             ReputationRank rank = target->GetReputationMgr().GetRank(factionEntry);
             std::string rankName = handler->GetTrinityString(ReputationRankStrIndex[rank]);
             std::ostringstream ss;
@@ -919,7 +918,7 @@ public:
 
         HandleCharacterLevel(target, targetGuid, oldlevel, newlevel, handler);
 
-        if (!handler->GetSession() || handler->GetSession()->GetPlayer() != target)      // including chr == NULL
+        if (!handler->GetSession() || handler->GetSession()->GetPlayer() != target)      // including chr == nullptr
         {
             std::string nameLink = handler->playerLink(targetName);
             handler->PSendSysMessage(LANG_YOU_CHANGE_LVL, nameLink.c_str(), newlevel);

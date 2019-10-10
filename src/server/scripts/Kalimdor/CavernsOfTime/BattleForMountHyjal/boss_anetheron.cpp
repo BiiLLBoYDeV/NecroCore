@@ -16,7 +16,6 @@
  */
 
 #include "ScriptMgr.h"
-#include "hyjal.h"
 #include "hyjal_trash.h"
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
@@ -47,11 +46,6 @@ class boss_anetheron : public CreatureScript
 {
 public:
     boss_anetheron() : CreatureScript("boss_anetheron") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<boss_anetheronAI>(creature);
-    }
 
     struct boss_anetheronAI : public hyjal_trashAI
     {
@@ -99,13 +93,13 @@ public:
                 Talk(SAY_ONSLAY);
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7)
             {
-                Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
+                Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
                 if (target && target->IsAlive())
-                    AddThreat(target, 0.0f);
+                    me->AddThreat(target, 0.0f);
             }
         }
 
@@ -121,8 +115,8 @@ public:
         {
             if (IsEvent)
             {
-                //Must update EscortAI
-                EscortAI::UpdateAI(diff);
+                //Must update npc_escortAI
+                npc_escortAI::UpdateAI(diff);
                 if (!go)
                 {
                     go = true;
@@ -178,17 +172,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<boss_anetheronAI>(creature);
+    }
 };
 
 class npc_towering_infernal : public CreatureScript
 {
 public:
     npc_towering_infernal() : CreatureScript("npc_towering_infernal") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_towering_infernalAI>(creature);
-    }
 
     struct npc_towering_infernalAI : public ScriptedAI
     {
@@ -240,7 +233,8 @@ public:
                     Creature* boss = ObjectAccessor::GetCreature(*me, AnetheronGUID);
                     if (!boss || boss->isDead())
                     {
-                        me->DespawnOrUnsummon();
+                        me->setDeathState(JUST_DIED);
+                        me->RemoveCorpse();
                         return;
                     }
                 }
@@ -261,6 +255,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_towering_infernalAI>(creature);
+    }
 };
 
 class spell_anetheron_vampiric_aura : public SpellScriptLoader
@@ -284,10 +282,8 @@ class spell_anetheron_vampiric_aura : public SpellScriptLoader
                 if (!damageInfo || !damageInfo->GetDamage())
                     return;
 
-                Unit* actor = eventInfo.GetActor();
-                CastSpellExtraArgs args(aurEff);
-                args.AddSpellMod(SPELLVALUE_BASE_POINT0, damageInfo->GetDamage() * 3);
-                actor->CastSpell(actor, SPELL_VAMPIRIC_AURA_HEAL, args);
+                int32 bp = damageInfo->GetDamage() * 3;
+                eventInfo.GetActor()->CastCustomSpell(SPELL_VAMPIRIC_AURA_HEAL, SPELLVALUE_BASE_POINT0, bp, eventInfo.GetActor(), true, nullptr, aurEff);
             }
 
             void Register() override

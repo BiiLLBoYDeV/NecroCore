@@ -25,6 +25,7 @@
 #include <string>
 #include <vector>
 
+
 #define MAX_GAMEOBJECT_QUEST_ITEMS 6
 
 // from `gameobject_template`
@@ -38,6 +39,7 @@ struct GameObjectTemplate
     std::string castBarCaption;
     std::string unk1;
     float   size;
+    int32   RequiredLevel;
     union                                                   // different GO types have different data field
     {
         //0 GAMEOBJECT_TYPE_DOOR
@@ -51,6 +53,9 @@ struct GameObjectTemplate
             uint32 closeTextID;                             //5
             uint32 ignoredByPathing;                        //6
             uint32 conditionID1;                            //7
+            uint32 DoorisOpaque;                            //8 Door is Opaque (Disable portal on close), enum { false, true, }; Default: true
+            uint32 GiganticAOI;                             //9 Gigantic AOI, enum { false, true, }; Default: false
+            uint32 InfiniteAOI;                             //10 Infinite AOI, enum { false, true, }; Default: false
         } door;
         //1 GAMEOBJECT_TYPE_BUTTON
         struct
@@ -60,7 +65,7 @@ struct GameObjectTemplate
             uint32 autoCloseTime;                           //2 secs till autoclose = autoCloseTime / 0x10000
             uint32 linkedTrap;                              //3
             uint32 noDamageImmune;                          //4 isBattlegroundObject
-            uint32 large;                                   //5
+            uint32 GiganticAOI;                             //5
             uint32 openTextID;                              //6 can be used to replace castBarCaption?
             uint32 closeTextID;                             //7
             uint32 losOK;                                   //8
@@ -78,7 +83,7 @@ struct GameObjectTemplate
             uint32 openTextID;                              //6 can be used to replace castBarCaption?
             uint32 losOK;                                   //7
             uint32 allowMounted;                            //8 Is usable while on mount/vehicle. (0/1)
-            uint32 large;                                   //9
+            uint32 GiganticAOI;                             //9
             uint32 conditionID1;                            //10
         } questgiver;
         //3 GAMEOBJECT_TYPE_CHEST
@@ -110,7 +115,7 @@ struct GameObjectTemplate
             uint32 floatingTooltip;                         //0
             uint32 highlight;                               //1
             uint32 serverOnly;                              //2
-            uint32 large;                                   //3
+            uint32 GiganticAOI;                             //3
             uint32 floatOnWater;                            //4
             int32 questID;                                  //5
             uint32 conditionID1;                            //6
@@ -128,7 +133,7 @@ struct GameObjectTemplate
             uint32 startDelay;                              //7
             uint32 serverOnly;                              //8
             uint32 stealthed;                               //9
-            uint32 large;                                   //10
+            uint32 GiganticAOI;                             //10
             uint32 invisible;                               //11
             uint32 openTextID;                              //12 can be used to replace castBarCaption?
             uint32 closeTextID;                             //13
@@ -152,7 +157,7 @@ struct GameObjectTemplate
             uint32 linkedTrapId;                            //2
             uint32 serverOnly;                              //3
             uint32 questID;                                 //4
-            uint32 large;                                   //5
+            uint32 GiganticAOI;                             //5
             uint32 floatingTooltip;                         //6
             uint32 floatOnWater;                            //7
             uint32 conditionID1;                            //8
@@ -182,7 +187,7 @@ struct GameObjectTemplate
             uint32 spellId;                                 //10
             uint32 noDamageImmune;                          //11
             uint32 linkedTrapId;                            //12
-            uint32 large;                                   //13
+            uint32 GiganticAOI;                             //13
             uint32 openTextID;                              //14 can be used to replace castBarCaption?
             uint32 closeTextID;                             //15
             uint32 losOK;                                   //16 isBattlegroundObject
@@ -196,12 +201,17 @@ struct GameObjectTemplate
         //11 GAMEOBJECT_TYPE_TRANSPORT
         struct
         {
-            uint32 pause;                                   //0
+            int32 stopFrame1;                               //0
             uint32 startOpen;                               //1
             uint32 autoCloseTime;                           //2 secs till autoclose = autoCloseTime / 0x10000
             uint32 pause1EventID;                           //3
             uint32 pause2EventID;                           //4
-            uint32 mapID;                                   //5
+            uint32 mapId;                                   //5
+            int32 stopFrame2;                               //6
+            uint32 unknown;
+            int32 stopFrame3;                               //8
+            uint32 unknown2;
+            int32 stopFrame4;                               //10
         } transport;
         //12 GAMEOBJECT_TYPE_AREADAMAGE
         struct
@@ -251,7 +261,6 @@ struct GameObjectTemplate
             uint32 casterTargetSpellTargets;                //5
             uint32 castersGrouped;                          //6
             uint32 ritualNoTargetCheck;                     //7
-            uint32 conditionID1;                            //8
         } summoningRitual;
         //19 GAMEOBJECT_TYPE_MAILBOX
         struct
@@ -272,7 +281,7 @@ struct GameObjectTemplate
             uint32 charges;                                 //1
             uint32 partyOnly;                               //2
             uint32 allowMounted;                            //3 Is usable while on mount/vehicle. (0/1)
-            uint32 large;                                   //4
+            uint32 GiganticAOI;                             //4
             uint32 conditionID1;                            //5
         } spellcaster;
         //23 GAMEOBJECT_TYPE_MEETINGSTONE
@@ -293,7 +302,6 @@ struct GameObjectTemplate
             uint32 noDamageImmune;                          //5
             uint32 openTextID;                              //6
             uint32 losOK;                                   //7
-            uint32 conditionID1;                            //8
         } flagstand;
         //25 GAMEOBJECT_TYPE_FISHINGHOLE
         struct
@@ -318,7 +326,6 @@ struct GameObjectTemplate
         {
             uint32 gameType;                                //0
         } miniGame;
-        //28 GAMEOBJECT_TYPE_DO_NOT_USE_2 - empty
         //29 GAMEOBJECT_TYPE_CAPTURE_POINT
         struct
         {
@@ -340,7 +347,7 @@ struct GameObjectTemplate
             uint32 maxSuperiority;                          //15
             uint32 minTime;                                 //16
             uint32 maxTime;                                 //17
-            uint32 large;                                   //18
+            uint32 GiganticAOI;                             //18
             uint32 highlight;                               //19
             uint32 startingValue;                           //20
             uint32 unidirectional;                          //21
@@ -418,7 +425,6 @@ struct GameObjectTemplate
 
     std::string AIName;
     uint32 ScriptId;
-    WorldPacket QueryData[TOTAL_LOCALES];
 
     // helpers
     bool IsDespawnAtAction() const
@@ -435,25 +441,10 @@ struct GameObjectTemplate
     {
         switch (type)
         {
-            case GAMEOBJECT_TYPE_MAILBOX: return true;
-            case GAMEOBJECT_TYPE_BARBER_CHAIR: return false;
             case GAMEOBJECT_TYPE_QUESTGIVER: return questgiver.allowMounted != 0;
             case GAMEOBJECT_TYPE_TEXT: return text.allowMounted != 0;
             case GAMEOBJECT_TYPE_GOOBER: return goober.allowMounted != 0;
             case GAMEOBJECT_TYPE_SPELLCASTER: return spellcaster.allowMounted != 0;
-            default: return false;
-        }
-    }
-
-    bool IsIgnoringLOSChecks() const
-    {
-        switch (type)
-        {
-            case GAMEOBJECT_TYPE_BUTTON: return button.losOK == 0;
-            case GAMEOBJECT_TYPE_QUESTGIVER: return questgiver.losOK == 0;
-            case GAMEOBJECT_TYPE_CHEST: return chest.losOK == 0;
-            case GAMEOBJECT_TYPE_GOOBER: return goober.losOK == 0;
-            case GAMEOBJECT_TYPE_FLAGSTAND: return flagstand.losOK == 0;
             default: return false;
         }
     }
@@ -488,21 +479,6 @@ struct GameObjectTemplate
             case GAMEOBJECT_TYPE_FLAGSTAND:  return flagstand.noDamageImmune != 0;
             case GAMEOBJECT_TYPE_FLAGDROP:   return flagdrop.noDamageImmune != 0;
             default: return true;
-        }
-    }
-
-    bool CannotBeUsedUnderImmunity() const // Cannot be used/activated/looted by players under immunity effects (example: Divine Shield)
-    {
-        switch (type)
-        {
-            case GAMEOBJECT_TYPE_DOOR:       return door.noDamageImmune != 0;
-            case GAMEOBJECT_TYPE_BUTTON:     return button.noDamageImmune != 0;
-            case GAMEOBJECT_TYPE_QUESTGIVER: return questgiver.noDamageImmune != 0;
-            case GAMEOBJECT_TYPE_CHEST:      return true;                           // All chests cannot be opened while immune on 3.3.5a
-            case GAMEOBJECT_TYPE_GOOBER:     return goober.noDamageImmune != 0;
-            case GAMEOBJECT_TYPE_FLAGSTAND:  return flagstand.noDamageImmune != 0;
-            case GAMEOBJECT_TYPE_FLAGDROP:   return flagdrop.noDamageImmune != 0;
-            default: return false;
         }
     }
 
@@ -586,38 +562,41 @@ struct GameObjectTemplate
         }
     }
 
-    bool IsLargeGameObject() const
+    bool IsInfiniteGameObject() const
     {
         switch (type)
         {
-            case GAMEOBJECT_TYPE_BUTTON:            return button.large != 0;
-            case GAMEOBJECT_TYPE_QUESTGIVER:        return questgiver.large != 0;
-            case GAMEOBJECT_TYPE_GENERIC:           return _generic.large != 0;
-            case GAMEOBJECT_TYPE_TRAP:              return trap.large != 0;
-            case GAMEOBJECT_TYPE_SPELL_FOCUS:       return spellFocus.large != 0;
-            case GAMEOBJECT_TYPE_GOOBER:            return goober.large != 0;
-            case GAMEOBJECT_TYPE_SPELLCASTER:       return spellcaster.large != 0;
-            case GAMEOBJECT_TYPE_CAPTURE_POINT:     return capturePoint.large != 0;
+            case GAMEOBJECT_TYPE_DOOR:          return door.InfiniteAOI != 0;
             default: return false;
         }
     }
 
-    void InitializeQueryData();
-    WorldPacket BuildQueryData(LocaleConstant loc) const;
-};
-
-// From `gameobject_template_addon`, `gameobject_overrides`
-struct GameObjectOverride
-{
-    uint32 Faction;
-    uint32 Flags;
+    bool IsGiganticGameObject() const
+    {
+        switch (type)
+        {
+            case GAMEOBJECT_TYPE_DOOR:                  return door.GiganticAOI != 0;
+            case GAMEOBJECT_TYPE_BUTTON:                return button.GiganticAOI != 0;
+            case GAMEOBJECT_TYPE_QUESTGIVER:            return questgiver.GiganticAOI != 0;
+            case GAMEOBJECT_TYPE_GENERIC:               return _generic.GiganticAOI != 0;
+            case GAMEOBJECT_TYPE_TRAP:                  return trap.GiganticAOI != 0;
+            case GAMEOBJECT_TYPE_SPELL_FOCUS:           return spellFocus.GiganticAOI != 0;
+            case GAMEOBJECT_TYPE_GOOBER:                return goober.GiganticAOI != 0;
+            case GAMEOBJECT_TYPE_SPELLCASTER:           return spellcaster.GiganticAOI != 0;
+            case GAMEOBJECT_TYPE_CAPTURE_POINT:         return capturePoint.GiganticAOI != 0;
+            default: return false;
+        }
+    }
 };
 
 // From `gameobject_template_addon`
-struct GameObjectTemplateAddon : public GameObjectOverride
+struct GameObjectTemplateAddon
 {
-    uint32 Mingold;
-    uint32 Maxgold;
+    uint32  entry;
+    uint32  faction;
+    uint32  flags;
+    uint32  mingold;
+    uint32  maxgold;
 };
 
 struct GameObjectLocale
@@ -634,7 +613,6 @@ struct TC_GAME_API QuaternionData
     QuaternionData(float X, float Y, float Z, float W) : x(X), y(Y), z(Z), w(W) { }
 
     bool isUnit() const;
-    void toEulerAnglesZYX(float& Z, float& Y, float& X) const;
     static QuaternionData fromEulerAnglesZYX(float Z, float Y, float X);
 };
 
@@ -654,7 +632,6 @@ struct GameObjectData : public SpawnData
     uint32 animprogress = 0;
     GOState goState = GO_STATE_ACTIVE;
     uint8 artKit = 0;
-    float size = -1.0f;
 };
 
 #endif // GameObjectData_h__

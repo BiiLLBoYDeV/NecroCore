@@ -215,18 +215,18 @@ public:
                         events.ScheduleEvent(EVENT_START_INTRO_PATH, Milliseconds(1));
                         break;
                     case POINT_INTRO_END:
-                        events.ScheduleEvent(EVENT_END_INTRO, 2s);
+                        events.ScheduleEvent(EVENT_END_INTRO, Seconds(2));
                         break;
                     case POINT_INTRO_LANDING:
                         me->SetDisableGravity(false);
                         me->HandleEmoteCommand(EMOTE_ONESHOT_LAND);
-                        events.ScheduleEvent(EVENT_INTRO_LANDING, 3s);
+                        events.ScheduleEvent(EVENT_INTRO_LANDING, Seconds(3));
                         break;
                     case POINT_PHASE_TWO_LANDING:
                         events.SetPhase(PHASE_GROUND);
                         me->SetDisableGravity(false);
                         me->HandleEmoteCommand(EMOTE_ONESHOT_LAND);
-                        events.ScheduleEvent(EVENT_LANDED, 3s);
+                        events.ScheduleEvent(EVENT_LANDED, Seconds(3));
                         break;
                     case POINT_PHASE_TWO_END:
                         events.ScheduleEvent(EVENT_END_PHASE_TWO, Milliseconds(1));
@@ -299,8 +299,8 @@ public:
                     me->GetMotionMaster()->MoveAlongSplineChain(POINT_PHASE_TWO_LANDING, SPLINE_CHAIN_SECOND_LANDING, false);
                     break;
                 case EVENT_INTRO_LANDING:
-                    me->SetImmuneToPC(false);
-                    DoZoneInCombat();
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+                    me->SetInCombatWithZone();
                     break;
                 case EVENT_LAND:
                     Talk(YELL_LAND_PHASE);
@@ -322,7 +322,7 @@ public:
                     me->GetMotionMaster()->MoveAlongSplineChain(POINT_INTRO_END, SPLINE_CHAIN_INTRO_END, false);
                     break;
                 case EVENT_RAIN_OF_BONES:
-                    ResetThreatList();
+                    DoResetThreat();
                     if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true))
                     {
                         me->SetFacingToObject(target);
@@ -422,7 +422,7 @@ class go_blackened_urn : public GameObjectScript
     public:
         go_blackened_urn() : GameObjectScript("go_blackened_urn") { }
 
-        struct go_blackened_urnAI : GameObjectAI
+        struct go_blackened_urnAI : public GameObjectAI
         {
             go_blackened_urnAI(GameObject* go) : GameObjectAI(go), instance(go->GetInstanceScript()) { }
 

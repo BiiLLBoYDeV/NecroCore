@@ -58,6 +58,4 @@ inline AI* GetVaultOfArchavonAI(T* obj)
     return GetInstanceAI<AI>(obj, VoAScriptName);
 }
 
-#define RegisterVaultOfArchavonCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetVaultOfArchavonAI)
-
 #endif

@@ -1,6 +1,6 @@
 /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
- * Copyright (C) 2005-2009 MaNGOS <http://getmangos.com/>
+ * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -14,7 +14,7 @@
  *
  * You should have received a copy of the GNU General Public License along
  * with this program. If not, see <http://www.gnu.org/licenses/>.
-*/
+ */
 
 #ifndef TRINITYSERVER_MOVESPLINEINIT_H
 #define TRINITYSERVER_MOVESPLINEINIT_H
@@ -25,7 +25,7 @@ class Unit;
 
 namespace Movement
 {
-    enum AnimType
+    enum AnimType : uint8
     {
         ToGround    = 0, // 460 = ToGround, index of AnimationData.dbc
         FlyToFly    = 1, // 461 = FlyToFly?
@@ -53,8 +53,6 @@ namespace Movement
     public:
 
         explicit MoveSplineInit(Unit* m);
-        MoveSplineInit(MoveSplineInit&& init) = default;
-
         ~MoveSplineInit();
         MoveSplineInit(MoveSplineInit const&) = delete;
         MoveSplineInit& operator=(MoveSplineInit const&) = delete;
@@ -106,27 +104,39 @@ namespace Movement
          * if not enabled linear spline mode will be choosen. Disabled by default
          */
         void SetSmooth();
-        /* Enables CatmullRom spline interpolation mode, enables flying animation. Disabled by default
+
+        /* Waypoints in packets will be sent without compression
+         */
+        void SetUncompressed();
+
+        /* Enables flying animation. Disabled by default
          */
         void SetFly();
+
         /* Enables walk mode. Disabled by default
          */
         void SetWalk(bool enable);
+
         /* Makes movement cyclic. Disabled by default
          */
         void SetCyclic();
+
         /* Enables falling mode. Disabled by default
          */
         void SetFall();
+
         /* Enters transport. Disabled by default
          */
         void SetTransportEnter();
+
         /* Exits transport. Disabled by default
          */
         void SetTransportExit();
+
         /* Inverses unit model orientation. Disabled by default
          */
-        void SetBackward();
+        void SetOrientationInversed();
+
         /* Fixes unit's model rotation. Disabled by default
          */
         void SetOrientationFixed(bool enable);
@@ -150,12 +160,12 @@ namespace Movement
     };
 
     inline void MoveSplineInit::SetFly() { args.flags.EnableFlying(); }
-    inline void MoveSplineInit::SetWalk(bool enable) { args.walk = enable; }
+    inline void MoveSplineInit::SetWalk(bool enable) { args.flags.walkmode = enable; }
     inline void MoveSplineInit::SetSmooth() { args.flags.EnableCatmullRom(); }
+    inline void MoveSplineInit::SetUncompressed() { args.flags.uncompressedPath = true; }
     inline void MoveSplineInit::SetCyclic() { args.flags.cyclic = true; }
-    inline void MoveSplineInit::SetFall() { args.flags.EnableFalling(); }
     inline void MoveSplineInit::SetVelocity(float vel) { args.velocity = vel; args.HasVelocity = true; }
-    inline void MoveSplineInit::SetBackward() { args.flags.backward = true; }
+    inline void MoveSplineInit::SetOrientationInversed() { args.flags.orientationInversed = true;}
     inline void MoveSplineInit::SetTransportEnter() { args.flags.EnableTransportEnter(); }
     inline void MoveSplineInit::SetTransportExit() { args.flags.EnableTransportExit(); }
     inline void MoveSplineInit::SetOrientationFixed(bool enable) { args.flags.orientationFixed = enable; }

@@ -345,8 +345,8 @@ class boss_warbringer_omrogg : public CreatureScript
                     if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
                     {
                         DoYellForThreat();
-                        ResetThreatList();
-                        AddThreat(target, 0.0f);
+                        DoResetThreat();
+                        me->AddThreat(target, 0.0f);
                     }
                     ResetThreat_Timer = 25000 + rand32() % 15000;
                 }
@@ -423,7 +423,7 @@ class npc_omrogg_heads : public CreatureScript
             {
                 if (data == SETDATA_DATA && value == SETDATA_YELL)
                 {
-                    events.ScheduleEvent(EVENT_DEATH_YELL, 4s);
+                    events.ScheduleEvent(EVENT_DEATH_YELL, 4000);
                 }
             }
 

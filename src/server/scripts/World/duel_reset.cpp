@@ -46,12 +46,24 @@ class DuelResetScript : public PlayerScript
             if (sWorld->getBoolConfig(CONFIG_RESET_DUEL_HEALTH_MANA))
             {
                 player1->SaveHealthBeforeDuel();
-                player1->SaveManaBeforeDuel();
-                player1->ResetAllPowers();
+                player1->SetHealth(player1->GetMaxHealth());
 
                 player2->SaveHealthBeforeDuel();
-                player2->SaveManaBeforeDuel();
-                player2->ResetAllPowers();
+                player2->SetHealth(player2->GetMaxHealth());
+
+                // check if player1 class uses mana
+                if (player1->getPowerType() == POWER_MANA || player1->GetClass() == CLASS_DRUID)
+                {
+                    player1->SaveManaBeforeDuel();
+                    player1->SetPower(POWER_MANA, player1->GetMaxPower(POWER_MANA));
+                }
+
+                // check if player2 class uses mana
+                if (player2->getPowerType() == POWER_MANA || player2->GetClass() == CLASS_DRUID)
+                {
+                    player2->SaveManaBeforeDuel();
+                    player2->SetPower(POWER_MANA, player2->GetMaxPower(POWER_MANA));
+                }
             }
         }
 
@@ -78,11 +90,11 @@ class DuelResetScript : public PlayerScript
                     loser->RestoreHealthAfterDuel();
 
                     // check if player1 class uses mana
-                    if (winner->GetPowerType() == POWER_MANA || winner->GetClass() == CLASS_DRUID)
+                    if (winner->getPowerType() == POWER_MANA || winner->GetClass() == CLASS_DRUID)
                         winner->RestoreManaAfterDuel();
 
                     // check if player2 class uses mana
-                    if (loser->GetPowerType() == POWER_MANA || loser->GetClass() == CLASS_DRUID)
+                    if (loser->getPowerType() == POWER_MANA || loser->GetClass() == CLASS_DRUID)
                         loser->RestoreManaAfterDuel();
                 }
             }
@@ -90,29 +102,17 @@ class DuelResetScript : public PlayerScript
 
         static void ResetSpellCooldowns(Player* player, bool onStartDuel)
         {
-            // remove cooldowns on spells that have < 10 min CD > 30 sec and has no onHold
+            // remove cooldowns on spells that have < 10 min CD, has no onHold and Aura
             player->GetSpellHistory()->ResetCooldowns([player, onStartDuel](SpellHistory::CooldownStorageType::iterator itr) -> bool
             {
                 SpellInfo const* spellInfo = sSpellMgr->AssertSpellInfo(itr->first);
                 uint32 remainingCooldown = player->GetSpellHistory()->GetRemainingCooldown(spellInfo);
-                int32 totalCooldown = spellInfo->RecoveryTime;
-                int32 categoryCooldown = spellInfo->CategoryRecoveryTime;
-
-                player->ApplySpellMod(spellInfo->Id, SPELLMOD_COOLDOWN, totalCooldown, nullptr);
-
-                if (int32 cooldownMod = player->GetTotalAuraModifier(SPELL_AURA_MOD_COOLDOWN))
-                    totalCooldown += cooldownMod * IN_MILLISECONDS;
-
-                if (!spellInfo->HasAttribute(SPELL_ATTR6_IGNORE_CATEGORY_COOLDOWN_MODS))
-                    player->ApplySpellMod(spellInfo->Id, SPELLMOD_COOLDOWN, categoryCooldown, nullptr);
-
                 return remainingCooldown > 0
                     && !itr->second.OnHold
-                    && Milliseconds(totalCooldown) < Minutes(10)
-                    && Milliseconds(categoryCooldown) < Minutes(10)
+                    && Milliseconds(spellInfo->RecoveryTime) < Minutes(10)
+                    && Milliseconds(spellInfo->CategoryRecoveryTime) < Minutes(10)
                     && Milliseconds(remainingCooldown) < Minutes(10)
-                    && (onStartDuel ? Milliseconds(totalCooldown - remainingCooldown) > Seconds(30) : true)
-                    && (onStartDuel ? Milliseconds(categoryCooldown - remainingCooldown) > Seconds(30) : true);
+                    && (onStartDuel ? !player->HasAura(spellInfo->Id) : true);
             }, true);
 
             // pet cooldowns

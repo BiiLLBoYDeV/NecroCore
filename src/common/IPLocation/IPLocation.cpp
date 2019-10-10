@@ -115,3 +115,4 @@ IpLocationStore* IpLocationStore::Instance()
     static IpLocationStore instance;
     return &instance;
 }
+

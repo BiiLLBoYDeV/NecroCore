@@ -74,8 +74,8 @@ class boss_drakos : public CreatureScript
                 _Reset();
 
                 events.ScheduleEvent(EVENT_MAGIC_PULL, 15000);
-                events.ScheduleEvent(EVENT_STOMP, 15s);
-                events.ScheduleEvent(EVENT_BOMB_SUMMON, 2s);
+                events.ScheduleEvent(EVENT_STOMP, 17000);
+                events.ScheduleEvent(EVENT_BOMB_SUMMON, 2000);
 
                 Initialize();
             }
@@ -108,7 +108,7 @@ class boss_drakos : public CreatureScript
                                     me->SummonCreature(NPC_UNSTABLE_SPHERE, position);
                                 }
                             }
-                            events.ScheduleEvent(EVENT_BOMB_SUMMON, 2s);
+                            events.ScheduleEvent(EVENT_BOMB_SUMMON, 2000);
                             break;
                         case EVENT_MAGIC_PULL:
                             DoCast(SPELL_MAGIC_PULL);
@@ -118,7 +118,7 @@ class boss_drakos : public CreatureScript
                         case EVENT_STOMP:
                             Talk(SAY_STOMP);
                             DoCast(SPELL_THUNDERING_STOMP);
-                            events.ScheduleEvent(EVENT_STOMP, 15s);
+                            events.ScheduleEvent(EVENT_STOMP, 17000);
                             break;
                         default:
                             break;

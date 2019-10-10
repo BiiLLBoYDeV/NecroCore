@@ -134,11 +134,11 @@ class boss_gruul : public CreatureScript
                         switch (urand(0, 1))
                         {
                             case 0:
-                                target->CastSpell(target, SPELL_MAGNETIC_PULL, me->GetGUID());
+                                target->CastSpell(target, SPELL_MAGNETIC_PULL, true, nullptr, nullptr, me->GetGUID());
                                 break;
 
                             case 1:
-                                target->CastSpell(target, SPELL_KNOCK_BACK, me->GetGUID());
+                                target->CastSpell(target, SPELL_KNOCK_BACK, true, nullptr, nullptr, me->GetGUID());
                                 break;
                         }
                     }
@@ -206,7 +206,7 @@ class boss_gruul : public CreatureScript
                     // Hurtful Strike
                     if (m_uiHurtfulStrike_Timer <= diff)
                     {
-                        Unit* target = SelectTarget(SELECT_TARGET_MAXTHREAT, 1);
+                        Unit* target = SelectTarget(SELECT_TARGET_TOPAGGRO, 1);
 
                         if (target && me->IsWithinMeleeRange(me->GetVictim()))
                             DoCast(target, SPELL_HURTFUL_STRIKE);
@@ -285,7 +285,7 @@ class spell_gruul_shatter : public SpellScriptLoader
                 if (Unit* target = GetHitUnit())
                 {
                     target->RemoveAurasDueToSpell(SPELL_STONED);
-                    target->CastSpell(nullptr, SPELL_SHATTER_EFFECT, true);
+                    target->CastSpell((Unit*)nullptr, SPELL_SHATTER_EFFECT, true);
                 }
             }
 

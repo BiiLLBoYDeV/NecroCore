@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -40,10 +40,11 @@ struct EquipmentSetInfo
     {
         uint64 Guid = 0;                                        ///< Set Identifier
         uint32 SetID = 0;                                       ///< Index
+        uint32 IgnoreMask = 0;                                  ///< Mask of EquipmentSlot
         std::string SetName;
         std::string SetIcon;
-        uint32 IgnoreMask = 0;                                  ///< Mask of EquipmentSlot
         std::array<ObjectGuid, EQUIPMENT_SET_SLOTS> Pieces;
+        EquipmentSetUpdateState state;
     } Data;
 
     /// Server-side data
@@ -53,6 +54,5 @@ struct EquipmentSetInfo
 #define MAX_EQUIPMENT_SET_INDEX 10                          // client limit
 
 typedef std::map<uint64, EquipmentSetInfo> EquipmentSetContainer;
-
 
 #endif // EquipmentSet_h__

@@ -97,7 +97,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetRazorfenDownsAI<boss_gluttonAI>(creature);
+        return new boss_gluttonAI(creature);
     }
 };
 

@@ -110,13 +110,13 @@ class boss_ragnaros : public CreatureScript
             void JustEngagedWith(Unit* victim) override
             {
                 BossAI::JustEngagedWith(victim);
-                events.ScheduleEvent(EVENT_ERUPTION, 15s);
-                events.ScheduleEvent(EVENT_WRATH_OF_RAGNAROS, 30s);
-                events.ScheduleEvent(EVENT_HAND_OF_RAGNAROS, 25s);
-                events.ScheduleEvent(EVENT_LAVA_BURST, 10s);
-                events.ScheduleEvent(EVENT_ELEMENTAL_FIRE, 3s);
-                events.ScheduleEvent(EVENT_MAGMA_BLAST, 2s);
-                events.ScheduleEvent(EVENT_SUBMERGE, 3min);
+                events.ScheduleEvent(EVENT_ERUPTION, 15000);
+                events.ScheduleEvent(EVENT_WRATH_OF_RAGNAROS, 30000);
+                events.ScheduleEvent(EVENT_HAND_OF_RAGNAROS, 25000);
+                events.ScheduleEvent(EVENT_LAVA_BURST, 10000);
+                events.ScheduleEvent(EVENT_ELEMENTAL_FIRE, 3000);
+                events.ScheduleEvent(EVENT_MAGMA_BLAST, 2000);
+                events.ScheduleEvent(EVENT_SUBMERGE, 180000);
             }
 
             void KilledUnit(Unit* /*victim*/) override
@@ -158,12 +158,11 @@ class boss_ragnaros : public CreatureScript
                         case EVENT_INTRO_4:
                             Talk(SAY_ARRIVAL5_RAG);
                             if (Creature* executus = ObjectAccessor::GetCreature(*me, instance->GetGuidData(BOSS_MAJORDOMO_EXECUTUS)))
-                                Unit::Kill(me, executus);
+                                me->Kill(executus);
                             break;
                         case EVENT_INTRO_5:
                             me->SetReactState(REACT_AGGRESSIVE);
-                            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
-                            me->SetImmuneToPC(false);
+                            me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE | UNIT_FLAG_IMMUNE_TO_PC);
                             _introState = 2;
                             break;
                         default:
@@ -207,27 +206,27 @@ class boss_ragnaros : public CreatureScript
                         {
                             case EVENT_ERUPTION:
                                 DoCastVictim(SPELL_ERRUPTION);
-                                events.ScheduleEvent(EVENT_ERUPTION, 20s, 45s);
+                                events.ScheduleEvent(EVENT_ERUPTION, urand(20000, 45000));
                                 break;
                             case EVENT_WRATH_OF_RAGNAROS:
                                 DoCastVictim(SPELL_WRATH_OF_RAGNAROS);
                                 if (urand(0, 1))
                                     Talk(SAY_WRATH);
-                                events.ScheduleEvent(EVENT_WRATH_OF_RAGNAROS, 25s);
+                                events.ScheduleEvent(EVENT_WRATH_OF_RAGNAROS, 25000);
                                 break;
                             case EVENT_HAND_OF_RAGNAROS:
                                 DoCast(me, SPELL_HAND_OF_RAGNAROS);
                                 if (urand(0, 1))
                                     Talk(SAY_HAND);
-                                events.ScheduleEvent(EVENT_HAND_OF_RAGNAROS, 20s);
+                                events.ScheduleEvent(EVENT_HAND_OF_RAGNAROS, 20000);
                                 break;
                             case EVENT_LAVA_BURST:
                                 DoCastVictim(SPELL_LAVA_BURST);
-                                events.ScheduleEvent(EVENT_LAVA_BURST, 10s);
+                                events.ScheduleEvent(EVENT_LAVA_BURST, 10000);
                                 break;
                             case EVENT_ELEMENTAL_FIRE:
                                 DoCastVictim(SPELL_ELEMENTAL_FIRE);
-                                events.ScheduleEvent(EVENT_ELEMENTAL_FIRE, 10s, 14s);
+                                events.ScheduleEvent(EVENT_ELEMENTAL_FIRE, urand(10000, 14000));
                                 break;
                             case EVENT_MAGMA_BLAST:
                                 if (!me->IsWithinMeleeRange(me->GetVictim()))
@@ -240,7 +239,7 @@ class boss_ragnaros : public CreatureScript
                                         _hasYelledMagmaBurst = true;
                                     }
                                 }
-                                events.ScheduleEvent(EVENT_MAGMA_BLAST, 2500ms);
+                                events.ScheduleEvent(EVENT_MAGMA_BLAST, 2500);
                                 break;
                             case EVENT_SUBMERGE:
                             {
@@ -250,7 +249,7 @@ class boss_ragnaros : public CreatureScript
                                     //is not very well supported in the core //no it really isnt
                                     //so added normaly spawning and banish workaround and attack again after 90 secs.
                                     me->AttackStop();
-                                    ResetThreatList();
+                                    DoResetThreat();
                                     me->SetReactState(REACT_PASSIVE);
                                     me->InterruptNonMeleeSpells(false);
                                     //Root self
@@ -291,7 +290,7 @@ class boss_ragnaros : public CreatureScript
                                         _emergeTimer = 90000;
                                     }
                                 }
-                                events.ScheduleEvent(EVENT_SUBMERGE, 3min);
+                                events.ScheduleEvent(EVENT_SUBMERGE, 180000);
                                 break;
                             }
                             default:

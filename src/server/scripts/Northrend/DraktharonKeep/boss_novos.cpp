@@ -153,12 +153,12 @@ public:
                 {
                     case EVENT_SUMMON_MINIONS:
                         DoCast(SPELL_SUMMON_MINIONS);
-                        events.ScheduleEvent(EVENT_SUMMON_MINIONS, 15s);
+                        events.ScheduleEvent(EVENT_SUMMON_MINIONS, 15000);
                         break;
                     case EVENT_ATTACK:
                         if (Unit* victim = SelectTarget(SELECT_TARGET_RANDOM))
                             DoCast(victim, RAND(SPELL_ARCANE_BLAST, SPELL_BLIZZARD, SPELL_FROSTBOLT, SPELL_WRATH_OF_MISERY));
-                        events.ScheduleEvent(EVENT_ATTACK, 3s);
+                        events.ScheduleEvent(EVENT_ATTACK, 3000);
                         break;
                     default:
                         break;
@@ -243,7 +243,7 @@ public:
             if (Creature* crystalChannelTarget = crystal->FindNearestCreature(NPC_CRYSTAL_CHANNEL_TARGET, 5.0f))
             {
                 if (active)
-                    crystalChannelTarget->CastSpell(nullptr, SPELL_BEAM_CHANNEL);
+                    crystalChannelTarget->CastSpell((Unit*)nullptr, SPELL_BEAM_CHANNEL);
                 else if (crystalChannelTarget->HasUnitState(UNIT_STATE_CASTING))
                     crystalChannelTarget->CastStop();
             }
@@ -265,9 +265,9 @@ public:
                 Talk(SAY_ARCANE_FIELD);
                 SetSummonerStatus(false);
                 SetBubbled(false);
-                events.ScheduleEvent(EVENT_ATTACK, 3s);
+                events.ScheduleEvent(EVENT_ATTACK, 3000);
                 if (IsHeroic())
-                    events.ScheduleEvent(EVENT_SUMMON_MINIONS, 15s);
+                    events.ScheduleEvent(EVENT_SUMMON_MINIONS, 15000);
             }
             else if (ObjectGuid guid = instance->GetGuidData(DATA_NOVOS_SUMMONER_4))
                 if (Creature* crystalChannelTarget = ObjectAccessor::GetCreature(*me, guid))
@@ -384,7 +384,7 @@ class spell_novos_summon_minions : public SpellScriptLoader
             void HandleScript(SpellEffIndex /*effIndex*/)
             {
                 for (uint8 i = 0; i < 2; ++i)
-                    GetCaster()->CastSpell(nullptr, SPELL_SUMMON_COPY_OF_MINIONS, true);
+                    GetCaster()->CastSpell((Unit*)nullptr, SPELL_SUMMON_COPY_OF_MINIONS, true);
             }
 
             void Register() override

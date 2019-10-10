@@ -89,7 +89,7 @@ enum BG_AV_Sounds
     ally wins
 8192:
     ally tower destroy(only iceblood - found a bug^^)
-    ally tower defend
+    ally tower  defend
     horde tower defend
 8213
 horde:
@@ -107,7 +107,7 @@ horde:
     AV_SOUND_HORDE_GOOD                     = 8213,
     AV_SOUND_BOTH_TOWER_DEFEND              = 8192,
 
-    AV_SOUND_ALLIANCE_CAPTAIN               = 8232, //gets called when someone attacks them and at the beginning after 5min+rand(x)*10sec (maybe buff)
+    AV_SOUND_ALLIANCE_CAPTAIN               = 8232, //gets called when someone attacks them and at the beginning after 3min+rand(x)*10sec (maybe buff)
     AV_SOUND_HORDE_CAPTAIN                  = 8333
 };
 
@@ -1564,7 +1564,7 @@ struct BattlegroundAVScore final : public BattlegroundScore
     friend class BattlegroundAV;
 
     protected:
-        BattlegroundAVScore(ObjectGuid playerGuid) : BattlegroundScore(playerGuid), GraveyardsAssaulted(0), GraveyardsDefended(0), TowersAssaulted(0), TowersDefended(0), MinesCaptured(0) { }
+        BattlegroundAVScore(ObjectGuid playerGuid, uint32 team) : BattlegroundScore(playerGuid, team), GraveyardsAssaulted(0), GraveyardsDefended(0), TowersAssaulted(0), TowersDefended(0), MinesCaptured(0) { }
 
         void UpdateScore(uint32 type, uint32 value) override
         {
@@ -1591,7 +1591,7 @@ struct BattlegroundAVScore final : public BattlegroundScore
             }
         }
 
-        void BuildObjectivesBlock(WorldPacket& data) final override;
+        void BuildObjectivesBlock(WorldPacket& data, ByteBuffer& content) final override;
 
         uint32 GetAttr1() const final override { return GraveyardsAssaulted; }
         uint32 GetAttr2() const final override { return GraveyardsDefended; }
@@ -1671,10 +1671,10 @@ class BattlegroundAV : public Battleground
         bool IsTower(BG_AV_Nodes node) { return m_Nodes[node].Tower; }
 
         /*mine*/
-        void ChangeMineOwner(uint8 mine, uint32 team, bool initial = false);
+        void ChangeMineOwner(uint8 mine, uint32 team, bool initial=false);
 
         /*worldstates*/
-        void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override;
+        void FillInitialWorldStates(WorldPacket& data) override;
         void SendMineWorldStates(uint32 mine);
         void UpdateNodeWorldState(BG_AV_Nodes node);
 

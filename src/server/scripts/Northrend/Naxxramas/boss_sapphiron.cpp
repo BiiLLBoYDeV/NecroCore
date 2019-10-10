@@ -183,7 +183,7 @@ class boss_sapphiron : public CreatureScript
 
                 events.SetPhase(PHASE_GROUND);
                 events.ScheduleEvent(EVENT_CHECK_RESISTS, 0s);
-                events.ScheduleEvent(EVENT_BERSERK, 15min);
+                events.ScheduleEvent(EVENT_BERSERK, Minutes(15));
                 EnterPhaseGround(true);
             }
 
@@ -215,7 +215,7 @@ class boss_sapphiron : public CreatureScript
                 if (param == ACTION_BIRTH)
                 {
                     events.SetPhase(PHASE_BIRTH);
-                    events.ScheduleEvent(EVENT_BIRTH, 23s);
+                    events.ScheduleEvent(EVENT_BIRTH, Seconds(23));
                 }
             }
 
@@ -344,7 +344,7 @@ class boss_sapphiron : public CreatureScript
 
                                 _iceboltTargets.clear();
                                 std::list<Unit*> targets;
-                                SelectTargetList(targets, RAID_MODE(2, 3), SELECT_TARGET_RANDOM, 0, 200.0f, true);
+                                SelectTargetList(targets, RAID_MODE(2, 3), SELECT_TARGET_RANDOM, 200.0f, true);
                                 for (Unit* target : targets)
                                     if (target)
                                         _iceboltTargets.push_back(target->GetGUID());

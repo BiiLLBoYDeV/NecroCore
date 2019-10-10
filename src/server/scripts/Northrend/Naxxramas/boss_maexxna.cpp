@@ -49,7 +49,7 @@ enum Creatures
 };
 
 #define MAX_WRAP_POSITION  7
-const Position WrapPositions[MAX_WRAP_POSITION] =
+Position const WrapPositions[MAX_WRAP_POSITION] =
 {
     {3453.818f, -3854.651f, 308.7581f, 4.362833f},
     {3535.042f, -3842.383f, 300.795f,  3.179324f},
@@ -70,9 +70,9 @@ enum Events
     EVENT_SUMMON,
 };
 
-const float WEB_WRAP_MOVE_SPEED = 20.0f;
+float const WEB_WRAP_MOVE_SPEED = 20.0f;
 
-struct WebTargetSelector : public std::unary_function<Unit*, bool>
+struct WebTargetSelector
 {
     WebTargetSelector(Unit* maexxna) : _maexxna(maexxna) {}
     bool operator()(Unit const* target) const
@@ -95,11 +95,6 @@ class boss_maexxna : public CreatureScript
 public:
     boss_maexxna() : CreatureScript("boss_maexxna") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetNaxxramasAI<boss_maexxnaAI>(creature);
-    }
-
     struct boss_maexxnaAI : public BossAI
     {
         boss_maexxnaAI(Creature* creature) : BossAI(creature, BOSS_MAEXXNA)  {  }
@@ -107,11 +102,11 @@ public:
         void JustEngagedWith(Unit* /*who*/) override
         {
             _JustEngagedWith();
-            events.ScheduleEvent(EVENT_WRAP, 20s);
-            events.ScheduleEvent(EVENT_SPRAY, 40s);
+            events.ScheduleEvent(EVENT_WRAP, Seconds(20));
+            events.ScheduleEvent(EVENT_SPRAY, Seconds(40));
             events.ScheduleEvent(EVENT_SHOCK, randtime(Seconds(5), Seconds(10)));
             events.ScheduleEvent(EVENT_POISON, randtime(Seconds(10), Seconds(15)));
-            events.ScheduleEvent(EVENT_SUMMON, 30s);
+            events.ScheduleEvent(EVENT_SUMMON, Seconds(30));
         }
 
         void Reset() override
@@ -139,7 +134,7 @@ public:
                     case EVENT_WRAP:
                     {
                         std::list<Unit*> targets;
-                        SelectTargetList(targets, RAID_MODE(1, 2), SELECT_TARGET_RANDOM, 1, WebTargetSelector(me));
+                        SelectTargetList(targets, WebTargetSelector(me), RAID_MODE(1, 2), SELECT_TARGET_RANDOM);
                         if (!targets.empty())
                         {
                             Talk(EMOTE_WEB_WRAP);
@@ -189,17 +184,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetNaxxramasAI<boss_maexxnaAI>(creature);
+    }
 };
 
 class npc_webwrap : public CreatureScript
 {
 public:
     npc_webwrap() : CreatureScript("npc_webwrap") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetNaxxramasAI<npc_webwrapAI>(creature);
-    }
 
     struct npc_webwrapAI : public NullCreatureAI
     {
@@ -221,7 +215,7 @@ public:
             if (Unit* victim = ObjectAccessor::GetUnit(*me, victimGUID))
             {
                 visibleTimer = (me->GetDistance2d(victim)/WEB_WRAP_MOVE_SPEED + 0.5f) * IN_MILLISECONDS;
-                victim->CastSpell(victim, SPELL_WEB_WRAP, me->GetGUID());
+                victim->CastSpell(victim, SPELL_WEB_WRAP, true, nullptr, nullptr, me->GetGUID());
             }
         }
 
@@ -249,6 +243,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetNaxxramasAI<npc_webwrapAI>(creature);
+    }
 };
 
 void AddSC_boss_maexxna()

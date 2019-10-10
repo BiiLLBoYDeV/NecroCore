@@ -72,11 +72,11 @@ class boss_nethermancer_sepethrea : public CreatureScript
             void JustEngagedWith(Unit* who) override
             {
                 _JustEngagedWith();
-                events.ScheduleEvent(EVENT_FROST_ATTACK, 7s, 10s);
-                events.ScheduleEvent(EVENT_ARCANE_BLAST, 12s, 18s);
-                events.ScheduleEvent(EVENT_DRAGONS_BREATH, 18s, 22s);
-                events.ScheduleEvent(EVENT_KNOCKBACK, 22s, 28s);
-                events.ScheduleEvent(EVENT_SOLARBURN, 30s);
+                events.ScheduleEvent(EVENT_FROST_ATTACK, urand(7000, 10000));
+                events.ScheduleEvent(EVENT_ARCANE_BLAST, urand(12000, 18000));
+                events.ScheduleEvent(EVENT_DRAGONS_BREATH, urand(18000, 22000));
+                events.ScheduleEvent(EVENT_KNOCKBACK, urand(22000, 28000));
+                events.ScheduleEvent(EVENT_SOLARBURN, 30000);
                 Talk(SAY_AGGRO);
                 DoCast(who, SPELL_SUMMON_RAGIN_FLAMES);
                 Talk(SAY_SUMMON);
@@ -109,7 +109,7 @@ class boss_nethermancer_sepethrea : public CreatureScript
                     {
                         case EVENT_FROST_ATTACK:
                             DoCastVictim(SPELL_FROST_ATTACK, true);
-                            events.ScheduleEvent(EVENT_FROST_ATTACK, 7s, 10s);
+                            events.ScheduleEvent(EVENT_FROST_ATTACK, urand(7000, 10000));
                             break;
                         case EVENT_ARCANE_BLAST:
                             DoCastVictim(SPELL_ARCANE_BLAST, true);
@@ -117,17 +117,17 @@ class boss_nethermancer_sepethrea : public CreatureScript
                             break;
                         case EVENT_DRAGONS_BREATH:
                             DoCastVictim(SPELL_DRAGONS_BREATH, true);
-                            events.ScheduleEvent(EVENT_DRAGONS_BREATH, 12s, 22s);
+                            events.ScheduleEvent(EVENT_DRAGONS_BREATH, urand(12000, 22000));
                             if (roll_chance_i(50))
                                 Talk(SAY_DRAGONS_BREATH);
                             break;
                         case EVENT_KNOCKBACK:
                             DoCastVictim(SPELL_KNOCKBACK, true);
-                            events.ScheduleEvent(EVENT_KNOCKBACK, 15s, 25s);
+                            events.ScheduleEvent(EVENT_KNOCKBACK, urand(15000, 25000));
                             break;
                         case EVENT_SOLARBURN:
                             DoCastVictim(SPELL_SOLARBURN, true);
-                            events.ScheduleEvent(EVENT_SOLARBURN, 30s);
+                            events.ScheduleEvent(EVENT_SOLARBURN, 30000);
                             break;
                         default:
                             break;
@@ -193,11 +193,11 @@ class npc_ragin_flames : public CreatureScript
                     //Check_Timer
                     if (Check_Timer <= diff)
                     {
-                        if (instance->GetBossState(DATA_NETHERMANCER_SEPRETHREA) != IN_PROGRESS)
+                        if (instance->GetData(DATA_NETHERMANCER_SEPRETHREA) != IN_PROGRESS)
                         {
                             //remove
-                            me->DespawnOrUnsummon();
-                            return;
+                            me->setDeathState(JUST_DIED);
+                            me->RemoveCorpse();
                         }
                         Check_Timer = 1000;
                     } else Check_Timer -= diff;
@@ -215,6 +215,7 @@ class npc_ragin_flames : public CreatureScript
                     if (inferno_Timer <= diff)
                     {
                         DoCastVictim(SPELL_INFERNO);
+                        me->TauntApply(me->GetVictim());
                         inferno_Timer = 10000;
                     } else inferno_Timer -= diff;
 

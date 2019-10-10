@@ -18,24 +18,25 @@
 #include "DBCStore.h"
 #include "DBCDatabaseLoader.h"
 
-DBCStorageBase::DBCStorageBase(char const* fmt) : _fieldCount(0), _fileFormat(fmt), _dataTable(nullptr), _indexTableSize(0)
+DBCStorageBase::DBCStorageBase(char const* fmt) : _fieldCount(0), _fileFormat(fmt), _dataTable(nullptr), _dataTableEx(nullptr), _indexTableSize(0)
 {
 }
 
 DBCStorageBase::~DBCStorageBase()
 {
     delete[] _dataTable;
+    delete[] _dataTableEx;
     for (char* strings : _stringPool)
         delete[] strings;
 }
 
-bool DBCStorageBase::Load(char const* path, char**& indexTable)
+bool DBCStorageBase::Load(std::string const& path, char**& indexTable)
 {
     indexTable = nullptr;
 
     DBCFileLoader dbc;
     // Check if load was sucessful, only then continue
-    if (!dbc.Load(path, _fileFormat))
+    if (!dbc.Load(path.c_str(), _fileFormat))
         return false;
 
     _fieldCount = dbc.GetCols();
@@ -51,7 +52,7 @@ bool DBCStorageBase::Load(char const* path, char**& indexTable)
     return indexTable != nullptr;
 }
 
-bool DBCStorageBase::LoadStringsFrom(char const* path, char** indexTable)
+bool DBCStorageBase::LoadStringsFrom(std::string const& path, char**& indexTable)
 {
     // DBC must be already loaded using Load
     if (!indexTable)
@@ -59,7 +60,7 @@ bool DBCStorageBase::LoadStringsFrom(char const* path, char** indexTable)
 
     DBCFileLoader dbc;
     // Check if load was successful, only then continue
-    if (!dbc.Load(path, _fileFormat))
+    if (!dbc.Load(path.c_str(), _fileFormat))
         return false;
 
     // load strings from another locale dbc data
@@ -69,7 +70,7 @@ bool DBCStorageBase::LoadStringsFrom(char const* path, char** indexTable)
     return true;
 }
 
-void DBCStorageBase::LoadFromDB(char const* table, char const* format, char const* index, char**& indexTable)
+void DBCStorageBase::LoadFromDB(std::string const& path, std::string const& dbFormat, std::string const& primaryKey, char**& indexTable)
 {
-    _stringPool.push_back(DBCDatabaseLoader(table, format, index, _fileFormat, _stringPool).Load(_indexTableSize, indexTable));
+    _dataTableEx = DBCDatabaseLoader(path, dbFormat, primaryKey, _fileFormat).Load(_indexTableSize, indexTable);
 }

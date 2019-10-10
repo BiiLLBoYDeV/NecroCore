@@ -82,6 +82,7 @@ class instance_magisters_terrace : public InstanceMapScript
             void Initialize() override
             {
                 _delrissaDeathCount = 0;
+                _kaelthasIntroState = 0;
             }
 
             uint32 GetData(uint32 type) const override
@@ -90,6 +91,8 @@ class instance_magisters_terrace : public InstanceMapScript
                 {
                     case DATA_DELRISSA_DEATH_COUNT:
                         return _delrissaDeathCount;
+                    case DATA_KAELTHAS_INTRO_STATE:
+                        return _kaelthasIntroState;
                     default:
                         break;
                 }
@@ -105,6 +108,10 @@ class instance_magisters_terrace : public InstanceMapScript
                             _delrissaDeathCount++;
                         else
                             _delrissaDeathCount = 0;
+                        break;
+                    case DATA_KAELTHAS_INTRO_STATE:
+                        _kaelthasIntroState = data;
+                        SaveToDB();
                         break;
                     default:
                         break;
@@ -147,8 +154,13 @@ class instance_magisters_terrace : public InstanceMapScript
                         {
                             _kaelthasPreTrashGUIDs.erase(unit->GetGUID());
                             if (_kaelthasPreTrashGUIDs.size() == 0)
+                            {
                                 if (Creature* kaelthas = GetCreature(DATA_KAELTHAS_SUNSTRIDER))
+                                {
                                     kaelthas->AI()->SetData(DATA_KAELTHAS_INTRO, IN_PROGRESS);
+                                    SetData(DATA_KAELTHAS_INTRO_STATE, DONE);
+                                }
+                            }
                         }
                         break;
                     default:
@@ -162,6 +174,10 @@ class instance_magisters_terrace : public InstanceMapScript
 
                 switch (go->GetEntry())
                 {
+                    case GO_KAEL_STATUE_1:
+                    case GO_KAEL_STATUE_2:
+                        _statueGUIDs.push_back(go->GetGUID());
+                        break;
                     case GO_ESCAPE_ORB:
                         if (GetBossState(DATA_KAELTHAS_SUNSTRIDER) == DONE)
                             go->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
@@ -204,7 +220,12 @@ class instance_magisters_terrace : public InstanceMapScript
                             _delrissaDeathCount = 0;
                         break;
                     case DATA_KAELTHAS_SUNSTRIDER:
-                        if (state == DONE)
+                        if (state == NOT_STARTED)
+                        {
+                            for (ObjectGuid guid : _statueGUIDs)
+                                HandleGameObject(guid, false);
+                        }
+                        else if (state == DONE)
                             if (GameObject* orb = GetGameObject(DATA_ESCAPE_ORB))
                                 orb->RemoveFlag(GAMEOBJECT_FLAGS, GO_FLAG_NOT_SELECTABLE);
                         break;
@@ -214,10 +235,22 @@ class instance_magisters_terrace : public InstanceMapScript
                 return true;
             }
 
+            void WriteSaveDataMore(std::ostringstream& data) override
+            {
+                data << _kaelthasIntroState;
+            }
+
+            void ReadSaveDataMore(std::istringstream& data) override
+            {
+                data >> _kaelthasIntroState;
+            }
+
         protected:
             EventMap _events;
+            GuidVector _statueGUIDs;
             GuidSet _kaelthasPreTrashGUIDs;
             uint8 _delrissaDeathCount;
+            uint8 _kaelthasIntroState;
         };
 
         InstanceScript* GetInstanceScript(InstanceMap* map) const override

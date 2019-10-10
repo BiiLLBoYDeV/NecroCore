@@ -11,7 +11,6 @@
 #    PERFORMANCE SETTINGS
 #    SERVER LOGGING
 #    SERVER SETTINGS
-#    CRYPTOGRAPHY
 #    UPDATE SETTINGS
 #    HOTSWAP SETTINGS
 #    WARDEN SETTINGS
@@ -35,6 +34,7 @@
 #    AUCTION HOUSE BOT ITEM FINE TUNING
 #    AUCTION HOUSE BOT BUYER CONFIG
 #    LOGGING SYSTEM SETTINGS
+#    CURRENCIES SETTINGS
 #    PACKET SPOOF PROTECTION SETTINGS
 #    METRIC SETTINGS
 #
@@ -306,15 +306,6 @@ InstanceMapLoadAllGrids = 0
 #        Default:     900000 - (15 minutes)
 
 SocketTimeOutTime = 900000
-
-#
-#    SocketTimeOutTimeActive
-#        Description: Time (in milliseconds) after which an idle connection is dropped while
-#                     logged into the world.
-#                     The client sends keepalive packets every 30 seconds. Values <= 30s are not recommended.
-#        Default:     60000 - (1 minute)
-
-SocketTimeOutTimeActive = 60000
 
 #
 #    SessionAddDelay
@@ -627,8 +618,7 @@ StrictPetNames = 0
 #
 #    DBC.Locale
 #        Description: DBC language settings.
-#        Default:     255 - (Auto Detect)
-#                     0   - (English)
+#        Default:     0   - (English)
 #                     1   - (Korean)
 #                     2   - (French)
 #                     3   - (German)
@@ -638,7 +628,7 @@ StrictPetNames = 0
 #                     7   - (Spanish Mexico)
 #                     8   - (Russian)
 
-DBC.Locale = 255
+DBC.Locale = 0
 
 #
 #    DeclinedNames
@@ -652,11 +642,12 @@ DeclinedNames = 0
 #    Expansion
 #        Description: Allow server to use content from expansions. Checks for expansion-related
 #                     map files, client compatibility and class/race character creation.
-#        Default:     2 - (Expansion 2)
+#        Default:     3 - (Expansion 3)
+#                     2 - (Expansion 2)
 #                     1 - (Expansion 1)
 #                     0 - (Disabled, Ignore and disable expansion content (maps, races, classes)
 
-Expansion = 2
+Expansion = 3
 
 #
 #    MinPlayerName
@@ -728,8 +719,10 @@ CharacterCreating.Disabled = 0
 #                     32   - (Disabled, Tauren)
 #                     64   - (Disabled, Gnome)
 #                     128  - (Disabled, Troll)
+#                     256  - (Disabled, Goblin)
 #                     512  - (Disabled, Blood Elf)
 #                     1024 - (Disabled, Draenei)
+#                     2097152 - (Disabled, Worgen)
 
 CharacterCreating.Disabled.RaceMask = 0
 
@@ -800,16 +793,16 @@ SkipCinematics = 0
 #        Description: Maximum level that can be reached by players.
 #        Important:   Levels beyond 100 are not recommended at all.
 #        Range:       1-255
-#        Default:     80
+#        Default:     85
 
-MaxPlayerLevel = 80
+MaxPlayerLevel = 85
 
 #
 #    MinDualSpecLevel
 #        Description: Level requirement for Dual Talent Specialization.
-#        Default:     40
+#        Default:     30
 
-MinDualSpecLevel = 40
+MinDualSpecLevel = 30
 
 #
 #    StartPlayerLevel
@@ -836,40 +829,12 @@ StartDeathKnightPlayerLevel = 55
 StartPlayerMoney = 0
 
 #
-#    MaxHonorPoints
-#        Description: Maximum honor points a character can have.
-#        Default:     75000
-
-MaxHonorPoints = 75000
-
-#
-#    StartHonorPoints
-#        Description: Amount of honor points that characters have after creation.
-#        Default:     0
-
-StartHonorPoints = 0
-
-#
-#    MaxArenaPoints
-#        Description: Maximum arena points a character can have.
-#        Default:     10000
-
-MaxArenaPoints = 10000
-
-#
-#    StartArenaPoints
-#        Description: Amount of arena points that characters has after creation.
-#        Default:     0
-
-StartArenaPoints = 0
-
-#
 #    RecruitAFriend.MaxLevel
 #        Description: Highest level up to which a character can benefit from the Recruit-A-Friend
 #                     experience multiplier.
-#        Default:     60
+#        Default:     80
 
-RecruitAFriend.MaxLevel = 60
+RecruitAFriend.MaxLevel = 80
 
 #
 #    RecruitAFriend.MaxDifference
@@ -906,15 +871,6 @@ AllFlightPaths = 0
 #                     1 - (Enabled)
 
 InstantFlightPaths = 0
-
-#
-#    AlwaysMaxSkillForLevel
-#        Description: Players will automatically gain max skill level when logging in or leveling
-#                     up.
-#        Default:     0 - (Disabled)
-#                     1 - (Enabled)
-
-AlwaysMaxSkillForLevel = 0
 
 #
 #    ActivateWeather
@@ -1037,23 +993,6 @@ Quests.IgnoreAutoComplete = 0
 Quests.DailyResetTime = 3
 
 #
-#    Quests.WeeklyResetWDay
-#        Description: Day of the week when weekly quest reset occurs.
-#        Range:       0 (Sunday) to 6 (Saturday)
-#        Default:     3 - (Wednesday)
-#
-
-Quests.WeeklyResetWDay = 3
-
-#
-#    Calendar.DeleteOldEventsHour
-#        Description: Hour of the day when the daily deletion of old calendar events occurs.
-#        Range:       0-23
-#        Default:     6 - (06:00 AM)
-
-Calendar.DeleteOldEventsHour = 6
-
-#
 #    Guild.EventLogRecordsCount
 #        Description: Number of log entries for guild events that are stored per guild. Old entries
 #                     will be overwritten if the number of log entries exceed the configured value.
@@ -1081,6 +1020,16 @@ Guild.ResetHour = 6
 Guild.BankEventLogRecordsCount = 25
 
 #
+#    Guild.NewsLogRecordsCount
+#        Description: Number of log entries for guild news that are stored per guild. Old
+#                     entries will be overwritten if the number of log entries exceed the
+#                     configured value. High numbers prevent this behavior but may have performance
+#                     impacts.
+#        Default:     250
+
+Guild.NewsLogRecordsCount = 250
+
+#
 #    MaxPrimaryTradeSkill
 #        Description: Maximum number of primary professions a character can learn.
 #        Range:       0-11
@@ -1091,10 +1040,10 @@ MaxPrimaryTradeSkill = 2
 #
 #    MinPetitionSigns
 #        Description: Number of required signatures on charters to create a guild.
-#        Range:       0-9
-#        Default:     9
+#        Range:       0-4
+#        Default:     4
 
-MinPetitionSigns = 9
+MinPetitionSigns = 4
 
 #
 #    MaxGroupXPDistance
@@ -1291,36 +1240,6 @@ Account.PasswordChangeSecurity = 0
 BirthdayTime = 1222964635
 
 #
-#   CacheDataQueries
-#        Description: Server caches data queries at startup. 
-#                     Can be disabled if not enough memory is available.
-#        Default:     1 - (Enabled)
-#                     0 - (Disabled)
-#
-#
-
-CacheDataQueries = 1
-
-#
-###################################################################################################
-
-###################################################################################################
-# CRYPTOGRAPHY
-#
-#    TOTPMasterSecret
-#        Description: The key used by authserver to decrypt TOTP secrets from database storage.
-#                     You only need to set this here if you plan to use the in-game 2FA
-#                     management commands (.account 2fa), otherwise this can be left blank.
-#
-#                     The server will auto-detect if this does not match your authserver setting,
-#                     in which case any commands reliant on the secret will be disabled.
-#
-#        Default:     <blank>
-#
-
-TOTPMasterSecret =
-
-#
 ###################################################################################################
 
 ###################################################################################################
@@ -1465,7 +1384,7 @@ HotSwap.ReCompilerBuildType = ""
 # WARDEN SETTINGS
 #
 #    Warden.Enabled
-#        Description: Enable Warden anti-cheat system.
+#        Description: Enable Warden anti-cheat system. (broken on 4.3.4)
 #        Default:     0 - (Disabled)
 #                     1 - (Enabled)
 
@@ -1905,10 +1824,9 @@ Respawn.DynamicMinimumGameObject = 10
 # CHAT SETTINGS
 #
 #    ChatFakeMessagePreventing
-#        Description: Additional protection from creating fake chat messages using spaces.
-#                     Collapses multiple subsequent whitespaces into a single whitespace.
-#                     Not applied to the addon language, but may break old addons that use
-#                     "normal" chat messages for sending data to other clients.
+#        Description: Chat protection from creating fake messages using a lot spaces or other
+#                     invisible symbols. Not applied to the addon language, but may break old
+#                     addons that use normal languages for sending data to other clients.
 #        Default:     1 - (Enabled, Blizzlike)
 #                     0 - (Disabled)
 
@@ -1917,8 +1835,11 @@ ChatFakeMessagePreventing = 1
 #
 #    ChatStrictLinkChecking.Severity
 #        Description: Check chat messages for in-game links to spells, items, quests, etc.
-#        Default:     0 - (Only verify that link format looks valid without checking the text)
-#                     1 - (Check if color, entry and name don't contradict each other. For this to
+#        Default:     0 - (Disabled)
+#                     1 - (Enabled, Check if only valid pipe commands are used, Prevents posting
+#                         pictures.)
+#                     2 - (Enabled, Verify that pipe commands are used in a correct order)
+#                     3 - (Check if color, entry and name don't contradict each other. For this to
 #                         work correctly, please assure that you have extracted locale DBCs of
 #                         every language specific client playing on this server)
 
@@ -1926,10 +1847,10 @@ ChatStrictLinkChecking.Severity = 0
 
 #
 #    ChatStrictLinkChecking.Kick
-#        Description: Defines what should be done if a message containing invalid control characters
-#                     is received.
+#        Description: Defines what should be done if a message is considered to contain invalid
+#                     pipe commands.
 #        Default:     0 - (Silently ignore message)
-#                     1 - (Ignore message and kick player)
+#                     1 - (Disconnect players who sent malformed messages)
 
 ChatStrictLinkChecking.Kick = 0
 
@@ -1997,13 +1918,6 @@ PartyLevelReq = 1
 #                     1 - (Enabled)
 
 PreserveCustomChannels = 1
-
-#
-#    PreserveCustomChannelInterval
-#        Description: Interval (in minutes) at which custom channel data is saved to the database
-#        Default:     5 minutes
-
-PreserveCustomChannelInterval = 5
 
 #
 #    PreserveCustomChannelDuration
@@ -2153,15 +2067,15 @@ Visibility.GroupMode = 1
 #    Visibility.Distance.Instances
 #    Visibility.Distance.BGArenas
 #        Description: Visibility distance to see other players or gameobjects.
-#                     Visibility on continents on retail ~100 yards. In BG/Arenas ~533.
+#                     Visibility on continents on retail ~90 yards. In BG/Arenas ~533.
 #                     For instances default ~170.
 #                     Max limited by grid size: 533.33333
 #                     Min limit is max aggro radius (45) * Rate.Creature.Aggro
-#        Default:     100 - (Visibility.Distance.Continents)
+#        Default:     90  - (Visibility.Distance.Continents)
 #                     170 - (Visibility.Distance.Instances)
 #                     533 - (Visibility.Distance.BGArenas)
 
-Visibility.Distance.Continents = 100
+Visibility.Distance.Continents = 90
 Visibility.Distance.Instances = 170
 Visibility.Distance.BGArenas = 533
 
@@ -2400,19 +2314,13 @@ Rate.InstanceResetTime = 1
 
 #
 #    SkillGain.Crafting
-#    SkillGain.Defense
 #    SkillGain.Gathering
-#    SkillGain.Weapon
 #        Description: Crafting/defense/gathering/weapon skills gain rate.
 #        Default:     1 - (SkillGain.Crafting)
-#                     1 - (SkillGain.Defense)
 #                     1 - (SkillGain.Gathering)
-#                     1 - (SkillGain.Weapon)
 
 SkillGain.Crafting  = 1
-SkillGain.Defense   = 1
 SkillGain.Gathering = 1
-SkillGain.Weapon    = 1
 
 #
 #    SkillChance.Orange
@@ -2672,9 +2580,9 @@ Battleground.Random.ResetHour = 6
 
 #
 #     Battleground.RewardWinnerHonorFirst
-#     Battleground.RewardWinnerArenaFirst
+#     Battleground.RewardWinnerConquestFirst
 #     Battleground.RewardWinnerHonorLast
-#     Battleground.RewardWinnerArenaLast
+#     Battleground.RewardWinnerConquestLast
 #     Battleground.RewardLoserHonorFirst
 #     Battleground.RewardLoserHonorLast
 #        Description: Random Battlegrounds / call to the arms rewards.
@@ -2686,12 +2594,12 @@ Battleground.Random.ResetHour = 6
 #                     5  - Battleground.RewardLoserHonorLast
 #
 
-Battleground.RewardWinnerHonorFirst = 30
-Battleground.RewardWinnerArenaFirst = 25
-Battleground.RewardWinnerHonorLast  = 15
-Battleground.RewardWinnerArenaLast  = 0
-Battleground.RewardLoserHonorFirst  = 5
-Battleground.RewardLoserHonorLast   = 5
+Battleground.RewardWinnerHonorFirst     = 27000
+Battleground.RewardWinnerConquestFirst  = 10000
+Battleground.RewardWinnerHonorLast      = 13500
+Battleground.RewardWinnerConquestLast   = 5000
+Battleground.RewardLoserHonorFirst      = 4500
+Battleground.RewardLoserHonorLast       = 3500
 
 #
 #    Battleground.ReportAFK
@@ -2758,6 +2666,64 @@ Wintergrasp.NoBattleTimer = 150
 Wintergrasp.CrashRestartTimer = 10
 
 #
+#     TolBarad.Enable
+#         Description: Enable the Tol Barad battlefield.
+#         Default:     0 - (Disabled)
+#                      1 - (Enabled, Experimental as in incomplete, bugged and with crashes)
+
+TolBarad.Enable = 0
+
+#
+#     TolBarad.PlayerMax
+#         Description: Maximum number of players allowed in Tol Barad.
+#         Default:     100
+
+TolBarad.PlayerMax = 100
+
+#
+#     TolBarad.PlayerMin
+#         Description: Minimum number of players required for Tol Barad.
+#         Default:     0
+
+TolBarad.PlayerMin = 0
+
+#
+#     TolBarad.PlayerMinLvl
+#         Description: Required character level for the Tol Barad battle.
+#         Default:     85
+
+TolBarad.PlayerMinLvl = 85
+
+#
+#     TolBarad.BattleTimer
+#         Description: Time (in minutes) for the Tol Barad battle to last.
+#         Default:     15
+
+TolBarad.BattleTimer = 15
+
+#
+#     TolBarad.BonusTime
+#         Description: Bonus time (in minutes) for each tower destroyed in Tol Barad battle.
+#         Default:     5
+
+TolBarad.BonusTime = 5
+
+#
+#     TolBarad.NoBattleTimer
+#         Description: Time (in minutes) between TolBarad battles.
+#         Default:     150
+
+TolBarad.NoBattleTimer = 150
+
+#
+#     TolBarad.CrashRestartTimer
+#         Description: Time (in minutes) to delay the restart of TolBarad if the world server
+#                      crashed during a running battle.
+#         Default:     10
+
+TolBarad.CrashRestartTimer = 10
+
+#
 ###################################################################################################
 
 ###################################################################################################
@@ -2778,14 +2744,6 @@ Arena.MaxRatingDifference = 150
 #                     0      - (Disabled)
 
 Arena.RatingDiscardTimer = 600000
-
-#
-#    Arena.PreviousOpponentsDiscardTimer
-#        Description: Time (in milliseconds) after which the previous opponents will be ignored.
-#        Default:     120000 - (Enabled, 2 minutes - Blizzlike)
-#                     0      - (Disabled)
-
-Arena.PreviousOpponentsDiscardTimer = 120000
 
 #
 #    Arena.RatedUpdateTimer
@@ -3601,7 +3559,7 @@ AuctionHouseBot.Items.Amount.Yellow = 0
 #                    Armor: 8
 #                    Reagent: 1
 #                    Projectile: 2
-#                    TradeGood: 10
+#                    TradeGod: 10
 #                    Generic: 1
 #                    Recipe: 6
 #                    Quiver: 1
@@ -3822,33 +3780,6 @@ AuctionHouseBot.Buyer.Recheck.Interval = 20
 ###################################################################################################
 
 ###################################################################################################
-#  ELUNA SETTINGS
-#
-#   Eluna.Enabled
-#       Description: Enable or disable Eluna LuaEngine
-#       Default:    true  - (enabled)
-#                   false - (disabled)
-#
-#   Eluna.TraceBack
-#       Description: Sets whether to use debug.traceback function on a lua error or not.
-#                    Notice that you can redefine the function.
-#       Default:    false - (use default error output)
-#                   true  - (use debug.traceback function)
-#
-#   Eluna.ScriptPath
-#       Description: Sets the location of the script folder to load scripts from
-#                    The path can be relative or absolute.
-#       Default:    "lua_scripts"
-#
-
-Eluna.Enabled = true
-Eluna.TraceBack = false
-Eluna.ScriptPath = "lua_scripts"
-
-#
-###################################################################################################
-
-###################################################################################################
 # LOGGING SYSTEM SETTINGS
 #
 #  Appender config values: Given an appender "name"
@@ -3919,7 +3850,6 @@ Appender.Console=1,3,0
 Appender.Server=2,2,0,Server.log,w
 Appender.GM=2,2,15,gm/gm_%s.log
 Appender.DBErrors=2,2,0,DBErrors.log
-Appender.Eluna=2,5,3,Eluna.log,a
 
 #  Logger config values: Given a logger "name"
 #    Logger.name
@@ -3945,8 +3875,7 @@ Logger.commands.gm=3,Console GM
 Logger.scripts.hotswap=3,Console Server
 Logger.sql.sql=5,Console DBErrors
 Logger.sql.updates=3,Console Server
-Logger.mmaps=3,Server
-Logger.eluna=1,Console Eluna
+#Logger.mmaps=3,Server
 
 #Logger.achievement=3,Console Server
 #Logger.addon=3,Console Server
@@ -3962,18 +3891,15 @@ Logger.eluna=1,Console Eluna
 #Logger.cheat=3,Console Server
 #Logger.commands.ra=3,Console Server
 #Logger.condition=3,Console Server
-#Logger.entities.faction=3,Console Server
-#Logger.entities.gameobject=3,Console Server
 #Logger.entities.pet=3,Console Server
-#Logger.entities.player=3,Console Server
 #Logger.entities.player.character=3,Console Server
 #Logger.entities.player.dump=3,Console Server
+#Logger.entities.player=3,Console Server
 #Logger.entities.player.items=3,Console Server
 #Logger.entities.player.loading=3,Console Server
 #Logger.entities.player.skills=3,Console Server
 #Logger.entities.transport=3,Console Server
 #Logger.entities.unit=3,Console Server
-#Logger.entities.unit.ai=3,Console Server
 #Logger.entities.vehicle=3,Console Server
 #Logger.gameevent=3,Console Server
 #Logger.guild=3,Console Server
@@ -3982,29 +3908,21 @@ Logger.eluna=1,Console Eluna
 #Logger.maps.script=3,Console Server
 #Logger.maps=3,Console Server
 #Logger.misc=3,Console Server
-#Logger.mmaps.tiles=3,Console Server
-#Logger.movement.flightpath=3,Console Server
-#Logger.movement.motionmaster=3,Console Server
-#Logger.movement.splinechain=3,Console Server
 #Logger.network=3,Console Server
 #Logger.network.opcode=3,Console Server
 #Logger.network.soap=3,Console Server
 #Logger.outdoorpvp=3,Console Server
+#Logger.phase=3,Console Server
 #Logger.pool=3,Console Server
 #Logger.rbac=3,Console Server
 #Logger.scripts=3,Console Server
 #Logger.scripts.ai=3,Console Server
-#Logger.scripts.ai.escortai=3,Console Server
-#Logger.scripts.ai.followerai=3,Console Server
-#Logger.scripts.ai.petai=3,Console Server
-#Logger.scripts.ai.sai=3,Console Server
-#Logger.scripts.cos=3,Console Server
 #Logger.server.authserver=3,Console Server
 #Logger.spells=3,Console Server
-#Logger.spells.aura.effect=3,Console Server
 #Logger.spells.aura.effect.nospell=3,Console Server
 #Logger.spells.effect=3,Console Server
 #Logger.spells.effect.nospell=3,Console Server
+#Logger.spells.periodic=3,Console Server
 #Logger.sql.dev=3,Console Server
 #Logger.sql.driver=3,Console Server
 #Logger.warden=3,Console Server
@@ -4025,6 +3943,152 @@ Log.Async.Enable = 0
 #                     1 - (Enabled)
 
 Allow.IP.Based.Action.Logging = 0
+
+#
+###################################################################################################
+
+###################################################################################################
+# GUILD LEVELING SETTINGS
+#
+#    Guild.LevelingEnabled
+#        Description: Controls whether guild can gain levels
+#        Default:     1
+#
+
+Guild.LevelingEnabled = 1
+
+#
+#    Guild.SaveInterval
+#        Description: Time (in minutes) between guild experience saves
+#        Default:     15
+#
+
+Guild.SaveInterval = 15
+
+#
+#    Guild.MaxLevel
+#        Description: Defines max level a guild can reach
+#        Default:     25
+#
+
+Guild.MaxLevel = 25
+
+#
+#    Guild.UndeletableLevel
+#        Description: Guild reaching this level (and higher) cannot be disbanded anymore
+#        Default:     4
+#
+
+Guild.UndeletableLevel = 4
+
+#
+#    Guild.XPModifier
+#        Description: Multiplier for guild experience gained from quests
+#        Default:     0.25
+#
+
+Guild.XPModifier = 0.25
+
+#
+#    Guild.DailyXPCap
+#        Description: Maximum experience points a guild can earn each day
+#        Default:     7807500
+#
+
+Guild.DailyXPCap = 7807500
+
+#
+#    Guild.WeeklyReputationCap
+#        Description: Maximum guild reputation a player can earn every week
+#        Default:     4375
+#
+
+Guild.WeeklyReputationCap = 4375
+
+#
+###################################################################################################
+
+###################################################################################################
+# CURRENCIES SETTINGS
+#
+#    Currency.ResetInterval
+#        How often should currency week count reset (days)
+#        Default: 7 (weekly)
+#
+
+Currency.ResetInterval = 7
+
+#
+#    Currency.ResetDay
+#        Week day when currency week count is reset (0..6) 0 == Sunday
+#        Default: 3 (Wednesday)
+#
+
+Currency.ResetDay = 3
+
+#
+#    Currency.ResetHour
+#        Hour of a day when currency week count is reset (0..23)
+#        Default: 6
+#
+
+Currency.ResetHour = 6
+
+#
+#    Currency.StartHonorPoints
+#        Amount of honor points that new players will start with
+#        Default: 0 (with precision)
+#
+
+Currency.StartHonorPoints = 0
+
+#
+#    Currency.MaxHonorPoints
+#        Amount honor points a player can have
+#        Default: 4000
+#
+
+Currency.MaxHonorPoints = 4000
+
+#
+#    Currency.StartJusticePoints
+#        Amount of justice points that new players will start with
+#        Default: 0 (with precision)
+#
+
+Currency.StartJusticePoints = 0
+
+#
+#    Currency.MaxJusticePoints
+#        Amount justice points a player can have
+#        Default: 4000
+#
+
+Currency.MaxJusticePoints = 4000
+
+#
+#    Currency.StartConquestPoints
+#        Amount of conquest points that new players will start with
+#        Default: 0 (with precision)
+#
+
+Currency.StartConquestPoints = 0
+
+#
+#    Currency.ConquestPointsWeekCap
+#        Amount of conquest points that player can earn per week
+#        Default: 1350
+#
+
+Currency.ConquestPointsWeekCap = 1350
+
+#
+#    Currency.ConquestPointsArenaReward
+#        Amount of conquest points rewarded by winning arenas
+#        Default: 180
+#
+
+Currency.ConquestPointsArenaReward = 180
 
 #
 ###################################################################################################
@@ -4065,212 +4129,22 @@ PacketSpoof.BanDuration = 86400
 ###################################################################################################
 
 ###################################################################################################
-#    Transmogrification config
-###################################################################################################
+# IPC SETTINGS
 #
-#    SETTINGS
+#    BnetServer.Address
+#        Description: Determines IP address of battle.net server to connect to.
+#        Default:     127.0.0.1
 #
-#    Logger.custom.transmog
-#        Description: Transmogrification logging setting, see logger settings
-#        Default:    3, Console Server
-#
-#    Transmogrification.EnableTransmogInfo
-#        Description: Enables / Disables the info button for transmogrification
-#        Default:    1
-#
-#    Transmogrification.TransmogNpcText
-#        Description: The npc_text entry of the info menu for transmogrification
-#        Default:    65000
-#
-#    Transmogrification.Allowed
-#        Description: A list of item entries that are allowed for transmogrification (skips quality and CanUseItem check)
-#                     Example: "25 35674 5623"
-#        Default:    ""
-#
-#    Transmogrification.NotAllowed
-#        Description: A list of item entries that are NOT allowed for transmogrification
-#                     Example: "25 35674 5623"
-#        Default:    ""
 
-Logger.custom.transmog = 3, Console Server
-
-Transmogrification.EnableTransmogInfo = 1
-Transmogrification.TransmogNpcText = 65000
-
-Transmogrification.Allowed = ""
-Transmogrification.NotAllowed = ""
+BnetServer.Address = 127.0.0.1
 
 #
-#    COPPER COST
+#    BnetServer.Port
+#        Description: Determines port to use when connecting to battle.net server.
+#        Default:     1118
 #
-#    Transmogrification.ScaledCostModifier
-#        Description: A multiplier for the default gold cost (change to 0 for no default cost)
-#        Default:    1.0
-#
-#    Transmogrification.CopperCost
-#        Description: Cost added on top of other costs (can be negative)
-#        Default:    0
-#
-#    For custom gold cost set ScaledCostModifier to 0.0 and CopperCost to what ever cost you want
 
-Transmogrification.ScaledCostModifier = 1.0
-Transmogrification.CopperCost = 0
-
-#
-#    TOKEN COST
-#
-#    Transmogrification.RequireToken
-#        Description: Adds/disables token cost
-#        Default:    0
-#
-#    Transmogrification.TokenEntry
-#        Description: Entry of the token item
-#        Default:    49426
-#
-#    Transmogrification.TokenAmount
-#        Description: Amount of tokens required
-#        Default:    1
-
-Transmogrification.RequireToken = 0
-Transmogrification.TokenEntry = 49426
-Transmogrification.TokenAmount = 1
-
-#
-#    REQUIREMENTS
-#
-#    Transmogrification.AllowPoor
-#        Description: Allow poor quality items to be used as source and target items
-#        Default:    0
-#
-#    Transmogrification.AllowCommon
-#        Description: Allow common quality items to be used as source and target items
-#        Default:    0
-#
-#    Transmogrification.AllowUncommon
-#        Description: Allow uncommon quality items to be used as source and target items
-#        Default:    1
-#
-#    Transmogrification.AllowRare
-#        Description: Allow rare quality items to be used as source and target items
-#        Default:    1
-#
-#    Transmogrification.AllowEpic
-#        Description: Allow epic quality items to be used as source and target items
-#        Default:    1
-#
-#    Transmogrification.AllowLegendary
-#        Description: Allow legendary quality items to be used as source and target items
-#        Default:    0
-#
-#    Transmogrification.AllowArtifact
-#        Description: Allow artifact quality items to be used as source and target items
-#        Default:    0
-#
-#    Transmogrification.AllowHeirloom
-#        Description: Allow heirloom quality items to be used as source and target items
-#        Default:    1
-#
-#    Transmogrification.AllowMixedArmorTypes
-#        Description: Allow cloth items to be transmogrified with plate for example
-#        Default:    0
-#
-#    Transmogrification.AllowMixedWeaponTypes
-#        Description: Allow axe to be transmogrified with dagger for example
-#        Default:    0
-#
-#    Transmogrification.AllowMixedInventoryTypes
-#        Description: Allow one hand to be transmogrified with main hand for example
-#        Default:    0
-#
-#    Transmogrification.AllowFishingPoles
-#        Description: Allow fishing poles to be transmogrified
-#        Default:    0
-#
-#    Transmogrification.IgnoreReqRace
-#        Description: Ignore required race for source items
-#        Default:    0
-#
-#    Transmogrification.IgnoreReqClass
-#        Description: Ignore required class for source items
-#        Default:    0
-#
-#    Transmogrification.IgnoreReqSkill
-#        Description: Ignore required skill for source items
-#        Default:    0
-#
-#    Transmogrification.IgnoreReqSpell
-#        Description: Ignore required spell for source items
-#        Default:    0
-#
-#    Transmogrification.IgnoreReqLevel
-#        Description: Ignore required level for source items
-#        Default:    0
-#
-#    Transmogrification.IgnoreReqEvent
-#        Description: Ignore required event for source items
-#        Default:    0
-#
-#    Transmogrification.IgnoreReqStats
-#        Description: Ignore stat count > 0 requirement for source items
-#        Default:    0
-
-Transmogrification.AllowPoor = 0
-Transmogrification.AllowCommon = 0
-Transmogrification.AllowUncommon = 1
-Transmogrification.AllowRare = 1
-Transmogrification.AllowEpic = 1
-Transmogrification.AllowLegendary = 0
-Transmogrification.AllowArtifact = 0
-Transmogrification.AllowHeirloom = 1
-
-Transmogrification.AllowMixedArmorTypes = 0
-Transmogrification.AllowMixedWeaponTypes = 0
-Transmogrification.AllowMixedInventoryTypes = 0
-Transmogrification.AllowFishingPoles = 0
-
-Transmogrification.IgnoreReqRace = 0
-Transmogrification.IgnoreReqClass = 0
-Transmogrification.IgnoreReqSkill = 0
-Transmogrification.IgnoreReqSpell = 0
-Transmogrification.IgnoreReqLevel = 0
-Transmogrification.IgnoreReqEvent = 0
-Transmogrification.IgnoreReqStats = 0
-
-#
-#    SET FEATURE
-#
-#    Transmogrification.EnableSets
-#        Description: Enables / Disables the set feature. If you want permanent disable, check Transmogrification.h
-#        Default:    1
-#
-#    Transmogrification.MaxSets
-#        Description: Maximum amount of sets a player can save (hardcap at 25)
-#        Default:    10
-#
-#    Transmogrification.EnableSetInfo
-#        Description: Enables / Disables the info button for set fature
-#        Default:    1
-#
-#    Transmogrification.SetNpcText
-#        Description: The npc_text entry of the info menu for the set feature
-#        Default:    65001
-#
-#    Transmogrification.SetCostModifier
-#        Description: A multiplier for the default gold cost (all costs summed together) (change to 0 for no default cost)
-#        Default:    3.0
-#
-#    Transmogrification.SetCopperCost
-#        Description: Cost added on top of other costs (can be negative)
-#        Default:    0
-
-Transmogrification.EnableSets = 1
-Transmogrification.MaxSets = 10
-
-Transmogrification.EnableSetInfo = 1
-Transmogrification.SetNpcText = 65001
-
-Transmogrification.SetCostModifier = 3.0
-Transmogrification.SetCopperCost = 0
+BnetServer.Port = 1118
 
 #
 ###################################################################################################
@@ -4311,5 +4185,4 @@ Metric.ConnectionInfo = "127.0.0.1;8086;worldserver"
 
 Metric.OverallStatusInterval = 1
 
-#
 ###################################################################################################

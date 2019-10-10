@@ -108,7 +108,7 @@ class npc_millhouse_manastorm : public CreatureScript
                 if (instance->GetData(DATA_WARDEN_2) == DONE)
                 {
                     Init = true;
-                    me->SetImmuneToNPC(false);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
                 }
 
                 if (instance->GetBossState(DATA_HARBINGER_SKYRISS) == DONE)
@@ -119,7 +119,7 @@ class npc_millhouse_manastorm : public CreatureScript
             {
                 if (me->Attack(who, true))
                 {
-                    AddThreat(who, 0.0f);
+                    me->AddThreat(who, 0.0f);
                     me->SetInCombatWith(who);
                     who->SetInCombatWith(me);
                     me->GetMotionMaster()->MoveChase(who, 25.0f);
@@ -181,7 +181,7 @@ class npc_millhouse_manastorm : public CreatureScript
                             case 7:
                                 instance->SetData(DATA_WARDEN_2, DONE);
                                 Init = true;
-                                me->SetImmuneToNPC(false);
+                                me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC);
                                 break;
                             }
                             ++Phase;

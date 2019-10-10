@@ -50,10 +50,7 @@ class npc_jadespine_basilisk : public CreatureScript
 {
     public:
 
-        npc_jadespine_basilisk()
-            : CreatureScript("npc_jadespine_basilisk")
-        {
-        }
+        npc_jadespine_basilisk() : CreatureScript("npc_jadespine_basilisk") { }
 
         struct npc_jadespine_basiliskAI : public ScriptedAI
         {
@@ -93,7 +90,13 @@ class npc_jadespine_basilisk : public CreatureScript
                     //Stop attacking target thast asleep and pick new target
                     uiCslumberTimer = 28000;
 
-                    me->GetThreatManager().ResetThreat(me->GetVictim());
+                    Unit* target = SelectTarget(SELECT_TARGET_TOPAGGRO, 0);
+
+                    if (!target || target == me->GetVictim())
+                        target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100, true);
+
+                    if (target)
+                        me->TauntApply(target);
 
                 } else uiCslumberTimer -= uiDiff;
 
@@ -148,10 +151,7 @@ class AreaTrigger_at_map_chamber : public AreaTriggerScript
 {
     public:
 
-        AreaTrigger_at_map_chamber()
-            : AreaTriggerScript("at_map_chamber")
-        {
-        }
+        AreaTrigger_at_map_chamber() : AreaTriggerScript("at_map_chamber") { }
 
         bool OnTrigger(Player* player, AreaTriggerEntry const* /*trigger*/) override
         {

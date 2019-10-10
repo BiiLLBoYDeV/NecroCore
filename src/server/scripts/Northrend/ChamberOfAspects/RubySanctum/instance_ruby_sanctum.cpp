@@ -15,15 +15,14 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "ruby_sanctum.h"
+#include "ScriptMgr.h"
 #include "AreaBoundary.h"
+#include "Creature.h"
 #include "CreatureAI.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
-#include "ScriptMgr.h"
-#include "TemporarySummon.h"
-#include "WorldStatePackets.h"
+#include "ruby_sanctum.h"
 
 Position const HalionControllerSpawnPos = { 3156.037f, 533.2656f, 72.97205f, 0.0f };
 
@@ -175,10 +174,7 @@ class instance_ruby_sanctum : public InstanceMapScript
             {
                 if (GetBossState(DATA_SAVIANA_RAGEFIRE) == DONE && GetBossState(DATA_BALTHARUS_THE_WARBORN) == DONE)
                     if (Creature* zarithrian = GetCreature(DATA_GENERAL_ZARITHRIAN))
-                    {
-                        zarithrian->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                        zarithrian->SetImmuneToPC(false);
-                    }
+                        zarithrian->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC | UNIT_FLAG_NOT_SELECTABLE);
             }
 
             void SetData(uint32 type, uint32 data) override
@@ -197,11 +193,11 @@ class instance_ruby_sanctum : public InstanceMapScript
                 return BaltharusSharedHealth;
             }
 
-            void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override
+            void FillInitialWorldStates(WorldPacket& data) override
             {
-                packet.Worldstates.emplace_back(WORLDSTATE_CORPOREALITY_MATERIAL, 50);
-                packet.Worldstates.emplace_back(WORLDSTATE_CORPOREALITY_TWILIGHT, 50);
-                packet.Worldstates.emplace_back(WORLDSTATE_CORPOREALITY_TOGGLE, 0);
+                data << uint32(WORLDSTATE_CORPOREALITY_MATERIAL) << uint32(50);
+                data << uint32(WORLDSTATE_CORPOREALITY_TWILIGHT) << uint32(50);
+                data << uint32(WORLDSTATE_CORPOREALITY_TOGGLE) << uint32(0);
             }
 
         protected:

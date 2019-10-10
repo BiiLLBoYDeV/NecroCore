@@ -1,18 +1,17 @@
-/*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+/* Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * This program is free software; you can redistribute it and/or modify
+ * it under the terms of the GNU General Public License as published by
+ * the Free Software Foundation; either version 2 of the License, or
+ * (at your option) any later version.
  *
- * This program is free software; you can redistribute it and/or modify it
- * under the terms of the GNU General Public License as published by the
- * Free Software Foundation; either version 2 of the License, or (at your
- * option) any later version.
+ * This program is distributed in the hope that it will be useful,
+ * but WITHOUT ANY WARRANTY; without even the implied warranty of
+ * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+ * GNU General Public License for more details.
  *
- * This program is distributed in the hope that it will be useful, but WITHOUT
- * ANY WARRANTY; without even the implied warranty of MERCHANTABILITY or
- * FITNESS FOR A PARTICULAR PURPOSE. See the GNU General Public License for
- * more details.
- *
- * You should have received a copy of the GNU General Public License along
- * with this program. If not, see <http://www.gnu.org/licenses/>.
+ * You should have received a copy of the GNU General Public License
+ * along with this program; if not, write to the Free Software
+ * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA 02111-1307 USA
  */
 
 #include "ScriptMgr.h"
@@ -22,14 +21,10 @@
 #include "DBCStores.h"
 #include "GameObject.h"
 #include "GameObjectAI.h"
-#include "GameTime.h"
-#include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "ScriptSystem.h"
-#include "SpellAuras.h"
-#include "SpellAuraEffects.h"
 #include "SpellScript.h"
 #include "Vehicle.h"
 #include "WorldSession.h"
@@ -159,17 +154,17 @@ class npc_wg_demolisher_engineer : public CreatureScript
                     switch (action - GOSSIP_ACTION_INFO_DEF)
                     {
                         case 0:
-                            DoCast(player, SPELL_BUILD_CATAPULT_FORCE, true);
+                            me->CastSpell(player, SPELL_BUILD_CATAPULT_FORCE, true);
                             break;
                         case 1:
-                            DoCast(player, SPELL_BUILD_DEMOLISHER_FORCE, true);
+                            me->CastSpell(player, SPELL_BUILD_DEMOLISHER_FORCE, true);
                             break;
                         case 2:
-                            DoCast(player, player->GetTeamId() == TEAM_ALLIANCE ? SPELL_BUILD_SIEGE_VEHICLE_FORCE_ALLIANCE : SPELL_BUILD_SIEGE_VEHICLE_FORCE_HORDE, true);
+                            me->CastSpell(player, player->GetTeamId() == TEAM_ALLIANCE ? SPELL_BUILD_SIEGE_VEHICLE_FORCE_ALLIANCE : SPELL_BUILD_SIEGE_VEHICLE_FORCE_HORDE, true);
                             break;
                     }
                     if (Creature* controlArms = me->FindNearestCreature(NPC_WINTERGRASP_CONTROL_ARMS, 30.0f, true))
-                        DoCast(controlArms, SPELL_ACTIVATE_CONTROL_ARMS, true);
+                        me->CastSpell(controlArms, SPELL_ACTIVATE_CONTROL_ARMS, true);
                 }
                 return true;
             }
@@ -311,7 +306,7 @@ class npc_wg_queue : public CreatureScript
                 else
                 {
                     uint32 timer = wintergrasp->GetTimer() / 1000;
-                    player->SendUpdateWorldState(4354, GameTime::GetGameTime() + timer);
+                    player->SendUpdateWorldState(4354, time(nullptr) + timer);
                     if (timer < 15 * MINUTE)
                     {
                         AddGossipItemFor(player, GOSSIP_ICON_CHAT, player->GetSession()->GetTrinityString(WG_NPCQUEUE_TEXTOPTION_JOIN), GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF);
@@ -358,25 +353,7 @@ class go_wg_vehicle_teleporter : public GameObjectScript
         {
             go_wg_vehicle_teleporterAI(GameObject* gameObject) : GameObjectAI(gameObject), _checkTimer(0) { }
 
-            bool IsFriendly(Unit* passenger)
-            {
-                return ((me->GetFaction() == WintergraspFaction[TEAM_HORDE] && passenger->GetFaction() == HORDE) ||
-                        (me->GetFaction() == WintergraspFaction[TEAM_ALLIANCE] && passenger->GetFaction() == ALLIANCE));
-            }
-
-            Creature* GetValidVehicle(Creature* cVeh)
-            {
-                if (!cVeh->HasAura(SPELL_VEHICLE_TELEPORT))
-                    if (Vehicle* vehicle = cVeh->GetVehicleKit())
-                        if (Unit* passenger = vehicle->GetPassenger(0))
-                            if (IsFriendly(passenger))
-                                if (Creature* teleportTrigger = passenger->SummonTrigger(me->GetPositionX()-60.0f, me->GetPositionY(), me->GetPositionZ()+1.0f, cVeh->GetOrientation(), 1000))
-                                    return teleportTrigger;
-
-                return nullptr;
-            }
-
-            void UpdateAI(uint32 diff)
+            void UpdateAI(uint32 diff) override
             {
                 _checkTimer += diff;
                 if (_checkTimer >= 1000)
@@ -389,8 +366,28 @@ class go_wg_vehicle_teleporter : public GameObjectScript
                     _checkTimer = 0;
                 }
             }
+
           private:
               uint32 _checkTimer;
+
+              bool IsFriendly(Unit* passenger) const
+              {
+                  return ((me->GetFaction() == WintergraspFaction[TEAM_HORDE] && passenger->GetFaction() == HORDE) ||
+                      (me->GetFaction() == WintergraspFaction[TEAM_ALLIANCE] && passenger->GetFaction() == ALLIANCE));
+              }
+
+              Creature* GetValidVehicle(Creature* cVeh) const
+              {
+                  if (!cVeh->HasAura(SPELL_VEHICLE_TELEPORT))
+                      if (Vehicle* vehicle = cVeh->GetVehicleKit())
+                          if (Unit* passenger = vehicle->GetPassenger(0))
+                              if (IsFriendly(passenger))
+                                  if (Creature* teleportTrigger = passenger->SummonTrigger(me->GetPositionX() - 60.0f, me->GetPositionY(), me->GetPositionZ() + 1.0f, cVeh->GetOrientation(), 1000))
+                                      return teleportTrigger;
+
+                  return nullptr;
+              }
+
         };
 
         GameObjectAI* GetAI(GameObject* go) const override
@@ -582,51 +579,6 @@ class spell_wintergrasp_defender_teleport_trigger : public SpellScriptLoader
         }
 };
 
-// 58549 Tenacity
-// 59911 Tenacity
-class spell_wintergrasp_tenacity_refresh : public AuraScript
-{
-    PrepareAuraScript(spell_wintergrasp_tenacity_refresh);
-
-    bool Validate(SpellInfo const* spellInfo) override
-    {
-        uint32 triggeredSpellId = spellInfo->Effects[EFFECT_2].CalcValue();
-        return !triggeredSpellId || ValidateSpellInfo({ triggeredSpellId });
-    }
-
-    void Refresh(AuraEffect const* aurEff)
-    {
-        PreventDefaultAction();
-
-        if (uint32 triggeredSpellId = GetSpellInfo()->Effects[aurEff->GetEffIndex()].CalcValue())
-        {
-            int32 bp = 0;
-            if (AuraEffect const* healEffect = GetEffect(EFFECT_0))
-                bp = healEffect->GetAmount();
-
-            CastSpellExtraArgs args(aurEff);
-            args
-                .AddSpellMod(SPELLVALUE_BASE_POINT0, bp)
-                .AddSpellMod(SPELLVALUE_BASE_POINT1, bp);
-            GetTarget()->CastSpell(nullptr, triggeredSpellId, args);
-        }
-
-        RefreshDuration();
-    }
-
-    void OnRemove(AuraEffect const* aurEff, AuraEffectHandleModes /*mode*/)
-    {
-        if (uint32 triggeredSpellId = GetSpellInfo()->Effects[aurEff->GetEffIndex()].CalcValue())
-            GetTarget()->RemoveAurasDueToSpell(triggeredSpellId);
-    }
-
-    void Register() override
-    {
-        OnEffectPeriodic += AuraEffectPeriodicFn(spell_wintergrasp_tenacity_refresh::Refresh, EFFECT_2, SPELL_AURA_PERIODIC_DUMMY);
-        AfterEffectRemove += AuraEffectRemoveFn(spell_wintergrasp_tenacity_refresh::OnRemove, EFFECT_2, SPELL_AURA_PERIODIC_DUMMY, AURA_EFFECT_HANDLE_REAL);
-    }
-};
-
 class condition_is_wintergrasp_horde : public ConditionScript
 {
     public:
@@ -667,7 +619,6 @@ void AddSC_wintergrasp()
     new achievement_wg_didnt_stand_a_chance();
     new spell_wintergrasp_defender_teleport();
     new spell_wintergrasp_defender_teleport_trigger();
-    RegisterAuraScript(spell_wintergrasp_tenacity_refresh);
     new condition_is_wintergrasp_horde();
     new condition_is_wintergrasp_alliance();
 }

@@ -19,6 +19,7 @@
 #define __GAMETIME_H
 
 #include "Define.h"
+
 #include <chrono>
 
 namespace GameTime
@@ -42,6 +43,6 @@ namespace GameTime
     TC_GAME_API uint32 GetUptime();
 
     void UpdateGameTimers();
-}
+};
 
 #endif

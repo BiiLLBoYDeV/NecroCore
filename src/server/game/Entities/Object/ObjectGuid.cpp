@@ -17,30 +17,46 @@
  */
 
 #include "ObjectGuid.h"
+#include "Errors.h"
 #include "Hash.h"
 #include "Log.h"
 #include "World.h"
-#include <sstream>
 #include <iomanip>
+#include <sstream>
 
 ObjectGuid const ObjectGuid::Empty = ObjectGuid();
+
+uint8& ObjectGuid::operator[](uint32 index)
+{
+    ASSERT(index < sizeof(uint64));
+    return _data._bytes[index];
+}
+
+uint8 const& ObjectGuid::operator[](uint32 index) const
+{
+    ASSERT(index < sizeof(uint64));
+    return _data._bytes[index];
+}
 
 char const* ObjectGuid::GetTypeName(HighGuid high)
 {
     switch (high)
     {
-        case HighGuid::Item:         return "Item";
-        case HighGuid::Player:       return "Player";
-        case HighGuid::GameObject:   return "Gameobject";
-        case HighGuid::Transport:    return "Transport";
-        case HighGuid::Unit:         return "Creature";
-        case HighGuid::Pet:          return "Pet";
-        case HighGuid::Vehicle:      return "Vehicle";
+        case HighGuid::Item:          return "Item";
+        case HighGuid::Player:        return "Player";
+        case HighGuid::GameObject:    return "Gameobject";
+        case HighGuid::Transport:     return "Transport";
+        case HighGuid::Unit:          return "Creature";
+        case HighGuid::Pet:           return "Pet";
+        case HighGuid::Vehicle:       return "Vehicle";
         case HighGuid::DynamicObject: return "DynObject";
-        case HighGuid::Corpse:       return "Corpse";
-        case HighGuid::Mo_Transport: return "MoTransport";
-        case HighGuid::Instance:     return "InstanceID";
-        case HighGuid::Group:        return "Group";
+        case HighGuid::Corpse:        return "Corpse";
+        case HighGuid::AreaTrigger:   return "AreaTrigger";
+        case HighGuid::BattleGround:  return "Battleground";
+        case HighGuid::Mo_Transport:  return "MoTransport";
+        case HighGuid::Instance:      return "InstanceID";
+        case HighGuid::Group:         return "Group";
+        case HighGuid::Guild:         return "Guild";
         default:
             return "<unknown>";
     }
@@ -49,7 +65,7 @@ char const* ObjectGuid::GetTypeName(HighGuid high)
 std::string ObjectGuid::ToString() const
 {
     std::ostringstream str;
-    str << "GUID Full: 0x" << std::hex << std::setw(16) << std::setfill('0') << _guid << std::dec;
+    str << "GUID Full: 0x" << std::hex << std::setw(16) << std::setfill('0') << _data._guid << std::dec;
     str << " Type: " << GetTypeName();
     if (HasEntry())
         str << (IsPet() ? " Pet number: " : " Entry: ") << GetEntry() << " ";

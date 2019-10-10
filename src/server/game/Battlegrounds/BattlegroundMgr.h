@@ -32,13 +32,6 @@ typedef std::set<uint32> BattlegroundClientIdsContainer;
 
 typedef std::unordered_map<uint32, BattlegroundTypeId> BattleMastersMap;
 
-enum BattlegroundMisc
-{
-    BATTLEGROUND_ARENA_POINT_DISTRIBUTION_DAY   = 86400,    // seconds in a day
-
-    BATTLEGROUND_OBJECTIVE_UPDATE_INTERVAL      = 1000
-};
-
 struct BattlegroundData
 {
     BattlegroundContainer m_Battlegrounds;
@@ -53,7 +46,7 @@ struct BattlegroundTemplate
     uint16 MaxPlayersPerTeam;
     uint8 MinLevel;
     uint8 MaxLevel;
-    Position StartLocation[PVP_TEAMS_COUNT];
+    Position StartLocation[BG_TEAMS_COUNT];
     float MaxStartDistSq;
     uint8 Weight;
     uint32 ScriptId;
@@ -74,11 +67,13 @@ class TC_GAME_API BattlegroundMgr
         void Update(uint32 diff);
 
         /* Packet Building */
-        void BuildPlayerJoinedBattlegroundPacket(WorldPacket* data, Player* player);
+        void BuildPlayerJoinedBattlegroundPacket(WorldPacket* data, ObjectGuid guid);
         void BuildPlayerLeftBattlegroundPacket(WorldPacket* data, ObjectGuid guid);
-        void BuildBattlegroundListPacket(WorldPacket* data, ObjectGuid guid, Player* player, BattlegroundTypeId bgTypeId, uint8 fromWhere);
-        void BuildGroupJoinedBattlegroundPacket(WorldPacket* data, GroupJoinBattlegroundResult result);
-        void BuildBattlegroundStatusPacket(WorldPacket* data, Battleground* bg, uint8 queueSlot, uint8 statusId, uint32 time1, uint32 time2, uint8 arenaType, uint32 arenaFaction);
+        void BuildBattlegroundListPacket(WorldPacket* data, ObjectGuid guid, Player* player, BattlegroundTypeId bgTypeId, bool hideWindow = true);
+        void BuildStatusFailedPacket(WorldPacket* data, Battleground* bg, Player* pPlayer, uint8 QueueSlot, GroupJoinBattlegroundResult result);
+        void BuildUpdateWorldStatePacket(WorldPacket* data, uint32 field, uint32 value);
+        void BuildBattlegroundStatusPacket(WorldPacket* data, Battleground* bg, Player* player, uint8 queueSlot, uint8 statusId, uint32 time1, uint32 time2, uint8 arenaType);
+        void BuildPlaySoundPacket(WorldPacket* data, uint32 soundId);
         void SendAreaSpiritHealerQueryOpcode(Player* player, Battleground* bg, ObjectGuid guid);
 
         /* Battlegrounds */
@@ -121,7 +116,6 @@ class TC_GAME_API BattlegroundMgr
 
         uint32 GetMaxRatingDifference() const;
         uint32 GetRatingDiscardTimer()  const;
-        void InitAutomaticArenaPointDistribution();
         void LoadBattleMastersEntry();
         void CheckBattleMasters();
         BattlegroundTypeId GetBattleMasterBG(uint32 entry) const
@@ -145,9 +139,6 @@ class TC_GAME_API BattlegroundMgr
 
         std::vector<uint64> m_QueueUpdateScheduler;
         uint32 m_NextRatedArenaUpdate;
-        time_t m_NextAutoDistributionTime;
-        uint32 m_AutoDistributionTimeChecker;
-        uint32 m_UpdateTimer;
         bool   m_ArenaTesting;
         bool   m_Testing;
         BattleMastersMap mBattleMastersMap;

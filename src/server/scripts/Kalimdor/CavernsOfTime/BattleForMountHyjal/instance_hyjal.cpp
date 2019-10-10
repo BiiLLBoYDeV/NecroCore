@@ -1,4 +1,4 @@
-/*
+ /*
  * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
  * Copyright (C) 2006-2009 ScriptDev2 <https://scriptdev2.svn.sourceforge.net/>
  *
@@ -24,13 +24,16 @@ SDCategory: Caverns of Time, Mount Hyjal
 EndScriptData */
 
 #include "ScriptMgr.h"
-#include "Creature.h"
-#include "CreatureAI.h"
 #include "GameObject.h"
+#include "GameObjectAI.h"
 #include "hyjal.h"
 #include "InstanceScript.h"
 #include "Log.h"
 #include "Map.h"
+#include "Player.h"
+#include "ScriptedCreature.h"
+#include "WorldPacket.h"
+#include "WorldSession.h"
 
 /* Battle of Mount Hyjal encounters:
 0 - Rage Winterchill event
@@ -56,14 +59,9 @@ class instance_hyjal : public InstanceMapScript
 public:
     instance_hyjal() : InstanceMapScript(HyjalScriptName, 534) { }
 
-    InstanceScript* GetInstanceScript(InstanceMap* map) const override
-    {
-        return new instance_mount_hyjal_InstanceMapScript(map);
-    }
-
     struct instance_mount_hyjal_InstanceMapScript : public InstanceScript
     {
-        instance_mount_hyjal_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_mount_hyjal_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             LoadObjectData(creatureData, nullptr);
@@ -129,10 +127,7 @@ public:
                 case ARCHIMONDE:
                     Archimonde = creature->GetGUID();
                     if (GetData(DATA_AZGALOREVENT) != DONE)
-                    {
                         creature->SetVisible(false);
-                        creature->SetReactState(REACT_PASSIVE);
-                    }
                     break;
                 case JAINA:
                     JainaProudmoore = creature->GetGUID();
@@ -186,12 +181,12 @@ public:
                         if (Creature* archimonde = instance->GetCreature(Archimonde))
                         {
                             archimonde->SetVisible(true);
-                            archimonde->SetReactState(REACT_AGGRESSIVE);
 
                             if (!ArchiYell)
                             {
                                 ArchiYell = true;
                                 archimonde->AI()->Talk(YELL_ARCHIMONDE_INTRO);
+
                             }
                         }
                     }
@@ -321,6 +316,11 @@ public:
             uint32 RaidDamage;
             bool ArchiYell;
     };
+
+    InstanceScript* GetInstanceScript(InstanceMap* map) const override
+    {
+        return new instance_mount_hyjal_InstanceMapScript(map);
+    }
 };
 
 void AddSC_instance_mount_hyjal()

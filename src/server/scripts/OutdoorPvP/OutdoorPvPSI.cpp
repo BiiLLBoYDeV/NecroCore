@@ -15,25 +15,30 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "OutdoorPvPSI.h"
+#include "ScriptMgr.h"
 #include "DBCStores.h"
 #include "GameObject.h"
 #include "Language.h"
-#include "Map.h"
+#include "MapManager.h"
 #include "ObjectMgr.h"
 #include "OutdoorPvPMgr.h"
+#include "OutdoorPvPSI.h"
+#include "PhasingHandler.h"
 #include "Player.h"
 #include "ReputationMgr.h"
-#include "ScriptMgr.h"
 #include "World.h"
-#include "WorldStatePackets.h"
+#include "WorldPacket.h"
 
 uint32 const SI_MAX_RESOURCES = 200;
+
 uint32 const SI_AREATRIGGER_H = 4168;
 uint32 const SI_AREATRIGGER_A = 4162;
+
 uint32 const SI_TURNIN_QUEST_CM_A = 17090;
 uint32 const SI_TURNIN_QUEST_CM_H = 18199;
+
 uint32 const SI_SILITHYST_MOUND = 181597;
+
 uint8 const OutdoorPvPSIBuffZonesNum = 3;
 uint32 const OutdoorPvPSIBuffZones[OutdoorPvPSIBuffZonesNum] = { 1377, 3428, 3429 };
 
@@ -45,11 +50,11 @@ OutdoorPvPSI::OutdoorPvPSI()
     m_LastController = 0;
 }
 
-void OutdoorPvPSI::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
+void OutdoorPvPSI::FillInitialWorldStates(WorldPacket &data)
 {
-    packet.Worldstates.emplace_back(SI_GATHERED_A, m_Gathered_A);
-    packet.Worldstates.emplace_back(SI_GATHERED_H, m_Gathered_H);
-    packet.Worldstates.emplace_back(SI_SILITHYST_MAX, SI_MAX_RESOURCES);
+    data << SI_GATHERED_A << m_Gathered_A;
+    data << SI_GATHERED_H << m_Gathered_H;
+    data << SI_SILITHYST_MAX << SI_MAX_RESOURCES;
 }
 
 void OutdoorPvPSI::SendRemoveWorldStates(Player* player)
@@ -179,6 +184,7 @@ bool OutdoorPvPSI::HandleDropFlag(Player* player, uint32 spellId)
                             return true;
                         }
 
+                        PhasingHandler::InheritPhaseShift(go, player);
                         go->SetRespawnTime(0);
 
                         if (!map->AddToMap(go))
@@ -208,6 +214,7 @@ bool OutdoorPvPSI::HandleDropFlag(Player* player, uint32 spellId)
                             return true;
                         }
 
+                        PhasingHandler::InheritPhaseShift(go, player);
                         go->SetRespawnTime(0);
 
                         if (!map->AddToMap(go))

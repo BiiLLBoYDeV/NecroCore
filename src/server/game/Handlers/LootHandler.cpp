@@ -22,6 +22,8 @@
 #include "Creature.h"
 #include "GameObject.h"
 #include "Group.h"
+#include "Guild.h"
+#include "GuildMgr.h"
 #include "Item.h"
 #include "Log.h"
 #include "LootItemStorage.h"
@@ -31,9 +33,6 @@
 #include "ObjectAccessor.h"
 #include "Player.h"
 #include "WorldPacket.h"
-#ifdef ELUNA
-#include "LuaEngine.h"
-#endif
 
 void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
 {
@@ -50,7 +49,7 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
         GameObject* go = player->GetMap()->GetGameObject(lguid);
 
         // not check distance for GO in case owned GO (fishing bobber case, for example) or Fishing hole GO
-        if (!go || ((go->GetOwnerGUID() != _player->GetGUID() && go->GetGoType() != GAMEOBJECT_TYPE_FISHINGHOLE) && !go->IsWithinDistInMap(_player)))
+        if (!go || ((go->GetOwnerGUID() != _player->GetGUID() && go->GetGoType() != GAMEOBJECT_TYPE_FISHINGHOLE) && !go->IsWithinDistInMap(_player, INTERACTION_DISTANCE)))
         {
             player->SendLootRelease(lguid);
             return;
@@ -102,6 +101,48 @@ void WorldSession::HandleAutostoreLootItemOpcode(WorldPacket& recvData)
         player->GetSession()->DoLootRelease(lguid);
 }
 
+void WorldSession::HandleLootCurrencyOpcode(WorldPacket& recvData)
+{
+    TC_LOG_DEBUG("network", "WORLD: CMSG_LOOT_CURRENCY");
+
+    Player* player = GetPlayer();
+    ObjectGuid lguid = player->GetLootGUID();
+    Loot* loot = nullptr;
+    uint8 lootSlot = 0;
+
+    recvData >> lootSlot;
+
+    switch (lguid.GetHigh())
+    {
+        case HighGuid::Unit:
+        case HighGuid::Vehicle:
+        {
+            Creature* creature = player->GetMap()->GetCreature(lguid);
+            bool lootAllowed = creature && !creature->IsAlive();
+
+            if (lootAllowed)
+                loot = &creature->loot;
+
+            break;
+        }
+        case HighGuid::GameObject:
+        {
+            GameObject* go = GetPlayer()->GetMap()->GetGameObject(lguid);
+
+            // do not check distance for GO if player is the owner of it.
+            if (go && ((go->GetOwnerGUID() == player->GetGUID() || go->IsWithinDistInMap(player, INTERACTION_DISTANCE))))
+                loot = &go->loot;
+
+            break;
+        }
+
+        default:
+            return;
+    }
+
+    player->StoreLootCurrency(lootSlot, loot);
+}
+
 void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
 {
     TC_LOG_DEBUG("network", "WORLD: CMSG_LOOT_MONEY");
@@ -121,7 +162,7 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
             GameObject* go = GetPlayer()->GetMap()->GetGameObject(guid);
 
             // do not check distance for GO if player is the owner of it (ex. fishing bobber)
-            if (go && ((go->GetOwnerGUID() == player->GetGUID() || go->IsWithinDistInMap(player))))
+            if (go && ((go->GetOwnerGUID() == player->GetGUID() || go->IsWithinDistInMap(player, INTERACTION_DISTANCE))))
                 loot = &go->loot;
 
             break;
@@ -191,6 +232,10 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
                 (*i)->ModifyMoney(goldPerPlayer);
                 (*i)->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, goldPerPlayer);
 
+                if (Guild* guild = sGuildMgr->GetGuildById((*i)->GetGuildId()))
+                    if (uint32 guildGold = CalculatePct(goldPerPlayer, (*i)->GetTotalAuraModifier(SPELL_AURA_DEPOSIT_BONUS_MONEY_IN_GUILD_BANK_ON_LOOT)))
+                        guild->HandleMemberDepositMoney(this, guildGold, true);
+
                 WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4 + 1);
                 data << uint32(goldPerPlayer);
                 data << uint8(playersNear.size() <= 1); // Controls the text displayed in chat. 0 is "Your share is..." and 1 is "You loot..."
@@ -202,15 +247,16 @@ void WorldSession::HandleLootMoneyOpcode(WorldPacket& /*recvData*/)
             player->ModifyMoney(loot->gold);
             player->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_MONEY, loot->gold);
 
+            if (Guild* guild = sGuildMgr->GetGuildById(player->GetGuildId()))
+                if (uint32 guildGold = CalculatePct(loot->gold, player->GetTotalAuraModifier(SPELL_AURA_DEPOSIT_BONUS_MONEY_IN_GUILD_BANK_ON_LOOT)))
+                    guild->HandleMemberDepositMoney(this, guildGold, true);
+
             WorldPacket data(SMSG_LOOT_MONEY_NOTIFY, 4 + 1);
             data << uint32(loot->gold);
             data << uint8(1);   // "You loot..."
             SendPacket(&data);
         }
 
-#ifdef ELUNA
-        sEluna->OnLootMoney(player, loot->gold);
-#endif
         loot->gold = 0;
 
         // Delete the money loot record from the DB
@@ -273,7 +319,7 @@ void WorldSession::DoLootRelease(ObjectGuid lguid)
         GameObject* go = GetPlayer()->GetMap()->GetGameObject(lguid);
 
         // not check distance for GO in case owned GO (fishing bobber case, for example) or Fishing hole GO
-        if (!go || ((go->GetOwnerGUID() != _player->GetGUID() && go->GetGoType() != GAMEOBJECT_TYPE_FISHINGHOLE) && !go->IsWithinDistInMap(_player)))
+        if (!go || ((go->GetOwnerGUID() != _player->GetGUID() && go->GetGoType() != GAMEOBJECT_TYPE_FISHINGHOLE) && !go->IsWithinDistInMap(_player, INTERACTION_DISTANCE)))
             return;
 
         loot = &go->loot;
@@ -450,7 +496,7 @@ void WorldSession::HandleLootMasterGiveOpcode(WorldPacket& recvData)
 
     if (slotid >= loot->items.size() + loot->quest_items.size())
     {
-        TC_LOG_DEBUG("loot", "MasterLootItem: Player %s might be using a hack! (slot %d, size %lu)",
+        TC_LOG_INFO("entities.player.cheat", "MasterLootItem: Player %s might be using a hack! (slot %d, size %lu)",
             GetPlayer()->GetName().c_str(), slotid, (unsigned long)loot->items.size());
         return;
     }
@@ -460,12 +506,12 @@ void WorldSession::HandleLootMasterGiveOpcode(WorldPacket& recvData)
     ItemPosCountVec dest;
     InventoryResult msg = target->CanStoreNewItem(NULL_BAG, NULL_SLOT, dest, item.itemid, item.count);
     if (!item.AllowedForPlayer(target, true))
-        msg = EQUIP_ERR_YOU_CAN_NEVER_USE_THAT_ITEM;
+        msg = EQUIP_ERR_CANT_EQUIP_EVER;
     if (msg != EQUIP_ERR_OK)
     {
-        if (msg == EQUIP_ERR_CANT_CARRY_MORE_OF_THIS)
+        if (msg == EQUIP_ERR_ITEM_MAX_COUNT)
             _player->SendLootError(lootguid, LOOT_ERROR_MASTER_UNIQUE_ITEM);
-        else if (msg == EQUIP_ERR_INVENTORY_FULL)
+        else if (msg == EQUIP_ERR_INV_FULL)
             _player->SendLootError(lootguid, LOOT_ERROR_MASTER_INV_FULL);
         else
             _player->SendLootError(lootguid, LOOT_ERROR_MASTER_OTHER);
@@ -479,12 +525,9 @@ void WorldSession::HandleLootMasterGiveOpcode(WorldPacket& recvData)
     Item* newitem = target->StoreNewItem(dest, item.itemid, true, item.randomPropertyId, looters);
     target->SendNewItem(newitem, uint32(item.count), false, false, true);
     target->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_ITEM, item.itemid, item.count);
-    target->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_TYPE, loot->loot_type, item.count);
+    target->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_TYPE, item.itemid, item.count, loot->loot_type);
     target->UpdateAchievementCriteria(ACHIEVEMENT_CRITERIA_TYPE_LOOT_EPIC_ITEM, item.itemid, item.count);
 
-#ifdef ELUNA
-    sEluna->OnLootItem(target, newitem, item.count, lootguid);
-#endif
     // mark as looted
     item.count = 0;
     item.is_looted = true;

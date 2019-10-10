@@ -29,8 +29,8 @@ EndScriptData */
 #include "DisableMgr.h"
 #include "ObjectMgr.h"
 #include "Player.h"
-#include "RBAC.h"
 #include "ReputationMgr.h"
+#include "RBAC.h"
 #include "World.h"
 
 class quest_commandscript : public CommandScript
@@ -82,15 +82,15 @@ public:
         }
 
         // check item starting quest (it can work incorrectly if added without item in inventory)
-        ItemTemplateContainer const& itc = sObjectMgr->GetItemTemplateStore();
-        auto itr = std::find_if(std::begin(itc), std::end(itc), [quest](ItemTemplateContainer::value_type const& value)
+        ItemTemplateContainer const* itc = sObjectMgr->GetItemTemplateStore();
+        ItemTemplateContainer::const_iterator result = std::find_if(itc->begin(), itc->end(), [quest](ItemTemplateContainer::value_type const& value)
         {
             return value.second.StartQuest == quest->GetQuestId();
         });
 
-        if (itr != std::end(itc))
+        if (result != itc->end())
         {
-            handler->PSendSysMessage(LANG_COMMAND_QUEST_STARTFROMITEM, entry, itr->first);
+            handler->PSendSysMessage(LANG_COMMAND_QUEST_STARTFROMITEM, entry, result->second.ItemId);
             handler->SetSentErrorMessage(true);
             return false;
         }
@@ -259,7 +259,7 @@ public:
         }
 
         // If the quest requires money
-        int32 ReqOrRewMoney = quest->GetRewOrReqMoney(player);
+        int32 ReqOrRewMoney = quest->GetRewOrReqMoney();
         if (ReqOrRewMoney < 0)
             player->ModifyMoney(-ReqOrRewMoney);
 

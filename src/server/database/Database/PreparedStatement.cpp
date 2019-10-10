@@ -256,7 +256,7 @@ void MySQLPreparedStatement::AssertValidIndex(uint8 index)
         TC_LOG_ERROR("sql.sql", "[ERROR] Prepared Statement (id: %u) trying to bind value on already bound index (%u).", m_stmt->m_index, index);
 }
 
-void MySQLPreparedStatement::setNull(const uint8 index)
+void MySQLPreparedStatement::setNull(uint8 index)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -270,12 +270,12 @@ void MySQLPreparedStatement::setNull(const uint8 index)
     param->length = nullptr;
 }
 
-void MySQLPreparedStatement::setBool(const uint8 index, const bool value)
+void MySQLPreparedStatement::setBool(uint8 index, bool value)
 {
     setUInt8(index, value ? 1 : 0);
 }
 
-void MySQLPreparedStatement::setUInt8(const uint8 index, const uint8 value)
+void MySQLPreparedStatement::setUInt8(uint8 index, uint8 value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -283,7 +283,7 @@ void MySQLPreparedStatement::setUInt8(const uint8 index, const uint8 value)
     SetParameterValue(param, MYSQL_TYPE_TINY, &value, sizeof(uint8), true);
 }
 
-void MySQLPreparedStatement::setUInt16(const uint8 index, const uint16 value)
+void MySQLPreparedStatement::setUInt16(uint8 index, uint16 value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -291,7 +291,7 @@ void MySQLPreparedStatement::setUInt16(const uint8 index, const uint16 value)
     SetParameterValue(param, MYSQL_TYPE_SHORT, &value, sizeof(uint16), true);
 }
 
-void MySQLPreparedStatement::setUInt32(const uint8 index, const uint32 value)
+void MySQLPreparedStatement::setUInt32(uint8 index, uint32 value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -299,7 +299,7 @@ void MySQLPreparedStatement::setUInt32(const uint8 index, const uint32 value)
     SetParameterValue(param, MYSQL_TYPE_LONG, &value, sizeof(uint32), true);
 }
 
-void MySQLPreparedStatement::setUInt64(const uint8 index, const uint64 value)
+void MySQLPreparedStatement::setUInt64(uint8 index, uint64 value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -307,7 +307,7 @@ void MySQLPreparedStatement::setUInt64(const uint8 index, const uint64 value)
     SetParameterValue(param, MYSQL_TYPE_LONGLONG, &value, sizeof(uint64), true);
 }
 
-void MySQLPreparedStatement::setInt8(const uint8 index, const int8 value)
+void MySQLPreparedStatement::setInt8(uint8 index, int8 value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -315,7 +315,7 @@ void MySQLPreparedStatement::setInt8(const uint8 index, const int8 value)
     SetParameterValue(param, MYSQL_TYPE_TINY, &value, sizeof(int8), false);
 }
 
-void MySQLPreparedStatement::setInt16(const uint8 index, const int16 value)
+void MySQLPreparedStatement::setInt16(uint8 index, int16 value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -323,7 +323,7 @@ void MySQLPreparedStatement::setInt16(const uint8 index, const int16 value)
     SetParameterValue(param, MYSQL_TYPE_SHORT, &value, sizeof(int16), false);
 }
 
-void MySQLPreparedStatement::setInt32(const uint8 index, const int32 value)
+void MySQLPreparedStatement::setInt32(uint8 index, int32 value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -331,7 +331,7 @@ void MySQLPreparedStatement::setInt32(const uint8 index, const int32 value)
     SetParameterValue(param, MYSQL_TYPE_LONG, &value, sizeof(int32), false);
 }
 
-void MySQLPreparedStatement::setInt64(const uint8 index, const int64 value)
+void MySQLPreparedStatement::setInt64(uint8 index, int64 value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -339,7 +339,7 @@ void MySQLPreparedStatement::setInt64(const uint8 index, const int64 value)
     SetParameterValue(param, MYSQL_TYPE_LONGLONG, &value, sizeof(int64), false);
 }
 
-void MySQLPreparedStatement::setFloat(const uint8 index, const float value)
+void MySQLPreparedStatement::setFloat(uint8 index, float value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -347,7 +347,7 @@ void MySQLPreparedStatement::setFloat(const uint8 index, const float value)
     SetParameterValue(param, MYSQL_TYPE_FLOAT, &value, sizeof(float), (value > 0.0f));
 }
 
-void MySQLPreparedStatement::setDouble(const uint8 index, const double value)
+void MySQLPreparedStatement::setDouble(uint8 index, double value)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -355,7 +355,7 @@ void MySQLPreparedStatement::setDouble(const uint8 index, const double value)
     SetParameterValue(param, MYSQL_TYPE_DOUBLE, &value, sizeof(double), (value > 0.0f));
 }
 
-void MySQLPreparedStatement::setBinary(const uint8 index, const std::vector<uint8>& value, bool isString)
+void MySQLPreparedStatement::setBinary(uint8 index, std::vector<uint8> const& value, bool isString)
 {
     AssertValidIndex(index);
     m_paramsSet[index] = true;
@@ -429,7 +429,7 @@ std::string MySQLPreparedStatement::getQueryString() const
                 ss << "BINARY";
                 break;
             case TYPE_NULL:
-                ss << "NULL";
+                ss << "nullptr";
                 break;
         }
 

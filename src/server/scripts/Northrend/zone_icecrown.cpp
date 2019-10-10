@@ -24,6 +24,7 @@
 #include "ScriptedCreature.h"
 #include "ScriptedGossip.h"
 #include "SpellAuras.h"
+#include "SpellInfo.h"
 #include "TemporarySummon.h"
 
 /*######
@@ -75,7 +76,7 @@ public:
 
         void DamageTaken(Unit* pDoneBy, uint32& uiDamage) override
         {
-            if (uiDamage > me->GetHealth() && pDoneBy && pDoneBy->GetTypeId() == TYPEID_PLAYER)
+            if (uiDamage > me->GetHealth() && pDoneBy->GetTypeId() == TYPEID_PLAYER)
             {
                 uiDamage = 0;
                 pDoneBy->CastSpell(pDoneBy, SPELL_KILL_CREDIT, true);
@@ -218,7 +219,7 @@ class npc_tournament_training_dummy : public CreatureScript
                 Initialize();
 
                 events.Reset();
-                events.ScheduleEvent(EVENT_DUMMY_RECAST_DEFEND, 5s);
+                events.ScheduleEvent(EVENT_DUMMY_RECAST_DEFEND, 5000);
             }
 
             void EnterEvadeMode(EvadeReason why) override
@@ -289,13 +290,13 @@ class npc_tournament_training_dummy : public CreatureScript
                             }
                         }
                         isVulnerable = false;
-                        events.ScheduleEvent(EVENT_DUMMY_RECAST_DEFEND, 5s);
+                        events.ScheduleEvent(EVENT_DUMMY_RECAST_DEFEND, 5000);
                         break;
                     case EVENT_DUMMY_RESET:
                         if (UpdateVictim())
                         {
                             EnterEvadeMode(EVADE_REASON_OTHER);
-                            events.ScheduleEvent(EVENT_DUMMY_RESET, 10s);
+                            events.ScheduleEvent(EVENT_DUMMY_RESET, 10000);
                         }
                         break;
                 }
@@ -433,10 +434,10 @@ public:
 
         void Reset() override
         {
-            me->SetRegenerateHealth(false);
+            me->setRegeneratingHealth(false);
             DoCast(SPELL_THREAT_PULSE);
             Talk(BANNER_SAY);
-            events.ScheduleEvent(EVENT_SPAWN, 3s);
+            events.ScheduleEvent(EVENT_SPAWN, 3000);
         }
 
         void JustEngagedWith(Unit* /*who*/) override { }
@@ -555,8 +556,8 @@ public:
                             Mason3->GetMotionMaster()->MovePoint(0, Mason3Pos[2]);
                             Mason3->SetHomePosition(Mason3Pos[2]);
                         }
-                        events.ScheduleEvent(EVENT_START_FIGHT, 5s);
-                        events.ScheduleEvent(EVENT_MASON_ACTION, 15s);
+                        events.ScheduleEvent(EVENT_START_FIGHT, 5000);
+                        events.ScheduleEvent(EVENT_MASON_ACTION, 15000);
                     }
                     break;
                 case EVENT_MASON_ACTION:
@@ -584,7 +585,7 @@ public:
                             LK->AI()->Talk(LK_TALK_1);
                         if (Creature* Dalfors = ObjectAccessor::GetCreature(*me, guidDalfors))
                             Dalfors->AI()->Talk(DALFORS_SAY_START);
-                        events.ScheduleEvent(EVENT_WAVE_SPAWN, 1s);
+                        events.ScheduleEvent(EVENT_WAVE_SPAWN, 1000);
                     }
                     break;
                 case EVENT_WAVE_SPAWN:
@@ -634,9 +635,9 @@ public:
                         PhaseCount++;
 
                         if (PhaseCount < 8)
-                            events.ScheduleEvent(EVENT_WAVE_SPAWN, 10s, 20s);
+                            events.ScheduleEvent(EVENT_WAVE_SPAWN, urand(10000, 20000));
                         else
-                            events.ScheduleEvent(EVENT_HALOF, 10s, 20s);
+                            events.ScheduleEvent(EVENT_HALOF, urand(10000, 20000));
                     }
                     break;
                 case EVENT_HALOF:
@@ -681,7 +682,7 @@ public:
                         Summons.DespawnEntry(NPC_HALOF_THE_DEATHBRINGER);
                         if (Creature* Dalfors = ObjectAccessor::GetCreature(*me, guidDalfors))
                             Dalfors->AI()->Talk(DALFORS_YELL_FINISHED);
-                        events.ScheduleEvent(EVENT_ENDED, 10s);
+                        events.ScheduleEvent(EVENT_ENDED, 10000);
                     }
         }
     };
@@ -724,7 +725,7 @@ class npc_frostbrood_skytalon : public CreatureScript
 
             EventMap events;
 
-            void IsSummonedBy(WorldObject* summoner) override
+            void IsSummonedBy(Unit* summoner) override
             {
                 me->GetMotionMaster()->MovePoint(POINT_GRAB_DECOY, summoner->GetPositionX(), summoner->GetPositionY(), summoner->GetPositionZ());
             }
@@ -736,7 +737,7 @@ class npc_frostbrood_skytalon : public CreatureScript
 
                 if (id == POINT_GRAB_DECOY)
                     if (TempSummon* summon = me->ToTempSummon())
-                        if (Unit* summoner = summon->GetSummonerUnit())
+                        if (Unit* summoner = summon->GetSummoner())
                             DoCast(summoner, SPELL_GRAB);
             }
 
@@ -751,7 +752,7 @@ class npc_frostbrood_skytalon : public CreatureScript
                     {
                         Position randomPosOnRadius;
                         randomPosOnRadius.m_positionZ = (me->GetPositionZ() + 40.0f);
-                        me->GetNearPoint2D(nullptr, randomPosOnRadius.m_positionX, randomPosOnRadius.m_positionY, 40.0f, me->GetAbsoluteAngle(me));
+                        me->GetNearPoint2D(randomPosOnRadius.m_positionX, randomPosOnRadius.m_positionY, 40.0f, me->GetAngle(me));
                         me->GetMotionMaster()->MovePoint(POINT_FLY_AWAY, randomPosOnRadius);
                     }
                 }
@@ -766,7 +767,7 @@ class npc_frostbrood_skytalon : public CreatureScript
                         break;
                     case SPELL_RIDE:
                         DoCastAOE(SPELL_PING_BUNNY);
-                        events.ScheduleEvent(EVENT_FLY_AWAY, 100ms);
+                        events.ScheduleEvent(EVENT_FLY_AWAY, 100);
                         break;
                 }
             }

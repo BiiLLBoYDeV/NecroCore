@@ -26,12 +26,11 @@
 
 enum OutdoorPvPTypes
 {
-    OUTDOOR_PVP_HP = 1,
+    OUTDOOR_PVP_HP =1,
     OUTDOOR_PVP_NA,
     OUTDOOR_PVP_TF,
     OUTDOOR_PVP_ZM,
     OUTDOOR_PVP_SI,
-    OUTDOOR_PVP_EP,
 
     MAX_OUTDOORPVP_TYPES
 };
@@ -66,14 +65,6 @@ struct creature_type
     Position pos;
 };
 
-namespace WorldPackets
-{
-    namespace WorldState
-    {
-        class InitWorldStates;
-    }
-}
-
 class Creature;
 class GameObject;
 class Map;
@@ -91,7 +82,7 @@ class TC_GAME_API OPvPCapturePoint
 
         virtual ~OPvPCapturePoint() { }
 
-        virtual void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& /*packet*/) { }
+        virtual void FillInitialWorldStates(WorldPacket & /*data*/) { }
 
         // send world state update to all players present
         void SendUpdateWorldState(uint32 field, uint32 value);
@@ -119,7 +110,7 @@ class TC_GAME_API OPvPCapturePoint
 
         virtual void SendChangePhase();
 
-        virtual bool HandleGossipOption(Player* player, Creature* guid, uint32 gossipid);
+        virtual bool HandleGossipOption(Player* player, Creature* creature, uint32 gossipid);
 
         virtual bool CanTalkTo(Player* player, Creature* c, GossipMenuItems const& gso);
 
@@ -201,7 +192,7 @@ class TC_GAME_API OutdoorPvP : public ZoneScript
         typedef std::pair<ObjectGuid::LowType, GameObject*> GoScriptPair;
         typedef std::pair<ObjectGuid::LowType, Creature*> CreatureScriptPair;
 
-        virtual void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& /*packet*/) { }
+        virtual void FillInitialWorldStates(WorldPacket & /*data*/) { }
 
         // called when a player triggers an areatrigger
         virtual bool HandleAreaTrigger(Player* player, uint32 trigger);
@@ -289,11 +280,12 @@ class TC_GAME_API OutdoorPvP : public ZoneScript
             m_capturePoints[cp->m_capturePointSpawnId] = cp;
         }
 
-        OPvPCapturePoint* GetCapturePoint(ObjectGuid::LowType guid) const
+        OPvPCapturePoint* GetCapturePoint(ObjectGuid::LowType spawnId) const
         {
-            OutdoorPvP::OPvPCapturePointMap::const_iterator itr = m_capturePoints.find(guid);
+            OutdoorPvP::OPvPCapturePointMap::const_iterator itr = m_capturePoints.find(spawnId);
             if (itr != m_capturePoints.end())
                 return itr->second;
+
             return nullptr;
         }
 

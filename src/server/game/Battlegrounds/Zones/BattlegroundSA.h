@@ -522,7 +522,7 @@ struct BattlegroundSAScore final : public BattlegroundScore
     friend class BattlegroundSA;
 
     protected:
-        BattlegroundSAScore(ObjectGuid playerGuid) : BattlegroundScore(playerGuid), DemolishersDestroyed(0), GatesDestroyed(0) { }
+        BattlegroundSAScore(ObjectGuid playerGuid, uint32 team) : BattlegroundScore(playerGuid, team), DemolishersDestroyed(0), GatesDestroyed(0) { }
 
         void UpdateScore(uint32 type, uint32 value) override
         {
@@ -540,7 +540,7 @@ struct BattlegroundSAScore final : public BattlegroundScore
             }
         }
 
-        void BuildObjectivesBlock(WorldPacket& data) final override;
+        void BuildObjectivesBlock(WorldPacket& data, ByteBuffer& content) final override;
 
         uint32 GetAttr1() const final override { return DemolishersDestroyed; }
         uint32 GetAttr2() const final override { return GatesDestroyed; }
@@ -573,7 +573,7 @@ class BattlegroundSA : public Battleground
         bool SetupBattleground() override;
         void Reset() override;
         /// Called for generate packet contain worldstate data
-        void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override;
+        void FillInitialWorldStates(WorldPacket& data) override;
         /// Called when a player kill a unit in bg
         void HandleKillUnit(Creature* creature, Player* killer) override;
         /// Return the nearest graveyard where player can respawn
@@ -700,6 +700,6 @@ class BattlegroundSA : public Battleground
         bool _gateDestroyed;
 
         // Achievement: Not Even a Scratch
-        bool _allVehiclesAlive[PVP_TEAMS_COUNT];
+        bool _allVehiclesAlive[BG_TEAMS_COUNT];
 };
 #endif

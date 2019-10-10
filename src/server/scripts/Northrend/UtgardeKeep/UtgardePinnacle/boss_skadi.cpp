@@ -265,8 +265,7 @@ public:
                     Talk(SAY_DRAKE_DEATH);
                     DoCastSelf(SPELL_SKADI_TELEPORT);
                     summons.DespawnEntry(NPC_WORLD_TRIGGER);
-                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-                    me->SetImmuneToPC(false);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE | UNIT_FLAG_IMMUNE_TO_PC);
                     me->SetReactState(REACT_AGGRESSIVE);
                     _phase = PHASE_GROUND;
 
@@ -342,7 +341,7 @@ public:
         void Reset() override
         {
             me->SetReactState(REACT_PASSIVE);
-            me->SetRegenerateHealth(false);
+            me->setRegeneratingHealth(false);
             me->SetSpeedRate(MOVE_RUN, 2.5f);
         }
 
@@ -366,7 +365,7 @@ public:
             Movement::MoveSplineInit init(who);
             init.DisableTransportPathTransformations();
             init.MoveTo(0.3320355f, 0.05355075f, 5.196949f, false);
-            who->GetMotionMaster()->LaunchMoveSpline(std::move(init), EVENT_VEHICLE_BOARD, MOTION_PRIORITY_HIGHEST);
+            init.Launch();
 
             me->setActive(true);
             me->SetFarVisible(true);
@@ -486,7 +485,7 @@ struct npc_skadi_trashAI : public ScriptedAI
         ScheduleTasks();
     }
 
-    void IsSummonedBy(WorldObject* /*summoner*/) override
+    void IsSummonedBy(Unit* /*summoner*/) override
     {
         if (Creature* skadi = _instance->GetCreature(DATA_SKADI_THE_RUTHLESS))
             skadi->AI()->JustSummoned(me);
@@ -609,7 +608,7 @@ public:
             _scheduler
                 .Schedule(Seconds(13), [this](TaskContext net)
                 {
-                    if (Unit* target = SelectTarget(SELECT_TARGET_MAXDISTANCE, 0, 30, true))
+                    if (Unit* target = SelectTarget(SELECT_TARGET_FARTHEST, 0, 30, true))
                         DoCast(target, SPELL_NET);
                     net.Repeat();
                 })

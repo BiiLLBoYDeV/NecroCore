@@ -119,9 +119,6 @@ public:
                 case NPC_SCARSHIELD_INFILTRATOR:
                     ScarshieldInfiltrator = creature->GetGUID();
                     break;
-                case NPC_FINKLE_EINHORN:
-                    creature->AI()->Talk(SAY_FINKLE_GANG);
-                    break;
              }
          }
 
@@ -294,9 +291,8 @@ public:
                     if (data == AREATRIGGER_DRAGONSPIRE_HALL)
                     {
                         if (GetBossState(DATA_DRAGONSPIRE_ROOM) != DONE)
-                            Events.ScheduleEvent(EVENT_DARGONSPIRE_ROOM_STORE, 1s);
+                            Events.ScheduleEvent(EVENT_DARGONSPIRE_ROOM_STORE, 1000);
                     }
-                    break;
                 default:
                     break;
             }
@@ -390,12 +386,12 @@ public:
                 {
                     case EVENT_DARGONSPIRE_ROOM_STORE:
                         Dragonspireroomstore();
-                        Events.ScheduleEvent(EVENT_DARGONSPIRE_ROOM_CHECK, 3s);
+                        Events.ScheduleEvent(EVENT_DARGONSPIRE_ROOM_CHECK, 3000);
                         break;
                     case EVENT_DARGONSPIRE_ROOM_CHECK:
                         Dragonspireroomcheck();
                         if ((GetBossState(DATA_DRAGONSPIRE_ROOM) != DONE))
-                            Events.ScheduleEvent(EVENT_DARGONSPIRE_ROOM_CHECK, 3s);
+                            Events.ScheduleEvent(EVENT_DARGONSPIRE_ROOM_CHECK, 3000);
                         break;
                     default:
                          break;
@@ -592,9 +588,7 @@ public:
     bool OnTrigger(Player* player, AreaTriggerEntry const* /*at*/) override
     {
         if (player->IsAlive())
-        {
             if (InstanceScript* instance = player->GetInstanceScript())
-            {
                 if (Creature* infiltrator = ObjectAccessor::GetCreature(*player, instance->GetGuidData(DATA_SCARSHIELD_INFILTRATOR)))
                 {
                     if (player->GetLevel() >= 57)
@@ -604,8 +598,6 @@ public:
 
                     return true;
                 }
-            }
-        }
 
         return false;
     }

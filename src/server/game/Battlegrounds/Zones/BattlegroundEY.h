@@ -356,7 +356,7 @@ struct BattlegroundEYScore final : public BattlegroundScore
     friend class BattlegroundEY;
 
     protected:
-        BattlegroundEYScore(ObjectGuid playerGuid) : BattlegroundScore(playerGuid), FlagCaptures(0) { }
+        BattlegroundEYScore(ObjectGuid playerGuid, uint32 team) : BattlegroundScore(playerGuid, team), FlagCaptures(0) { }
 
         void UpdateScore(uint32 type, uint32 value) override
         {
@@ -371,7 +371,7 @@ struct BattlegroundEYScore final : public BattlegroundScore
             }
         }
 
-        void BuildObjectivesBlock(WorldPacket& data) final override;
+        void BuildObjectivesBlock(WorldPacket& data, ByteBuffer& content) final override;
 
         uint32 GetAttr1() const final override { return FlagCaptures; }
 
@@ -406,7 +406,7 @@ class BattlegroundEY : public Battleground
         void UpdateTeamScore(uint32 Team);
         void EndBattleground(uint32 winner) override;
         bool UpdatePlayerScore(Player* player, uint32 type, uint32 value, bool doAddHonor = true) override;
-        void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override;
+        void FillInitialWorldStates(WorldPacket& data) override;
         void SetDroppedFlagGUID(ObjectGuid guid, int32 /*TeamID*/ = -1) override  { m_DroppedFlagGUID = guid; }
         ObjectGuid GetDroppedFlagGUID() const { return m_DroppedFlagGUID; }
 

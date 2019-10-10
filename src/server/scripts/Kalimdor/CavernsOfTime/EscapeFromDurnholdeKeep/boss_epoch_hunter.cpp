@@ -51,11 +51,6 @@ class boss_epoch_hunter : public CreatureScript
 public:
     boss_epoch_hunter() : CreatureScript("boss_epoch_hunter") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetOldHillsbradAI<boss_epoch_hunterAI>(creature);
-    }
-
     struct boss_epoch_hunterAI : public ScriptedAI
     {
         boss_epoch_hunterAI(Creature* creature) : ScriptedAI(creature)
@@ -144,6 +139,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetOldHillsbradAI<boss_epoch_hunterAI>(creature);
+    }
 };
 
 void AddSC_boss_epoch_hunter()

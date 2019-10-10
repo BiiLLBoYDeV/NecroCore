@@ -63,7 +63,6 @@ target_link_libraries(common
     process
     trinity-core-interface
   PUBLIC
-    argon2
     boost
     fmt
     g3dlib
@@ -74,13 +73,6 @@ target_link_libraries(common
     valgrind
     threads
     jemalloc)
-
-
-if (ELUNA)
-  target_link_libraries(common
-    PUBLIC
-      lualib)
-endif()
 
 add_dependencies(common revision_data.h)
 

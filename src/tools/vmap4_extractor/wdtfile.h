@@ -19,25 +19,34 @@
 #ifndef WDTFILE_H
 #define WDTFILE_H
 
-#include "mpq_libmpq04.h"
+#include "mpqfile.h"
 #include <string>
+#include <memory>
 
 class ADTFile;
 
 class WDTFile
 {
 public:
-    WDTFile(char* file_name, char* file_name1);
-    ~WDTFile(void);
-
+    WDTFile(char const* file_name, std::string mapName, bool cache);
+    ~WDTFile();
     bool init(uint32 mapId);
-    ADTFile* GetMap(int x, int z);
 
-    std::vector<std::string> _wmoNames;
+    ADTFile* GetMap(int32 x, int32 y);
+    void FreeADT(ADTFile* adt);
+
+    std::string* gWmoInstansName;
+    int gnWMO;
 
 private:
     MPQFile _file;
-    std::string filename;
+    std::string _mapName;
+    std::vector<std::string> _wmoNames;
+    struct ADTCache
+    {
+        std::unique_ptr<ADTFile> file[64][64];
+    };
+    std::unique_ptr<ADTCache> _adtCache;
 };
 
 #endif

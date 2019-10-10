@@ -82,6 +82,4 @@ inline AI* GetMoltenCoreAI(T* obj)
     return GetInstanceAI<AI>(obj, MCScriptName);
 }
 
-#define RegisterMoltenCoreCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetMoltenCoreAI)
-
 #endif

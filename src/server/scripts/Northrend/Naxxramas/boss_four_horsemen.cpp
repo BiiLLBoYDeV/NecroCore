@@ -241,7 +241,11 @@ struct boss_four_horsemen_baseAI : public BossAI
                                 continue;
 
                             if (player->IsAlive())
-                                AddThreat(player, 0.0f, cBoss);
+                            {
+                                cBoss->AddThreat(player, 0.0f);
+                                cBoss->SetInCombatWith(player);
+                                player->SetInCombatWith(cBoss);
+                            }
                         }
                     }
 
@@ -375,7 +379,7 @@ struct boss_four_horsemen_baseAI : public BossAI
 
     private:
         const Horseman _which;
-        Position const* _initialPath;
+        const Position* _initialPath;
         bool _myMovementFinished;
         uint8 _nextMovement;
         uint32 _timeDied;
@@ -395,22 +399,22 @@ class boss_four_horsemen_baron : public CreatureScript
             {
                 SetCombatMovement(true);
                 me->SetReactState(REACT_AGGRESSIVE);
-                ThreatManager& threat = me->GetThreatManager();
-                if (threat.IsThreatListEmpty())
+                ThreatManager& threat = me->getThreatManager();
+                if (threat.isThreatListEmpty())
                 {
                     if (Unit* nearest = me->SelectNearestPlayer(5000.0f))
                     {
-                        AddThreat(nearest, 1.0f);
+                        me->AddThreat(nearest, 1.0f);
                         AttackStart(nearest);
                     }
                     else
                         ResetEncounter();
                 }
                 else
-                    AttackStart(threat.GetCurrentVictim());
+                    AttackStart(threat.getHostilTarget());
 
-                events.ScheduleEvent(EVENT_BERSERK, 10min);
-                events.ScheduleEvent(EVENT_MARK, 24s);
+                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
+                events.ScheduleEvent(EVENT_MARK, Seconds(24));
                 events.ScheduleEvent(EVENT_UNHOLYSHADOW, randtime(Seconds(3), Seconds(7)));
             }
 
@@ -468,22 +472,22 @@ class boss_four_horsemen_thane : public CreatureScript
             {
                 SetCombatMovement(true);
                 me->SetReactState(REACT_AGGRESSIVE);
-                ThreatManager& threat = me->GetThreatManager();
-                if (threat.IsThreatListEmpty())
+                ThreatManager& threat = me->getThreatManager();
+                if (threat.isThreatListEmpty())
                 {
                     if (Unit* nearest = me->SelectNearestPlayer(5000.0f))
                     {
-                        AddThreat(nearest, 1.0f);
+                        me->AddThreat(nearest, 1.0f);
                         AttackStart(nearest);
                     }
                     else
                         ResetEncounter();
                 }
                 else
-                    AttackStart(threat.GetCurrentVictim());
+                    AttackStart(threat.getHostilTarget());
 
-                events.ScheduleEvent(EVENT_BERSERK, 10min);
-                events.ScheduleEvent(EVENT_MARK, 24s);
+                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
+                events.ScheduleEvent(EVENT_MARK, Seconds(24));
                 events.ScheduleEvent(EVENT_METEOR, randtime(Seconds(10), Seconds(25)));
             }
             void _UpdateAI(uint32 diff) override
@@ -548,8 +552,8 @@ class boss_four_horsemen_lady : public CreatureScript
             boss_four_horsemen_ladyAI(Creature* creature) : boss_four_horsemen_baseAI(creature, LADY, ladyPath) { }
             void BeginFighting() override
             {
-                events.ScheduleEvent(EVENT_BERSERK, 10min);
-                events.ScheduleEvent(EVENT_MARK, 24s);
+                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
+                events.ScheduleEvent(EVENT_MARK, Seconds(24));
                 events.ScheduleEvent(EVENT_VOIDZONE, randtime(Seconds(5), Seconds(10)));
             }
 
@@ -559,7 +563,7 @@ class boss_four_horsemen_lady : public CreatureScript
                     return;
                 if (!_ourMovementFinished)
                     return;
-                if (me->GetThreatManager().IsThreatListEmpty())
+                if (me->getThreatManager().isThreatListEmpty())
                 {
                     EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
                     return;
@@ -592,7 +596,7 @@ class boss_four_horsemen_lady : public CreatureScript
                 if (me->HasUnitState(UNIT_STATE_CASTING))
                     return;
 
-                if (Unit* target = SelectTarget(SELECT_TARGET_MINDISTANCE, 0, 45.0f, true))
+                if (Unit* target = SelectTarget(SELECT_TARGET_NEAREST, 0, 45.0f, true))
                     DoCast(target, SPELL_SHADOW_BOLT);
                 else
                 {
@@ -618,8 +622,8 @@ class boss_four_horsemen_sir : public CreatureScript
             boss_four_horsemen_sirAI(Creature* creature) : boss_four_horsemen_baseAI(creature, SIR, sirPath), _shouldSay(true) { }
             void BeginFighting() override
             {
-                events.ScheduleEvent(EVENT_BERSERK, 10min);
-                events.ScheduleEvent(EVENT_MARK, 24s);
+                events.ScheduleEvent(EVENT_BERSERK, Minutes(10));
+                events.ScheduleEvent(EVENT_MARK, Seconds(24));
                 events.ScheduleEvent(EVENT_HOLYWRATH, randtime(Seconds(13), Seconds(18)));
             }
 
@@ -629,7 +633,7 @@ class boss_four_horsemen_sir : public CreatureScript
                     return;
                 if (!_ourMovementFinished)
                     return;
-                if (me->GetThreatManager().IsThreatListEmpty())
+                if (me->getThreatManager().isThreatListEmpty())
                 {
                     EnterEvadeMode(EVADE_REASON_NO_HOSTILES);
                     return;
@@ -649,7 +653,7 @@ class boss_four_horsemen_sir : public CreatureScript
                             events.Repeat(Seconds(15));
                             break;
                         case EVENT_HOLYWRATH:
-                            if (Unit* target = SelectTarget(SELECT_TARGET_MINDISTANCE, 0, 45.0f, true))
+                            if (Unit* target = SelectTarget(SELECT_TARGET_NEAREST, 0, 45.0f, true))
                             {
                                 DoCast(target, SPELL_HOLY_WRATH, true);
                                 _shouldSay = true;
@@ -662,7 +666,7 @@ class boss_four_horsemen_sir : public CreatureScript
                 if (me->HasUnitState(UNIT_STATE_CASTING))
                     return;
 
-                if (Unit* target = SelectTarget(SELECT_TARGET_MINDISTANCE, 0, 45.0f, true))
+                if (Unit* target = SelectTarget(SELECT_TARGET_NEAREST, 0, 45.0f, true))
                     DoCast(target, SPELL_HOLY_BOLT);
                 else
                 {
@@ -690,69 +694,60 @@ class boss_four_horsemen_sir : public CreatureScript
         }
 };
 
- class spell_four_horsemen_mark : public AuraScript
- {
-     PrepareAuraScript(spell_four_horsemen_mark);
+class spell_four_horsemen_mark : public SpellScriptLoader
+{
+    public:
+        spell_four_horsemen_mark() : SpellScriptLoader("spell_four_horsemen_mark") { }
 
-     void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
-     {
-         if (Unit* caster = GetCaster())
-         {
-             int32 damage;
-             switch (GetStackAmount())
-             {
-                 case 1:
-                     damage = 0;
-                     break;
-                 case 2:
-                     damage = 500;
-                     break;
-                 case 3:
-                     damage = 1000;
-                     break;
-                 case 4:
-                     damage = 1500;
-                     break;
-                 case 5:
-                     damage = 4000;
-                     break;
-                 case 6:
-                     damage = 12000;
-                     break;
-                 default:
-                     damage = 20000 + 1000 * (GetStackAmount() - 7);
-                     break;
-             }
-             if (damage)
-             {
-                 CastSpellExtraArgs args(TRIGGERED_FULL_MASK);
-                 args.AddSpellBP0(damage);
-                 caster->CastSpell(GetTarget(), SPELL_MARK_DAMAGE, args);
-             }
-         }
-     }
+        class spell_four_horsemen_mark_AuraScript : public AuraScript
+        {
+            PrepareAuraScript(spell_four_horsemen_mark_AuraScript);
 
-     void Register() override
-     {
-         AfterEffectApply += AuraEffectApplyFn(spell_four_horsemen_mark::OnApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
-     }
+            void OnApply(AuraEffect const* /*aurEff*/, AuraEffectHandleModes /*mode*/)
+            {
+                if (Unit* caster = GetCaster())
+                {
+                    int32 damage;
+                    switch (GetStackAmount())
+                    {
+                        case 1:
+                            damage = 0;
+                            break;
+                        case 2:
+                            damage = 500;
+                            break;
+                        case 3:
+                            damage = 1000;
+                            break;
+                        case 4:
+                            damage = 1500;
+                            break;
+                        case 5:
+                            damage = 4000;
+                            break;
+                        case 6:
+                            damage = 12000;
+                            break;
+                        default:
+                            damage = 20000 + 1000 * (GetStackAmount() - 7);
+                            break;
+                    }
+                    if (damage)
+                        caster->CastCustomSpell(SPELL_MARK_DAMAGE, SPELLVALUE_BASE_POINT0, damage, GetTarget());
+                }
+            }
+
+            void Register() override
+            {
+                AfterEffectApply += AuraEffectApplyFn(spell_four_horsemen_mark_AuraScript::OnApply, EFFECT_0, SPELL_AURA_DUMMY, AURA_EFFECT_HANDLE_REAL_OR_REAPPLY_MASK);
+            }
+        };
+
+        AuraScript* GetAuraScript() const override
+        {
+            return new spell_four_horsemen_mark_AuraScript();
+        }
 };
-
- class spell_four_horsemen_consumption : public SpellScript
- {
-     PrepareSpellScript(spell_four_horsemen_consumption);
-
-     void HandleDamageCalc(SpellEffIndex /*effIndex*/)
-     {
-         uint32 damage = GetCaster()->GetMap()->IsHeroic() ? 4250 : 2750;
-         SetEffectValue(damage);
-     }
-
-     void Register() override
-     {
-         OnEffectLaunchTarget += SpellEffectFn(spell_four_horsemen_consumption::HandleDamageCalc, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
-     }
- };
 
 void AddSC_boss_four_horsemen()
 {
@@ -760,6 +755,5 @@ void AddSC_boss_four_horsemen()
     new boss_four_horsemen_thane();
     new boss_four_horsemen_lady();
     new boss_four_horsemen_sir();
-    RegisterAuraScript(spell_four_horsemen_mark);
-    RegisterSpellScript(spell_four_horsemen_consumption);
+    new spell_four_horsemen_mark();
 }

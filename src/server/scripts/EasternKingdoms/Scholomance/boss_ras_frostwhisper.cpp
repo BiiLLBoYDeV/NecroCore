@@ -15,7 +15,6 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "scholomance.h"
 #include "ScriptMgr.h"
 #include "ScriptedCreature.h"
 
@@ -56,10 +55,10 @@ public:
 
         void JustEngagedWith(Unit* /*who*/) override
         {
-            events.ScheduleEvent(EVENT_ICE_ARMOR, 2s);
-            events.ScheduleEvent(EVENT_FROSTBOLT, 8s);
-            events.ScheduleEvent(EVENT_CHILL_NOVA, 12s);
-            events.ScheduleEvent(EVENT_FREEZE, 18s);
+            events.ScheduleEvent(EVENT_ICE_ARMOR, 2000);
+            events.ScheduleEvent(EVENT_FROSTBOLT, 8000);
+            events.ScheduleEvent(EVENT_CHILL_NOVA, 12000);
+            events.ScheduleEvent(EVENT_FREEZE, 18000);
             events.ScheduleEvent(EVENT_FEAR, 45000);
         }
 
@@ -79,24 +78,24 @@ public:
                 {
                     case EVENT_ICE_ARMOR:
                         DoCast(me, SPELL_ICE_ARMOR);
-                        events.ScheduleEvent(EVENT_ICE_ARMOR, 3min);
+                        events.ScheduleEvent(EVENT_ICE_ARMOR, 180000);
                         break;
                     case EVENT_FROSTBOLT:
                         if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 40.0f, true))
                             DoCast(target, SPELL_FROSTBOLT);
-                        events.ScheduleEvent(EVENT_FROSTBOLT, 8s);
+                        events.ScheduleEvent(EVENT_FROSTBOLT, 8000);
                         break;
                     case EVENT_FREEZE:
                         DoCastVictim(SPELL_FREEZE);
-                        events.ScheduleEvent(EVENT_FREEZE, 24s);
+                        events.ScheduleEvent(EVENT_FREEZE, 24000);
                         break;
                     case EVENT_FEAR:
                         DoCastVictim(SPELL_FEAR);
-                        events.ScheduleEvent(EVENT_FEAR, 30s);
+                        events.ScheduleEvent(EVENT_FEAR, 30000);
                         break;
                     case EVENT_CHILL_NOVA:
                         DoCastVictim(SPELL_CHILL_NOVA);
-                        events.ScheduleEvent(EVENT_CHILL_NOVA, 14s);
+                        events.ScheduleEvent(EVENT_CHILL_NOVA, 14000);
                         break;
                     case EVENT_FROSTVOLLEY:
                         DoCastVictim(SPELL_FROSTVOLLEY);
@@ -119,7 +118,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetScholomanceAI<boss_rasfrostAI>(creature);
+        return new boss_rasfrostAI(creature);
     }
 };
 

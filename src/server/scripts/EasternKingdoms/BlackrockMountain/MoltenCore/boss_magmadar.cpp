@@ -23,10 +23,10 @@ SDComment: Conflag on ground nyi
 SDCategory: Molten Core
 EndScriptData */
 
-#include "ScriptMgr.h"
-#include "molten_core.h"
 #include "ObjectMgr.h"
+#include "ScriptMgr.h"
 #include "ScriptedCreature.h"
+#include "molten_core.h"
 
 enum Texts
 {
@@ -68,9 +68,9 @@ class boss_magmadar : public CreatureScript
             void JustEngagedWith(Unit* victim) override
             {
                 BossAI::JustEngagedWith(victim);
-                events.ScheduleEvent(EVENT_FRENZY, 30s);
-                events.ScheduleEvent(EVENT_PANIC, 20s);
-                events.ScheduleEvent(EVENT_LAVA_BOMB, 12s);
+                events.ScheduleEvent(EVENT_FRENZY, 30000);
+                events.ScheduleEvent(EVENT_PANIC, 20000);
+                events.ScheduleEvent(EVENT_LAVA_BOMB, 12000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -90,16 +90,16 @@ class boss_magmadar : public CreatureScript
                         case EVENT_FRENZY:
                             Talk(EMOTE_FRENZY);
                             DoCast(me, SPELL_FRENZY);
-                            events.ScheduleEvent(EVENT_FRENZY, 15s);
+                            events.ScheduleEvent(EVENT_FRENZY, 15000);
                             break;
                         case EVENT_PANIC:
                             DoCastVictim(SPELL_PANIC);
-                            events.ScheduleEvent(EVENT_PANIC, 35s);
+                            events.ScheduleEvent(EVENT_PANIC, 35000);
                             break;
                         case EVENT_LAVA_BOMB:
-                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true, true, -SPELL_LAVA_BOMB))
+                            if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true, -SPELL_LAVA_BOMB))
                                 DoCast(target, SPELL_LAVA_BOMB);
-                            events.ScheduleEvent(EVENT_LAVA_BOMB, 12s);
+                            events.ScheduleEvent(EVENT_LAVA_BOMB, 12000);
                             break;
                         default:
                             break;
@@ -115,7 +115,7 @@ class boss_magmadar : public CreatureScript
 
         CreatureAI* GetAI(Creature* creature) const override
         {
-            return GetMoltenCoreAI<boss_magmadarAI>(creature);
+            return new boss_magmadarAI(creature);
         }
 };
 

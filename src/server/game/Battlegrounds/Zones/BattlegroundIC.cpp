@@ -17,21 +17,22 @@
  */
 
 #include "BattlegroundIC.h"
+#include "Battleground.h"
 #include "GameObject.h"
 #include "Log.h"
 #include "Map.h"
+#include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
 #include "Transport.h"
 #include "Vehicle.h"
 #include "WorldPacket.h"
-#include "WorldStatePackets.h"
 
-void BattlegroundICScore::BuildObjectivesBlock(WorldPacket& data)
+void BattlegroundICScore::BuildObjectivesBlock(WorldPacket& data, ByteBuffer& content)
 {
-    data << uint32(2); // Objectives Count
-    data << uint32(BasesAssaulted);
-    data << uint32(BasesDefended);
+    data.WriteBits(2, 24); // Objectives Count
+    content << uint32(BasesAssaulted);
+    content << uint32(BasesDefended);
 }
 
 BattlegroundIC::BattlegroundIC()
@@ -250,7 +251,7 @@ void BattlegroundIC::StartingEventOpenDoors()
 void BattlegroundIC::AddPlayer(Player* player)
 {
     Battleground::AddPlayer(player);
-    PlayerScores[player->GetGUID().GetCounter()] = new BattlegroundICScore(player->GetGUID());
+    PlayerScores[player->GetGUID().GetCounter()] = new BattlegroundICScore(player->GetGUID(), player->GetBGTeam());
 
     if (nodePoint[NODE_TYPE_QUARRY].nodeState == (player->GetTeamId() == TEAM_ALLIANCE ? NODE_STATE_CONTROLLED_A : NODE_STATE_CONTROLLED_H))
         player->CastSpell(player, SPELL_QUARRY, true);
@@ -291,21 +292,21 @@ void BattlegroundIC::HandleAreaTrigger(Player* player, uint32 trigger)
     }
 }
 
-void BattlegroundIC::FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet)
+void BattlegroundIC::FillInitialWorldStates(WorldPacket& data)
 {
-    packet.Worldstates.emplace_back(BG_IC_ALLIANCE_RENFORT_SET, 1);
-    packet.Worldstates.emplace_back(BG_IC_HORDE_RENFORT_SET, 1);
-    packet.Worldstates.emplace_back(BG_IC_ALLIANCE_RENFORT, factionReinforcements[TEAM_ALLIANCE]);
-    packet.Worldstates.emplace_back(BG_IC_HORDE_RENFORT, factionReinforcements[TEAM_HORDE]);
+    data << uint32(BG_IC_ALLIANCE_RENFORT_SET) << uint32(1);
+    data << uint32(BG_IC_HORDE_RENFORT_SET) << uint32(1);
+    data << uint32(BG_IC_ALLIANCE_RENFORT) << uint32(factionReinforcements[TEAM_ALLIANCE]);
+    data << uint32(BG_IC_HORDE_RENFORT) << uint32(factionReinforcements[TEAM_HORDE]);
 
-    for (uint8 itr = 0; itr < MAX_FORTRESS_GATES_SPAWNS; ++itr)
+    for (uint8 i = 0; i < MAX_FORTRESS_GATES_SPAWNS; ++i)
     {
-        int32 worldState = GetWorldStateFromGateEntry(BG_IC_ObjSpawnlocs[itr].entry, (GateStatus[GetGateIDFromEntry(BG_IC_ObjSpawnlocs[itr].entry)] == BG_IC_GATE_DESTROYED ? true : false));
-        packet.Worldstates.emplace_back(worldState, 1);
+        uint32 uws = GetWorldStateFromGateEntry(BG_IC_ObjSpawnlocs[i].entry, (GateStatus[GetGateIDFromEntry(BG_IC_ObjSpawnlocs[i].entry)] == BG_IC_GATE_DESTROYED ? true : false));
+        data << uint32(uws) << uint32(1);
     }
 
-    for (uint8 itr = 0; itr < MAX_NODE_TYPES; ++itr)
-        packet.Worldstates.emplace_back(nodePoint[itr].worldStates[nodePoint[itr].nodeState], 1);
+    for (uint8 i = 0; i < MAX_NODE_TYPES; ++i)
+        data << uint32(nodePoint[i].worldStates[nodePoint[i].nodeState]) << uint32(1);
 }
 
 bool BattlegroundIC::SetupBattleground()
@@ -768,8 +769,7 @@ void BattlegroundIC::HandleCapturedNodes(ICNodePoint* node, bool recapture)
 
                         if (Creature* siegeEngine = GetBGCreature(siegeType))
                         {
-                            siegeEngine->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE|UNIT_FLAG_CANNOT_SWIM);
-                            siegeEngine->SetImmuneToPC(true);
+                            siegeEngine->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE|UNIT_FLAG_CANNOT_SWIM|UNIT_FLAG_IMMUNE_TO_PC);
                             siegeEngine->SetFaction(BG_IC_Factions[(node->faction == TEAM_ALLIANCE ? 0 : 1)]);
                         }
                     }

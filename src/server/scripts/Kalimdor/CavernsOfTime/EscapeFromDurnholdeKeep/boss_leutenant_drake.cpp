@@ -109,11 +109,6 @@ class boss_lieutenant_drake : public CreatureScript
 public:
     boss_lieutenant_drake() : CreatureScript("boss_lieutenant_drake") { }
 
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetOldHillsbradAI<boss_lieutenant_drakeAI>(creature);
-    }
-
     struct boss_lieutenant_drakeAI : public ScriptedAI
     {
         boss_lieutenant_drakeAI(Creature* creature) : ScriptedAI(creature)
@@ -200,6 +195,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetOldHillsbradAI<boss_lieutenant_drakeAI>(creature);
+    }
 };
 
 void AddSC_boss_lieutenant_drake()

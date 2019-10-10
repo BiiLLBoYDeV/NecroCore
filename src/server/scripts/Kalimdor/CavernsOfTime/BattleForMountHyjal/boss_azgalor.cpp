@@ -16,10 +16,10 @@
  */
 
 #include "ScriptMgr.h"
-#include "hyjal.h"
 #include "hyjal_trash.h"
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
+#include "ScriptedCreature.h"
 
 enum Spells
 {
@@ -46,11 +46,6 @@ class boss_azgalor : public CreatureScript
 {
 public:
     boss_azgalor() : CreatureScript("boss_azgalor") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<boss_azgalorAI>(creature);
-    }
 
     struct boss_azgalorAI : public hyjal_trashAI
     {
@@ -102,13 +97,13 @@ public:
             Talk(SAY_ONSLAY);
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7 && instance)
             {
-                Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_THRALL));
+                Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_THRALL));
                 if (target && target->IsAlive())
-                    AddThreat(target, 0.0f);
+                    me->AddThreat(target, 0.0f);
             }
         }
 
@@ -124,8 +119,8 @@ public:
         {
             if (IsEvent)
             {
-                //Must update EscortAI
-                EscortAI::UpdateAI(diff);
+                //Must update npc_escortAI
+                npc_escortAI::UpdateAI(diff);
                 if (!go)
                 {
                     go = true;
@@ -182,17 +177,16 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<boss_azgalorAI>(creature);
+    }
 };
 
 class npc_lesser_doomguard : public CreatureScript
 {
 public:
     npc_lesser_doomguard() : CreatureScript("npc_lesser_doomguard") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<npc_lesser_doomguardAI>(creature);
-    }
 
     struct npc_lesser_doomguardAI : public hyjal_trashAI
     {
@@ -225,6 +219,10 @@ public:
         {
         }
 
+        void WaypointReached(uint32 /*waypointId*/) override
+        {
+        }
+
         void MoveInLineOfSight(Unit* who) override
 
         {
@@ -245,7 +243,8 @@ public:
                     Creature* boss = ObjectAccessor::GetCreature(*me, AzgalorGUID);
                     if (!boss || boss->isDead())
                     {
-                        me->DespawnOrUnsummon();
+                        me->setDeathState(JUST_DIED);
+                        me->RemoveCorpse();
                         return;
                     }
                 }
@@ -272,6 +271,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<npc_lesser_doomguardAI>(creature);
+    }
 };
 
 void AddSC_boss_azgalor()

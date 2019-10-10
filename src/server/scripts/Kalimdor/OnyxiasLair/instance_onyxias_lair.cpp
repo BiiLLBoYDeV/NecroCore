@@ -47,7 +47,7 @@ public:
 
     struct instance_onyxias_lair_InstanceMapScript : public InstanceScript
     {
-        instance_onyxias_lair_InstanceMapScript(Map* map) : InstanceScript(map)
+        instance_onyxias_lair_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
         {
             SetHeaders(DataHeader);
             SetBossNumber(EncounterCount);
@@ -88,7 +88,7 @@ public:
                     Position goPos = go->GetPosition();
                     if (Creature* temp = go->SummonCreature(NPC_WHELP, goPos, TEMPSUMMON_CORPSE_DESPAWN))
                     {
-                        temp->AI()->DoZoneInCombat();
+                        temp->SetInCombatWithZone();
                         ++manyWhelpsCounter;
                     }
                     break;

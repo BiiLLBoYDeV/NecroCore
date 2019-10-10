@@ -16,7 +16,6 @@
  */
 
 #include "ScriptMgr.h"
-#include "hyjal.h"
 #include "hyjal_trash.h"
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
@@ -42,11 +41,6 @@ class boss_rage_winterchill : public CreatureScript
 {
 public:
     boss_rage_winterchill() : CreatureScript("boss_rage_winterchill") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetHyjalAI<boss_rage_winterchillAI>(creature);
-    }
 
     struct boss_rage_winterchillAI : public hyjal_trashAI
     {
@@ -92,13 +86,13 @@ public:
             Talk(SAY_ONSLAY);
         }
 
-        void WaypointReached(uint32 waypointId, uint32 /*pathId*/) override
+        void WaypointReached(uint32 waypointId) override
         {
             if (waypointId == 7 && instance)
             {
-                Creature* target = ObjectAccessor::GetCreature(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
+                Unit* target = ObjectAccessor::GetUnit(*me, instance->GetGuidData(DATA_JAINAPROUDMOORE));
                 if (target && target->IsAlive())
-                    AddThreat(target, 0.0f);
+                    me->AddThreat(target, 0.0f);
             }
         }
 
@@ -114,8 +108,8 @@ public:
         {
             if (IsEvent)
             {
-                //Must update EscortAI
-                EscortAI::UpdateAI(diff);
+                //Must update npc_escortAI
+                npc_escortAI::UpdateAI(diff);
                 if (!go)
                 {
                     go = true;
@@ -163,6 +157,10 @@ public:
         }
     };
 
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetHyjalAI<boss_rage_winterchillAI>(creature);
+    }
 };
 
 void AddSC_boss_rage_winterchill()

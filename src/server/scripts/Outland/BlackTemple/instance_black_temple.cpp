@@ -94,7 +94,7 @@ class instance_black_temple : public InstanceMapScript
 
         struct instance_black_temple_InstanceMapScript : public InstanceScript
         {
-            instance_black_temple_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_black_temple_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -190,7 +190,7 @@ class instance_black_temple : public InstanceMapScript
                             for (ObjectGuid ashtongueGuid : AshtongueGUIDs)
                                 if (Creature* ashtongue = instance->GetCreature(ashtongueGuid))
                                     ashtongue->SetFaction(FACTION_ASHTONGUE_DEATHSWORN);
-                        /* fallthrough */
+                        // no break
                     case DATA_TERON_GOREFIEND:
                     case DATA_GURTOGG_BLOODBOIL:
                     case DATA_RELIQUARY_OF_SOULS:

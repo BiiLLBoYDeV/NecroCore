@@ -40,9 +40,9 @@ class TC_COMMON_API Logger
         void write(LogMessage* message) const;
 
     private:
-        std::string name;
-        LogLevel level;
-        std::unordered_map<uint8, Appender*> appenders;
+        std::string _name;
+        LogLevel _level;
+        std::unordered_map<uint8, Appender*> _appenders;
 };
 
 #endif

@@ -158,7 +158,7 @@ public:
             DoCast(me, SPELL_SUBMERGE); // submerge anim
             me->SetVisible(false); // we start invis under water, submerged
             me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
-            me->SetImmuneToPC(true);
+            me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -219,7 +219,7 @@ public:
                     {
                         WaitTimer = 3000;
                         CanStartEvent = true; // fresh fished from pool
-                        me->SetImmuneToPC(false);
+                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                         me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NOT_SELECTABLE);
                     }
                     else
@@ -228,9 +228,9 @@ public:
                 return;
             }
 
-            if (!me->IsThreatened()) // check if should evade
+            if (me->getThreatManager().getThreatList().empty()) // check if should evade
             {
-                if (me->IsEngaged())
+                if (me->IsInCombat())
                     EnterEvadeMode();
                 return;
             }
@@ -250,7 +250,7 @@ public:
                 {
                     Talk(EMOTE_SPOUT);
                     me->SetReactState(REACT_PASSIVE);
-                    me->GetMotionMaster()->MoveRotate(0, 20000, urand(0, 1) ? ROTATE_DIRECTION_LEFT : ROTATE_DIRECTION_RIGHT);
+                    me->GetMotionMaster()->MoveRotate(20000, urand(0, 1) ? ROTATE_DIRECTION_LEFT : ROTATE_DIRECTION_RIGHT);
                     SpoutTimer = 45000;
                     WhirlTimer = 20000; // whirl directly after spout
                     RotTimer = 20000;
@@ -268,7 +268,7 @@ public:
                 else
                     WhirlTimer -= diff;
 
-                if (CheckTimer <= diff) // check if there are players in melee range
+                if (CheckTimer <= diff)//check if there are players in melee range
                 {
                     InRange = false;
                     Map::PlayerList const& PlayerList = me->GetMap()->GetPlayers();
@@ -349,7 +349,7 @@ public:
                     Submerged = false;
                     me->InterruptNonMeleeSpells(false); // shouldn't be any
                     me->RemoveAllAuras();
-                    me->SetImmuneToPC(false);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                     me->RemoveFlag(UNIT_NPC_EMOTESTATE, EMOTE_STATE_SUBMERGED);
                     DoCast(me, SPELL_EMERGE, true);
                     Spawned = false;
@@ -360,7 +360,7 @@ public:
                 else
                     PhaseTimer -= diff;
 
-                if (!me->IsThreatened()) // check if should evade
+                if (me->getThreatManager().getThreatList().empty()) // check if should evade
                 {
                     EnterEvadeMode();
                     return;
@@ -438,8 +438,9 @@ public:
 
             if (ShootBowTimer <= diff)
             {
+                int bp0 = 1100;
                 if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0))
-                    me->CastSpell(target, SPELL_SHOOT, CastSpellExtraArgs(TRIGGERED_FULL_MASK).AddSpellBP0(1100));
+                    me->CastCustomSpell(target, SPELL_SHOOT, &bp0, nullptr, nullptr, true);
                 ShootBowTimer = 4000 + rand32() % 5000;
                 MultiShotTimer += 1500; // add global cooldown
             } else ShootBowTimer -= diff;

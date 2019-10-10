@@ -15,16 +15,16 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
-#include "oculus.h"
+#include "ScriptMgr.h"
 #include "Creature.h"
 #include "CreatureAI.h"
 #include "GameObject.h"
 #include "InstanceScript.h"
 #include "Map.h"
 #include "MotionMaster.h"
-#include "ScriptMgr.h"
+#include "oculus.h"
 #include "TemporarySummon.h"
-#include "WorldStatePackets.h"
+#include "WorldPacket.h"
 
 DoorData const doorData[] =
 {
@@ -43,7 +43,7 @@ class instance_oculus : public InstanceMapScript
 
         struct instance_oculus_InstanceMapScript : public InstanceScript
         {
-            instance_oculus_InstanceMapScript(Map* map) : InstanceScript(map)
+            instance_oculus_InstanceMapScript(InstanceMap* map) : InstanceScript(map)
             {
                 SetHeaders(DataHeader);
                 SetBossNumber(EncounterCount);
@@ -145,17 +145,17 @@ class instance_oculus : public InstanceMapScript
                 }
             }
 
-            void FillInitialWorldStates(WorldPackets::WorldState::InitWorldStates& packet) override
+            void FillInitialWorldStates(WorldPacket& data) override
             {
                 if (GetBossState(DATA_DRAKOS) == DONE && GetBossState(DATA_VAROS) != DONE)
                 {
-                    packet.Worldstates.emplace_back(WORLD_STATE_CENTRIFUGE_CONSTRUCT_SHOW, 1);
-                    packet.Worldstates.emplace_back(WORLD_STATE_CENTRIFUGE_CONSTRUCT_AMOUNT, CentrifugueConstructCounter);
+                    data << uint32(WORLD_STATE_CENTRIFUGE_CONSTRUCT_SHOW) << uint32(1);
+                    data << uint32(WORLD_STATE_CENTRIFUGE_CONSTRUCT_AMOUNT) << uint32(CentrifugueConstructCounter);
                 }
                 else
                 {
-                    packet.Worldstates.emplace_back(WORLD_STATE_CENTRIFUGE_CONSTRUCT_SHOW, 0);
-                    packet.Worldstates.emplace_back(WORLD_STATE_CENTRIFUGE_CONSTRUCT_AMOUNT, 0);
+                    data << uint32(WORLD_STATE_CENTRIFUGE_CONSTRUCT_SHOW) << uint32(0);
+                    data << uint32(WORLD_STATE_CENTRIFUGE_CONSTRUCT_AMOUNT) << uint32(0);
                 }
             }
 
@@ -202,7 +202,7 @@ class instance_oculus : public InstanceMapScript
                             {
                                 eregos->SetPhaseMask(1, true);
                                 GreaterWhelps();
-                                events.ScheduleEvent(EVENT_EREGOS_INTRO, 5s);
+                                events.ScheduleEvent(EVENT_EREGOS_INTRO, 5000);
                             }
                         }
                         break;

@@ -16,9 +16,9 @@
  */
 
 #include "UpdateTime.h"
-#include "Timer.h"
 #include "Config.h"
 #include "Log.h"
+#include "Timer.h"
 
 // create instance
 WorldUpdateTime sWorldUpdateTime;
@@ -31,7 +31,6 @@ UpdateTime::UpdateTime()
     _maxUpdateTime = 0;
     _maxUpdateTimeOfLastTable = 0;
     _maxUpdateTimeOfCurrentTable = 0;
-    _recordedTime = 0;
 
     _updateTimeDataTable = { };
 }
@@ -49,8 +48,6 @@ uint32 UpdateTime::GetTimeWeightedAverageUpdateTime() const
         sum += diff * diff;
         weightsum += diff;
     }
-    if (weightsum == 0)
-        return 0;
     return sum / weightsum;
 }
 

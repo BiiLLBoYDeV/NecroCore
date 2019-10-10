@@ -31,6 +31,7 @@
 #include "ObjectMgr.h"
 #include "Opcodes.h"
 #include "Pet.h"
+#include "PhasingHandler.h"
 #include "Player.h"
 #include "RBAC.h"
 #include "ScriptMgr.h"
@@ -46,7 +47,7 @@ BossBoundaryData::~BossBoundaryData()
         delete it->Boundary;
 }
 
-InstanceScript::InstanceScript(Map* map) : instance(map), completedEncounters(0), _instanceSpawnGroups(sObjectMgr->GetSpawnGroupsForInstance(map->GetId()))
+InstanceScript::InstanceScript(InstanceMap* map) : instance(map), completedEncounters(0), _instanceSpawnGroups(sObjectMgr->GetSpawnGroupsForInstance(map->GetId()))
 {
 #ifdef TRINITY_API_USE_DYNAMIC_LINKING
     uint32 scriptId = sObjectMgr->GetInstanceTemplate(map->GetId())->ScriptId;
@@ -343,25 +344,43 @@ bool InstanceScript::SetBossState(uint32 id, EncounterState state)
         if (bossInfo->state == TO_BE_DECIDED) // loading
         {
             bossInfo->state = state;
-            TC_LOG_DEBUG("scripts", "InstanceScript: Initialize boss %u state as %s (map %u, %u).", id, GetBossStateName(state), instance->GetId(), instance->GetInstanceId());
+            TC_LOG_DEBUG("scripts", "InstanceScript: Initialize boss %u state as %s (map %u, %u).", id, GetBossStateName(state).c_str(), instance->GetId(), instance->GetInstanceId());
             return false;
         }
-        else
-        {
-            if (bossInfo->state == state)
-                return false;
+
+		else
+		{
+			if (bossInfo->state == state)
+				return false;
 
             if (bossInfo->state == DONE)
             {
-                TC_LOG_ERROR("map", "InstanceScript: Tried to set instance boss %u state from %s back to %s for map %u, instance id %u. Blocked!", id, GetBossStateName(bossInfo->state), GetBossStateName(state), instance->GetId(), instance->GetInstanceId());
+                TC_LOG_ERROR("map", "InstanceScript: Tried to set instance state from %s back to %s for map %u, instance id %u. Blocked!", GetBossStateName(bossInfo->state).c_str(), GetBossStateName(state).c_str(), instance->GetId(), instance->GetInstanceId());
                 return false;
             }
 
-            if (state == DONE)
-                for (GuidSet::iterator i = bossInfo->minion.begin(); i != bossInfo->minion.end(); ++i)
-                    if (Creature* minion = instance->GetCreature(*i))
-                        if (minion->isWorldBoss() && minion->IsAlive())
-                            return false;
+			if (state == DONE)
+				for (GuidSet::iterator i = bossInfo->minion.begin(); i != bossInfo->minion.end(); ++i)
+					if (Creature* minion = instance->GetCreature(*i))
+						if (minion->isWorldBoss() && minion->IsAlive())
+							return false;
+
+            if (instance->IsRaid())
+            {
+                switch (state)
+                {
+                    case IN_PROGRESS:
+                        InitializeCombatResurrections();
+                        SendEncounterUnit(ENCOUNTER_FRAME_SET_COMBAT_RES_LIMIT);
+                        break;
+                    case FAIL:
+                    case DONE:
+                        SendEncounterUnit(ENCOUNTER_FRAME_RESET_COMBAT_RES_LIMIT);
+                        break;
+                    default:
+                        break;
+                }
+            }
 
             bossInfo->state = state;
             SaveToDB();
@@ -591,7 +610,7 @@ void InstanceScript::DoUpdateAchievementCriteria(AchievementCriteriaTypes type, 
     if (!PlayerList.isEmpty())
         for (Map::PlayerList::const_iterator i = PlayerList.begin(); i != PlayerList.end(); ++i)
             if (Player* player = i->GetSource())
-                player->UpdateAchievementCriteria(type, miscValue1, miscValue2, unit);
+                player->UpdateAchievementCriteria(type, miscValue1, miscValue2, 0, unit);
 }
 
 // Start timed achievement for all players in instance
@@ -711,12 +730,13 @@ void InstanceScript::SendEncounterUnit(uint32 type, Unit* unit /*= nullptr*/, ui
         case ENCOUNTER_FRAME_UPDATE_PRIORITY:
             if (!unit)
                 return;
-            data << unit->GetPackGUID();
+            data.appendPackGUID(unit->GetGUID());
             data << uint8(param1);
             break;
         case ENCOUNTER_FRAME_ADD_TIMER:
         case ENCOUNTER_FRAME_ENABLE_OBJECTIVE:
         case ENCOUNTER_FRAME_DISABLE_OBJECTIVE:
+        case ENCOUNTER_FRAME_SET_COMBAT_RES_LIMIT:
             data << uint8(param1);
             break;
         case ENCOUNTER_FRAME_UPDATE_OBJECTIVE:
@@ -724,6 +744,8 @@ void InstanceScript::SendEncounterUnit(uint32 type, Unit* unit /*= nullptr*/, ui
             data << uint8(param2);
             break;
         case ENCOUNTER_FRAME_UNK7:
+        case ENCOUNTER_FRAME_ADD_COMBAT_RES_LIMIT:
+        case ENCOUNTER_FRAME_RESET_COMBAT_RES_LIMIT:
         default:
             break;
     }
@@ -739,15 +761,16 @@ void InstanceScript::UpdateEncounterState(EncounterCreditType type, uint32 credi
 
     uint32 dungeonId = 0;
 
-    for (auto const& encounter : *encounters)
+    for (DungeonEncounterList::const_iterator itr = encounters->begin(); itr != encounters->end(); ++itr)
     {
+        DungeonEncounter const* encounter = *itr;
         if (encounter->creditType == type && encounter->creditEntry == creditEntry)
         {
             completedEncounters |= 1 << encounter->dbcEntry->encounterIndex;
             if (encounter->lastEncounterDungeon)
             {
                 dungeonId = encounter->lastEncounterDungeon;
-                TC_LOG_DEBUG("lfg", "UpdateEncounterState: Instance %s (instanceId %u) completed encounter %s. Credit Dungeon: %u", instance->GetMapName(), instance->GetInstanceId(), encounter->dbcEntry->encounterName[0], dungeonId);
+                TC_LOG_DEBUG("lfg", "UpdateEncounterState: Instance %s (instanceId %u) completed encounter %s. Credit Dungeon: %u", instance->GetMapName(), instance->GetInstanceId(), encounter->dbcEntry->encounterName, dungeonId);
                 break;
             }
         }
@@ -756,19 +779,15 @@ void InstanceScript::UpdateEncounterState(EncounterCreditType type, uint32 credi
     if (dungeonId)
     {
         Map::PlayerList const& players = instance->GetPlayers();
-        for (auto const& ref : players)
+        for (Map::PlayerList::const_iterator i = players.begin(); i != players.end(); ++i)
         {
-            if (Player* player = ref.GetSource())
-            {
+            if (Player* player = i->GetSource())
                 if (Group* grp = player->GetGroup())
-                {
                     if (grp->isLFGGroup())
                     {
                         sLFGMgr->FinishDungeon(grp->GetGUID(), dungeonId, instance);
                         return;
                     }
-                }
-            }
         }
     }
 }
@@ -783,7 +802,7 @@ void InstanceScript::UpdateEncounterStateForSpellCast(uint32 spellId, Unit* sour
     UpdateEncounterState(ENCOUNTER_CREDIT_CAST_SPELL, spellId, source);
 }
 
-/*static*/ char const* InstanceScript::GetBossStateName(uint8 state)
+/*static*/ std::string InstanceScript::GetBossStateName(uint8 state)
 {
     // See enum EncounterState in InstanceScript.h
     switch (state)
@@ -811,4 +830,24 @@ bool InstanceHasScript(WorldObject const* obj, char const* scriptName)
         return instance->GetScriptName() == scriptName;
 
     return false;
+}
+
+void InstanceScript::UpdatePhasing()
+{
+    Map::PlayerList const& players = instance->GetPlayers();
+    for (Map::PlayerList::const_iterator itr = players.begin(); itr != players.end(); ++itr)
+        if (Player* player = itr->GetSource())
+            PhasingHandler::SendToPlayer(player);
+}
+
+void InstanceScript::InitializeCombatResurrections()
+{
+    if (instance->IsRaid())
+        _combatResurrectionCharges = instance->Is25ManRaid() ? 3 : 1;
+}
+
+void InstanceScript::UseCombatResurrection()
+{
+    _combatResurrectionCharges--;
+    SendEncounterUnit(ENCOUNTER_FRAME_ADD_COMBAT_RES_LIMIT);
 }

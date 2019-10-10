@@ -26,7 +26,6 @@
 #include "GridNotifiersImpl.h"
 #include "MotionMaster.h"
 #include "ScriptedCreature.h"
-#include "SpellScript.h"
 
 enum DeathKnightSpells
 {
@@ -97,7 +96,7 @@ class npc_pet_dk_ebon_gargoyle : public CreatureScript
                 float x = me->GetPositionX() + 20 * std::cos(me->GetOrientation());
                 float y = me->GetPositionY() + 20 * std::sin(me->GetOrientation());
                 float z = me->GetPositionZ() + 40;
-                me->GetMotionMaster()->Clear();
+                me->GetMotionMaster()->Clear(false);
                 me->GetMotionMaster()->MovePoint(0, x, y, z);
 
                 // Despawn as soon as possible
@@ -137,31 +136,8 @@ class npc_pet_dk_guardian : public CreatureScript
         }
 };
 
-class spell_pet_dk_gargoyle_strike : public SpellScript
-{
-    PrepareSpellScript(spell_pet_dk_gargoyle_strike);
-
-    void HandleDamageCalc(SpellEffIndex /*effIndex*/)
-    {
-        int32 damage = 60;
-        if (Unit* caster = GetCaster())
-        {
-            if (caster->GetLevel() >= 60)
-                damage += (caster->GetLevel() - 60) * 4;
-        }
-
-        SetEffectValue(damage);
-    }
-
-    void Register() override
-    {
-        OnEffectLaunchTarget += SpellEffectFn(spell_pet_dk_gargoyle_strike::HandleDamageCalc, EFFECT_0, SPELL_EFFECT_SCHOOL_DAMAGE);
-    }
-};
-
 void AddSC_deathknight_pet_scripts()
 {
     new npc_pet_dk_ebon_gargoyle();
     new npc_pet_dk_guardian();
-    RegisterSpellScript(spell_pet_dk_gargoyle_strike);
 }

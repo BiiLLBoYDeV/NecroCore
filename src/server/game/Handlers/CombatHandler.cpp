@@ -19,7 +19,7 @@
 #include "WorldSession.h"
 #include "Common.h"
 #include "CreatureAI.h"
-#include "DBCStructure.h"
+#include "DBCStores.h"
 #include "Log.h"
 #include "ObjectAccessor.h"
 #include "Player.h"

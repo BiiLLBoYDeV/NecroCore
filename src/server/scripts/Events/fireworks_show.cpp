@@ -23,7 +23,6 @@
 #include "GameObject.h"
 #include "GameObjectAI.h"
 #include "GameTime.h"
-#include "Util.h"
 
 enum FireworksShowTypeObjects
 {
@@ -79,7 +78,7 @@ enum FireworksZones
     STORMWIND          = 1519
 };
 
-std::vector<Position> const BootyBayPos =
+static const std::vector<Position> BootyBayPos =
 {
     { -14358.03f, 515.058f, 34.2664f,   3.68265f   },
     { -14357.49f, 490.8445f, 39.47329f, 0.9773831f },
@@ -108,7 +107,7 @@ std::vector<Position> const BootyBayPos =
     { -14378.1f,  473.5608f, 40.16786f, 0.9773831f }
 };
 
-std::vector<Position> const StormwindPos =
+static const std::vector<Position> StormwindPos =
 {
     { -8823.592f,    470.316f,    179.2295f,   1.239183f  },
     { -8883.005f,    590.1927f,   163.1264f,   0.9773831f },
@@ -229,7 +228,7 @@ std::vector<Position> const StormwindPos =
     { -8872.734375f, 573.338440f, 97.723770f,  1.831103f  }
 };
 
-std::vector<Position> const OrgrimmarPos =
+static const std::vector<Position> OrgrimmarPos =
 {
     { 1609.075f,    -4383.707f,     90.23414f,  0.3665176f  },
     { 1469.648f,    -4371.285f,    113.8313f,   6.073746f   },
@@ -326,7 +325,7 @@ std::vector<Position> const OrgrimmarPos =
     { 1493.26253f,  -4402.19919f,   59.147816f, 2.2917f     }
 };
 
-std::vector<Position> const IronForgePos =
+static const std::vector<Position> IronForgePos =
 {
     { -5196.038f, -858.4618f, 525.0447f, 6.073746f  },
     { -5195.734f, -887.6441f, 534.168f,  3.68265f   },
@@ -387,7 +386,7 @@ std::vector<Position> const IronForgePos =
     { -5194.976f, -759.9896f, 517.6288f, 3.630291f  }
 };
 
-std::vector<Position> const SilvermoonPos =
+static const std::vector<Position> SilvermoonPos =
 {
     { 9466.583f, -7307.326f, 107.8366f, 0.1047193f  },
     { 9411.616f, -7322.223f, 79.95399f, 2.722713f   },
@@ -457,7 +456,7 @@ std::vector<Position> const SilvermoonPos =
     { 9411.504f, -7288.202f, 112.2664f, 2.844883f   }
 };
 
-std::vector<Position> const ExodarPos =
+static const std::vector<Position> ExodarPos =
 {
     { -3992.465f, -11843.86f, 186.4043f, 2.199115f  },
     { -3948.378f, -11854.06f, 135.6206f, 3.47321f   },
@@ -519,7 +518,7 @@ std::vector<Position> const ExodarPos =
     { -4036.461f, -11783.4f,  142.8152f, 4.729844f  }
 };
 
-std::vector<Position> const ThunderBluffPos =
+static const std::vector<Position> ThunderBluffPos =
 {
     { -1234.804f, -19.72239f, 206.5436f, 0.1396245f },
     { -1244.442f, -35.88308f, 206.82f,   4.729844f  },
@@ -581,7 +580,7 @@ std::vector<Position> const ThunderBluffPos =
     { -1240.617f, -41.39486f, 205.0362f, 5.846854f  }
 };
 
-std::vector<Position> const UndercityPos =
+static const std::vector<Position> UndercityPos =
 {
     { 1850.231f, 257.0156f, 124.1743f, 4.729844f  },
     { 1863.302f, 193.9063f, 114.5829f, 0.9773831f },
@@ -641,7 +640,7 @@ std::vector<Position> const UndercityPos =
     { 1850.288f, 267.309f,  125.0537f, 3.630291f  }
 };
 
-std::vector<Position> const DarnassusPos =
+static const std::vector<Position> DarnassusPos =
 {
     { 8578.888f, 975.2604f, 42.48742f, 5.846854f  },
     { 8574.236f, 944.2083f, 44.71943f, 4.76475f   },
@@ -704,20 +703,20 @@ std::vector<Position> const DarnassusPos =
     { 8554.825f, 813.0746f, 78.88226f, 6.0912f    }
 };
 
-std::unordered_map<uint32, std::vector<Position> const*> const PositionsByZoneMap =
+static const std::unordered_map<uint32, std::vector<Position> const&> pos =
 {
-    { STRANGLETHORN_VALE, &BootyBayPos     },
-    { STORMWIND,          &StormwindPos    },
-    { ORGRIMMAR,          &OrgrimmarPos    },
-    { DUROTAR,            &OrgrimmarPos    },
-    { DUN_MOROGH,         &IronForgePos    },
-    { IRONFORGE,          &IronForgePos    },
-    { EVERSONG_WOODS,     &SilvermoonPos   },
-    { EXODAR,             &ExodarPos       },
-    { THUNDERBLUFF,       &ThunderBluffPos },
-    { UNDERCITY,          &UndercityPos    },
-    { TIRISFAL_GLADES,    &UndercityPos    },
-    { TELDRASSIL,         &DarnassusPos    }
+    { STRANGLETHORN_VALE, BootyBayPos     },
+    { STORMWIND,          StormwindPos    },
+    { ORGRIMMAR,          OrgrimmarPos    },
+    { DUROTAR,            OrgrimmarPos    },
+    { DUN_MOROGH,         IronForgePos    },
+    { IRONFORGE,          IronForgePos    },
+    { EVERSONG_WOODS,     SilvermoonPos   },
+    { EXODAR,             ExodarPos       },
+    { THUNDERBLUFF,       ThunderBluffPos },
+    { UNDERCITY,          UndercityPos    },
+    { TIRISFAL_GLADES,    UndercityPos    },
+    { TELDRASSIL,         DarnassusPos    }
 };
 
 class go_cheer_speaker : public GameObjectScript
@@ -733,7 +732,7 @@ public:
             _big = true;
         }
 
-        static uint32 CheerPicker()
+        uint32 CheerPicker()
         {
             uint32 newid = RAND(
                 SOUND_CHEER_1,
@@ -744,7 +743,7 @@ public:
             return newid;
         }
 
-        static uint32 FireworksPicker()
+        uint32 FireworksPicker()
         {
             uint32 newid = RAND(
                 FIREWORK_SHOW_TYPE_1_RED,
@@ -774,7 +773,7 @@ public:
             return newid;
         }
 
-        static uint32 FireworksBIGOnlyPicker()
+        uint32 FireworksBIGOnlyPicker()
         {
             uint32 newid = RAND(
                 FIREWORK_SHOW_TYPE_1_RED_BIG,
@@ -804,15 +803,15 @@ public:
             // Start
             if ((localTm.tm_min == 0 && localTm.tm_sec == 0) && !_started && (IsHolidayActive(HOLIDAY_FIREWORKS_SPECTACULAR) || IsEventActive(GAME_EVENT_NEW_YEAR)))
             {
-                _events.ScheduleEvent(EVENT_CHEER, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
+                _events.ScheduleEvent(EVENT_CHEER, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
                 _started = true;
             }
 
             // Event is active
             if ((localTm.tm_min >= 0 && localTm.tm_sec >= 1 && localTm.tm_min <= 9 && localTm.tm_sec <= 59 && !_started) && (IsHolidayActive(HOLIDAY_FIREWORKS_SPECTACULAR) || IsEventActive(GAME_EVENT_NEW_YEAR)))
             {
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
                 _started = true;
             }
 
@@ -820,7 +819,7 @@ public:
             if ((localTm.tm_min == 10 && localTm.tm_sec == 0) && _started == true)
             {
                 _started = false;
-                _events.ScheduleEvent(EVENT_CHEER, 1s);
+                _events.ScheduleEvent(EVENT_CHEER, Seconds(1));
                 _events.CancelEvent(EVENT_FIRE);
             }
 
@@ -828,61 +827,62 @@ public:
             if ((localTm.tm_min == 10 && localTm.tm_sec == 30 && localTm.tm_hour == 0) && IsEventActive(GAME_EVENT_NEW_YEAR) && _big == true)
             {
                 _big = false;
-                _events.ScheduleEvent(EVENT_CHEER, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
-                _events.ScheduleEvent(EVENT_FIRE, 1s);
+                _events.ScheduleEvent(EVENT_CHEER, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
+                _events.ScheduleEvent(EVENT_FIRE, Seconds(1));
             }
 
             while (uint32 eventId = _events.ExecuteEvent())
             {
                 switch (eventId)
                 {
-                    case EVENT_CHEER:
+                case EVENT_CHEER:
+                {
+                    me->PlayDistanceSound(CheerPicker());
+                    break;
+                }
+                case EVENT_FIRE:
+                {
+                    auto it = pos.find(me->GetZoneId());
+                    if (it != pos.end())
                     {
-                        me->PlayDistanceSound(CheerPicker());
-                        break;
-                    }
-                    case EVENT_FIRE:
-                    {
-                        if (std::vector<Position> const* positions = Trinity::Containers::MapGetValuePtr(PositionsByZoneMap, me->GetZoneId()))
-                        {
-                            Position const& rndpos = Trinity::Containers::SelectRandomContainerElement(*positions);
-                            float rndrot = frand(-1.0000000f, 1.0000000f);
-                            float rndrot2 = frand(-1.0000000f, 1.0000000f);
+                        Position const& rndpos = Trinity::Containers::SelectRandomContainerElement(it->second);
+                        float rndrot = frand(-1.0000000f, 1.0000000f);
+                        float rndrot2 = frand(-1.0000000f, 1.0000000f);
 
-                            if (_big)
+                        if (_big)
+                        {
+                            if (GameObject* firework = me->SummonGameObject(FireworksBIGOnlyPicker(), rndpos, QuaternionData(0.f, 0.f, rndrot, rndrot2), 300))
                             {
-                                if (GameObject* firework = me->SummonGameObject(FireworksBIGOnlyPicker(), rndpos, QuaternionData(0.f, 0.f, rndrot, rndrot2), 300))
-                                {
-                                    firework->SetRespawnTime(0);
-                                    firework->Delete();
-                                }
-                            }
-                            else
-                            {
-                                if (GameObject* firework = me->SummonGameObject(FireworksPicker(), rndpos, QuaternionData(0.f, 0.f, rndrot, rndrot2), 300))
-                                {
-                                    firework->SetRespawnTime(0);
-                                    firework->Delete();
-                                }
+                                firework->SetRespawnTime(0);
+                                firework->Delete();
                             }
                         }
-
-                        if (_started == true)
-                            _events.ScheduleEvent(EVENT_FIRE, 1s, 2s);
-
-                        break;
+                        else
+                        {
+                            if (GameObject* firework = me->SummonGameObject(FireworksPicker(), rndpos, QuaternionData(0.f, 0.f, rndrot, rndrot2), 300))
+                            {
+                                firework->SetRespawnTime(0);
+                                firework->Delete();
+                            }
+                        }
                     }
-                    default:
-                        break;
+
+                    if (_started == true)
+                        _events.ScheduleEvent(EVENT_FIRE, Seconds(1), Seconds(2));
+
+                    break;
+                }
+                default:
+                    break;
                 }
             }
         }

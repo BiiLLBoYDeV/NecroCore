@@ -98,9 +98,9 @@ class boss_keristrasza : public CreatureScript
                 DoCastAOE(SPELL_INTENSE_COLD);
                 _JustEngagedWith();
 
-                events.ScheduleEvent(EVENT_CRYSTAL_FIRE_BREATH, 14s);
+                events.ScheduleEvent(EVENT_CRYSTAL_FIRE_BREATH, 14000);
                 events.ScheduleEvent(EVENT_CRYSTAL_CHAINS_CRYSTALIZE, DUNGEON_MODE(30000, 11000));
-                events.ScheduleEvent(EVENT_TAIL_SWEEP, 5s);
+                events.ScheduleEvent(EVENT_TAIL_SWEEP, 5000);
             }
 
             void JustDied(Unit* /*killer*/) override
@@ -138,14 +138,14 @@ class boss_keristrasza : public CreatureScript
             {
                 if (remove)
                 {
-                    me->SetImmuneToPC(false);
+                    me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                     me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
                     if (me->HasAura(SPELL_FROZEN_PRISON))
                         me->RemoveAurasDueToSpell(SPELL_FROZEN_PRISON);
                 }
                 else
                 {
-                    me->SetImmuneToPC(true);
+                    me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
                     me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_NON_ATTACKABLE);
                     DoCast(me, SPELL_FROZEN_PRISON, false);
                 }
@@ -184,11 +184,11 @@ class boss_keristrasza : public CreatureScript
                     {
                         case EVENT_CRYSTAL_FIRE_BREATH:
                             DoCastVictim(SPELL_CRYSTALFIRE_BREATH);
-                            events.ScheduleEvent(EVENT_CRYSTAL_FIRE_BREATH, 14s);
+                            events.ScheduleEvent(EVENT_CRYSTAL_FIRE_BREATH, 14000);
                             break;
                         case EVENT_CRYSTAL_CHAINS_CRYSTALIZE:
                             DoCast(me, SPELL_TAIL_SWEEP);
-                            events.ScheduleEvent(EVENT_CRYSTAL_CHAINS_CRYSTALIZE, 5s);
+                            events.ScheduleEvent(EVENT_CRYSTAL_CHAINS_CRYSTALIZE, 5000);
                             break;
                         case EVENT_TAIL_SWEEP:
                             Talk(SAY_CRYSTAL_NOVA);

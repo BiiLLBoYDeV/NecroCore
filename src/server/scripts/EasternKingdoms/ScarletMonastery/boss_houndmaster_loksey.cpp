@@ -16,8 +16,8 @@
  */
 
 #include "ScriptMgr.h"
-#include "scarlet_monastery.h"
 #include "ScriptedCreature.h"
+#include "scarlet_monastery.h"
 
 enum Yells
 {
@@ -53,7 +53,7 @@ class boss_houndmaster_loksey : public CreatureScript
             {
                 Talk(SAY_AGGRO);
                 _JustEngagedWith();
-                events.ScheduleEvent(EVENT_BLOODLUST, 20s);
+                events.ScheduleEvent(EVENT_BLOODLUST, 20000);
             }
 
             void JustDied(Unit* /*killer*/) override
@@ -67,7 +67,7 @@ class boss_houndmaster_loksey : public CreatureScript
                 {
                     case EVENT_BLOODLUST:
                         DoCast(me, SPELL_BLOODLUST);
-                        events.ScheduleEvent(EVENT_BLOODLUST, 20s);
+                        events.ScheduleEvent(EVENT_BLOODLUST, 20000);
                         break;
                     default:
                         break;

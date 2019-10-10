@@ -16,8 +16,8 @@
  */
 
 #include "ScriptMgr.h"
-#include "blackrock_spire.h"
 #include "ScriptedCreature.h"
+#include "blackrock_spire.h"
 
 enum Spells
 {
@@ -50,8 +50,8 @@ public:
         void JustEngagedWith(Unit* /*who*/) override
         {
             _JustEngagedWith();
-            events.ScheduleEvent(EVENT_SHOOT, 1s);
-            events.ScheduleEvent(EVENT_STUN_BOMB, 16s);
+            events.ScheduleEvent(EVENT_SHOOT,      1000);
+            events.ScheduleEvent(EVENT_STUN_BOMB, 16000);
         }
 
         void JustDied(Unit* /*killer*/) override
@@ -75,11 +75,11 @@ public:
                 {
                     case EVENT_SHOOT:
                         DoCastVictim(SPELL_SHOOT);
-                        events.ScheduleEvent(EVENT_SHOOT, 500ms);
+                        events.ScheduleEvent(EVENT_SHOOT, 500);
                         break;
                     case EVENT_STUN_BOMB:
                         DoCastVictim(SPELL_STUNBOMB);
-                        events.ScheduleEvent(EVENT_STUN_BOMB, 14s);
+                        events.ScheduleEvent(EVENT_STUN_BOMB, 14000);
                         break;
                 }
 
@@ -92,7 +92,7 @@ public:
 
     CreatureAI* GetAI(Creature* creature) const override
     {
-        return GetBlackrockSpireAI<boss_quatermasterzigrisAI>(creature);
+        return new boss_quatermasterzigrisAI(creature);
     }
 };
 

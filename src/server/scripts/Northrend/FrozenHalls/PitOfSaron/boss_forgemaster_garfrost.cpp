@@ -110,7 +110,7 @@ class boss_garfrost : public CreatureScript
                 Talk(SAY_AGGRO);
                 DoCast(me, SPELL_PERMAFROST);
                 me->CallForHelp(70.0f);
-                events.ScheduleEvent(EVENT_THROW_SARONITE, 7s);
+                events.ScheduleEvent(EVENT_THROW_SARONITE, 7000);
             }
 
             void KilledUnit(Unit* victim) override
@@ -137,7 +137,7 @@ class boss_garfrost : public CreatureScript
                     Talk(SAY_PHASE2);
                     events.DelayEvents(8000);
                     DoCast(me, SPELL_THUNDERING_STOMP);
-                    events.ScheduleEvent(EVENT_FORGE_JUMP, 1500ms);
+                    events.ScheduleEvent(EVENT_FORGE_JUMP, 1500);
                     return;
                 }
 
@@ -147,7 +147,7 @@ class boss_garfrost : public CreatureScript
                     Talk(SAY_PHASE3);
                     events.DelayEvents(8000);
                     DoCast(me, SPELL_THUNDERING_STOMP);
-                    events.ScheduleEvent(EVENT_FORGE_JUMP, 1500ms);
+                    events.ScheduleEvent(EVENT_FORGE_JUMP, 1500);
                     return;
                 }
             }
@@ -168,7 +168,7 @@ class boss_garfrost : public CreatureScript
                     DoCast(me, SPELL_FORGE_MACE);
                     SetEquipmentSlots(false, EQUIP_ID_MACE);
                 }
-                events.ScheduleEvent(EVENT_RESUME_ATTACK, 5s);
+                events.ScheduleEvent(EVENT_RESUME_ATTACK, 5000);
             }
 
             void SpellHitTarget(Unit* target, SpellInfo const* spell) override
@@ -209,7 +209,7 @@ class boss_garfrost : public CreatureScript
                             break;
                         case EVENT_CHILLING_WAVE:
                             DoCast(me, SPELL_CHILLING_WAVE);
-                            events.ScheduleEvent(EVENT_CHILLING_WAVE, 4s, 0, PHASE_TWO);
+                            events.ScheduleEvent(EVENT_CHILLING_WAVE, 40000, 0, PHASE_TWO);
                             break;
                         case EVENT_DEEP_FREEZE:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 0.0f, true))
@@ -217,7 +217,7 @@ class boss_garfrost : public CreatureScript
                                 Talk(SAY_CAST_DEEP_FREEZE, target);
                                 DoCast(target, SPELL_DEEP_FREEZE);
                             }
-                            events.ScheduleEvent(EVENT_DEEP_FREEZE, 35s, 0, PHASE_THREE);
+                            events.ScheduleEvent(EVENT_DEEP_FREEZE, 35000, 0, PHASE_THREE);
                             break;
                         case EVENT_FORGE_JUMP:
                             me->AttackStop();
@@ -228,9 +228,9 @@ class boss_garfrost : public CreatureScript
                             break;
                         case EVENT_RESUME_ATTACK:
                             if (events.IsInPhase(PHASE_TWO))
-                                events.ScheduleEvent(EVENT_CHILLING_WAVE, 5s, 0, PHASE_TWO);
+                                events.ScheduleEvent(EVENT_CHILLING_WAVE, 5000, 0, PHASE_TWO);
                             else if (events.IsInPhase(PHASE_THREE))
-                                events.ScheduleEvent(EVENT_DEEP_FREEZE, 10s, 0, PHASE_THREE);
+                                events.ScheduleEvent(EVENT_DEEP_FREEZE, 10000, 0, PHASE_THREE);
                             AttackStart(me->GetVictim());
                             break;
                         default:
@@ -263,31 +263,21 @@ class spell_garfrost_permafrost : public SpellScriptLoader
         {
             PrepareSpellScript(spell_garfrost_permafrost_SpellScript);
 
-        public:
-            spell_garfrost_permafrost_SpellScript()
+            void PreventHitByLoS()
             {
-                prevented = false;
-            }
-
-        private:
-            void PreventHitByLoS(SpellMissInfo missInfo)
-            {
-                if (missInfo != SPELL_MISS_NONE)
-                    return;
-
                 if (Unit* target = GetHitUnit())
                 {
                     Unit* caster = GetCaster();
                     //Temporary Line of Sight Check
-                    std::list<GameObject*> blockList;
+                    std::vector<GameObject*> blockList;
                     caster->GetGameObjectListWithEntryInGrid(blockList, GO_SARONITE_ROCK, 100.0f);
                     if (!blockList.empty())
                     {
-                        for (std::list<GameObject*>::const_iterator itr = blockList.begin(); itr != blockList.end(); ++itr)
+                        for (GameObject* go : blockList)
                         {
-                            if (!(*itr)->IsInvisibleDueToDespawn())
+                            if (!go->IsInvisibleDueToDespawn())
                             {
-                                if ((*itr)->IsInBetween(caster, target, 4.0f))
+                                if (go->IsInBetween(caster, target, 4.0f))
                                 {
                                     prevented = true;
                                     target->ApplySpellImmune(GetSpellInfo()->Id, IMMUNITY_ID, GetSpellInfo()->Id, true);
@@ -315,11 +305,11 @@ class spell_garfrost_permafrost : public SpellScriptLoader
 
             void Register() override
             {
-                BeforeHit += BeforeSpellHitFn(spell_garfrost_permafrost_SpellScript::PreventHitByLoS);
+                BeforeHit += SpellHitFn(spell_garfrost_permafrost_SpellScript::PreventHitByLoS);
                 AfterHit += SpellHitFn(spell_garfrost_permafrost_SpellScript::RestoreImmunity);
             }
 
-            bool prevented;
+            bool prevented = false;
         };
 
         SpellScript* GetSpellScript() const override

@@ -16,9 +16,9 @@
  */
 
 #include "ScriptMgr.h"
-#include "scarlet_monastery.h"
 #include "InstanceScript.h"
 #include "ObjectAccessor.h"
+#include "scarlet_monastery.h"
 #include "ScriptedCreature.h"
 
 enum Says
@@ -67,7 +67,7 @@ class boss_interrogator_vishas : public CreatureScript
             {
                 Talk(SAY_AGGRO);
                 _JustEngagedWith();
-                events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 5s);
+                events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 5000);
             }
 
             void KilledUnit(Unit* victim) override
@@ -104,7 +104,7 @@ class boss_interrogator_vishas : public CreatureScript
                 {
                     case EVENT_SHADOW_WORD_PAIN:
                         DoCastVictim(SPELL_SHADOW_WORD_PAIN);
-                        events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, 5s, 15s);
+                        events.ScheduleEvent(EVENT_SHADOW_WORD_PAIN, urand(5000, 15000));
                         break;
                     default:
                         break;

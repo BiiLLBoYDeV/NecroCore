@@ -36,10 +36,7 @@ enum DMCannonState
 enum DMData
 {
     EVENT_STATE,
-    EVENT_RHAHKZOR,
-
-    DATA_MR_SMITE = 0,  // not currently used
-    DATA_VANCLEEF = 1
+    EVENT_RHAHKZOR
 };
 
 enum DMData64
@@ -58,8 +55,7 @@ enum DMGameObjects
 
 enum DMCreaturesIds
 {
-    NPC_MR_SMITE   = 646,
-    NPC_BLACKGUARD = 636
+    NPC_MR_SMITE   = 646
 };
 
 enum DMInstanceTexts
@@ -73,7 +69,5 @@ inline AI* GetDeadminesAI(T* obj)
 {
     return GetInstanceAI<AI>(obj, DMScriptName);
 }
-
-#define RegisterDeadminesCreatureAI(ai_name) RegisterCreatureAIWithFactory(ai_name, GetDeadminesAI)
 
 #endif

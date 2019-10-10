@@ -25,8 +25,8 @@ EndScriptData */
 
 #include "ScriptMgr.h"
 #include "InstanceScript.h"
-#include "Map.h"
 #include "molten_core.h"
+#include "Map.h"
 #include "ObjectMgr.h"
 #include "Player.h"
 #include "ScriptedCreature.h"
@@ -93,10 +93,10 @@ class boss_majordomo : public CreatureScript
             {
                 BossAI::JustEngagedWith(who);
                 Talk(SAY_AGGRO);
-                events.ScheduleEvent(EVENT_MAGIC_REFLECTION, 30s);
-                events.ScheduleEvent(EVENT_DAMAGE_REFLECTION, 15s);
-                events.ScheduleEvent(EVENT_BLAST_WAVE, 10s);
-                events.ScheduleEvent(EVENT_TELEPORT, 20s);
+                events.ScheduleEvent(EVENT_MAGIC_REFLECTION, 30000);
+                events.ScheduleEvent(EVENT_DAMAGE_REFLECTION, 15000);
+                events.ScheduleEvent(EVENT_BLAST_WAVE, 10000);
+                events.ScheduleEvent(EVENT_TELEPORT, 20000);
             }
 
             void UpdateAI(uint32 diff) override
@@ -131,20 +131,20 @@ class boss_majordomo : public CreatureScript
                         {
                             case EVENT_MAGIC_REFLECTION:
                                 DoCast(me, SPELL_MAGIC_REFLECTION);
-                                events.ScheduleEvent(EVENT_MAGIC_REFLECTION, 30s);
+                                events.ScheduleEvent(EVENT_MAGIC_REFLECTION, 30000);
                                 break;
                             case EVENT_DAMAGE_REFLECTION:
                                 DoCast(me, SPELL_DAMAGE_REFLECTION);
-                                events.ScheduleEvent(EVENT_DAMAGE_REFLECTION, 30s);
+                                events.ScheduleEvent(EVENT_DAMAGE_REFLECTION, 30000);
                                 break;
                             case EVENT_BLAST_WAVE:
                                 DoCastVictim(SPELL_BLAST_WAVE);
-                                events.ScheduleEvent(EVENT_BLAST_WAVE, 10s);
+                                events.ScheduleEvent(EVENT_BLAST_WAVE, 10000);
                                 break;
                             case EVENT_TELEPORT:
                                 if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 1))
                                     DoCast(target, SPELL_TELEPORT);
-                                events.ScheduleEvent(EVENT_TELEPORT, 20s);
+                                events.ScheduleEvent(EVENT_TELEPORT, 20000);
                                 break;
                             default:
                                 break;
@@ -204,7 +204,8 @@ class boss_majordomo : public CreatureScript
                     CloseGossipMenuFor(player);
                     DoAction(ACTION_START_RAGNAROS);
                 }
-                return false;
+
+                return true;
             }
         };
 

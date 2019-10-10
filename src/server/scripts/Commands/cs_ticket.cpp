@@ -45,32 +45,35 @@ public:
     {
         static std::vector<ChatCommand> ticketResponseCommandTable =
         {
-            { "append",   rbac::RBAC_PERM_COMMAND_TICKET_RESPONSE_APPEND,   true,  &HandleGMTicketResponseAppendCommand,   "" },
-            { "appendln", rbac::RBAC_PERM_COMMAND_TICKET_RESPONSE_APPENDLN, true,  &HandleGMTicketResponseAppendLnCommand, "" },
+            { "append",        rbac::RBAC_PERM_COMMAND_TICKET_RESPONSE_APPEND,   true, &HandleGMTicketResponseAppendCommand,   "" },
+            { "appendln",      rbac::RBAC_PERM_COMMAND_TICKET_RESPONSE_APPENDLN, true, &HandleGMTicketResponseAppendLnCommand, "" },
         };
+
         static std::vector<ChatCommand> ticketCommandTable =
         {
-            { "assign",        rbac::RBAC_PERM_COMMAND_TICKET_ASSIGN,        true, &HandleGMTicketAssignToCommand,          "" },
-            { "close",         rbac::RBAC_PERM_COMMAND_TICKET_CLOSE,         true, &HandleGMTicketCloseByIdCommand,         "" },
-            { "closedlist",    rbac::RBAC_PERM_COMMAND_TICKET_CLOSEDLIST,    true, &HandleGMTicketListClosedCommand,        "" },
-            { "comment",       rbac::RBAC_PERM_COMMAND_TICKET_COMMENT,       true, &HandleGMTicketCommentCommand,           "" },
-            { "complete",      rbac::RBAC_PERM_COMMAND_TICKET_COMPLETE,      true, &HandleGMTicketCompleteCommand,          "" },
-            { "delete",        rbac::RBAC_PERM_COMMAND_TICKET_DELETE,        true, &HandleGMTicketDeleteByIdCommand,        "" },
-            { "escalate",      rbac::RBAC_PERM_COMMAND_TICKET_ESCALATE,      true, &HandleGMTicketEscalateCommand,          "" },
-            { "escalatedlist", rbac::RBAC_PERM_COMMAND_TICKET_ESCALATEDLIST, true, &HandleGMTicketListEscalatedCommand,     "" },
-            { "list",          rbac::RBAC_PERM_COMMAND_TICKET_LIST,          true, &HandleGMTicketListCommand,              "" },
-            { "onlinelist",    rbac::RBAC_PERM_COMMAND_TICKET_ONLINELIST,    true, &HandleGMTicketListOnlineCommand,        "" },
-            { "reset",         rbac::RBAC_PERM_COMMAND_TICKET_RESET,         true, &HandleGMTicketResetCommand,             "" },
-            { "response",      rbac::RBAC_PERM_COMMAND_TICKET_RESPONSE,      true, nullptr,              "", ticketResponseCommandTable },
-            { "togglesystem",  rbac::RBAC_PERM_COMMAND_TICKET_TOGGLESYSTEM,  true, &HandleToggleGMTicketSystem,             "" },
-            { "unassign",      rbac::RBAC_PERM_COMMAND_TICKET_UNASSIGN,      true, &HandleGMTicketUnAssignCommand,          "" },
-            { "viewid",        rbac::RBAC_PERM_COMMAND_TICKET_VIEWID,        true, &HandleGMTicketGetByIdCommand,           "" },
-            { "viewname",      rbac::RBAC_PERM_COMMAND_TICKET_VIEWNAME,      true, &HandleGMTicketGetByNameCommand,         "" },
+            { "assign",        rbac::RBAC_PERM_COMMAND_TICKET_ASSIGN,            true, &HandleGMTicketAssignToCommand,         ""                             },
+            { "close",         rbac::RBAC_PERM_COMMAND_TICKET_CLOSE,             true, &HandleGMTicketCloseByIdCommand,        ""                             },
+            { "closedlist",    rbac::RBAC_PERM_COMMAND_TICKET_CLOSEDLIST,        true, &HandleGMTicketListClosedCommand,       ""                             },
+            { "comment",       rbac::RBAC_PERM_COMMAND_TICKET_COMMENT,           true, &HandleGMTicketCommentCommand,          ""                             },
+            { "complete",      rbac::RBAC_PERM_COMMAND_TICKET_COMPLETE,          true, &HandleGMTicketCompleteCommand,         ""                             },
+            { "delete",        rbac::RBAC_PERM_COMMAND_TICKET_DELETE,            true, &HandleGMTicketDeleteByIdCommand,       ""                             },
+            { "escalate",      rbac::RBAC_PERM_COMMAND_TICKET_ESCALATE,          true, &HandleGMTicketEscalateCommand,         ""                             },
+            { "escalatedlist", rbac::RBAC_PERM_COMMAND_TICKET_ESCALATEDLIST,     true, &HandleGMTicketListEscalatedCommand,    ""                             },
+            { "list",          rbac::RBAC_PERM_COMMAND_TICKET_LIST,              true, &HandleGMTicketListCommand,             ""                             },
+            { "onlinelist",    rbac::RBAC_PERM_COMMAND_TICKET_ONLINELIST,        true, &HandleGMTicketListOnlineCommand,       ""                             },
+            { "reset",         rbac::RBAC_PERM_COMMAND_TICKET_RESET,             true, &HandleGMTicketResetCommand,            ""                             },
+            { "response",      rbac::RBAC_PERM_COMMAND_TICKET_RESPONSE,          true, nullptr,                                "", ticketResponseCommandTable },
+            { "togglesystem",  rbac::RBAC_PERM_COMMAND_TICKET_TOGGLESYSTEM,      true, &HandleToggleGMTicketSystem,            ""                             },
+            { "unassign",      rbac::RBAC_PERM_COMMAND_TICKET_UNASSIGN,          true, &HandleGMTicketUnAssignCommand,         ""                             },
+            { "viewid",        rbac::RBAC_PERM_COMMAND_TICKET_VIEWID,            true, &HandleGMTicketGetByIdCommand,          ""                             },
+            { "viewname",      rbac::RBAC_PERM_COMMAND_TICKET_VIEWNAME,          true, &HandleGMTicketGetByNameCommand,        ""                             },
         };
+
         static std::vector<ChatCommand> commandTable =
         {
             { "ticket", rbac::RBAC_PERM_COMMAND_TICKET, false, nullptr, "", ticketCommandTable },
         };
+
         return commandTable;
     }
 

@@ -52,59 +52,60 @@ enum Phases
 
 class boss_gloomrel : public CreatureScript
 {
-    public:
-        boss_gloomrel() : CreatureScript("boss_gloomrel") { }
+public:
+    boss_gloomrel() : CreatureScript("boss_gloomrel") { }
 
-        struct boss_gloomrelAI : public ScriptedAI
+    struct boss_gloomrelAI : public ScriptedAI
+    {
+        boss_gloomrelAI(Creature* creature) : ScriptedAI(creature) { }
+
+        bool GossipHello(Player* player) override
         {
-            boss_gloomrelAI(Creature* creature) : ScriptedAI(creature), instance(creature->GetInstanceScript()) { }
+            if (player->GetQuestRewardStatus(QUEST_SPECTRAL_CHALICE) == 1 && player->GetSkillValue(SKILL_MINING) >= DATA_SKILLPOINT_MIN && !player->HasSpell(SPELL_SMELT_DARK_IRON))
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TEACH_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
 
-            InstanceScript* instance;
+            if (player->GetQuestRewardStatus(QUEST_SPECTRAL_CHALICE) == 0 && player->GetSkillValue(SKILL_MINING) >= DATA_SKILLPOINT_MIN)
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TRIBUTE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
 
-            bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+            SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
+            return true;
+        }
+
+        bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+        {
+            uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+            ClearGossipMenuFor(player);
+            switch (action)
             {
-                uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
-                ClearGossipMenuFor(player);
-                switch (action)
-                {
-                    case GOSSIP_ACTION_INFO_DEF + 1:
-                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TEACH_2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 11);
-                        SendGossipMenuFor(player, 2606, me->GetGUID());
-                        break;
-                    case GOSSIP_ACTION_INFO_DEF + 11:
-                        CloseGossipMenuFor(player);
-                        player->CastSpell(player, SPELL_LEARN_SMELT, false);
-                        break;
-                    case GOSSIP_ACTION_INFO_DEF + 2:
-                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TEACH_3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 22);
-                        SendGossipMenuFor(player, 2604, me->GetGUID());
-                        break;
-                    case GOSSIP_ACTION_INFO_DEF + 22:
-                        CloseGossipMenuFor(player);
+                case GOSSIP_ACTION_INFO_DEF + 1:
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TEACH_2, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 11);
+                    SendGossipMenuFor(player, 2606, me->GetGUID());
+                    break;
+                case GOSSIP_ACTION_INFO_DEF + 11:
+                    CloseGossipMenuFor(player);
+                    player->CastSpell(player, SPELL_LEARN_SMELT, false);
+                    break;
+                case GOSSIP_ACTION_INFO_DEF + 2:
+                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TEACH_3, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 22);
+                    SendGossipMenuFor(player, 2604, me->GetGUID());
+                    break;
+                case GOSSIP_ACTION_INFO_DEF + 22:
+                    CloseGossipMenuFor(player);
+                    if (InstanceScript* instance = me->GetInstanceScript())
+                    {
                         //are 5 minutes expected? go template may have data to despawn when used at quest
                         instance->DoRespawnGameObject(instance->GetGuidData(DATA_GO_CHALICE), MINUTE * 5);
-                        break;
-                }
-                return true;
+                    }
+                    break;
             }
-
-            bool GossipHello(Player* player) override
-            {
-                if (player->GetQuestRewardStatus(QUEST_SPECTRAL_CHALICE) == 1 && player->GetSkillValue(SKILL_MINING) >= DATA_SKILLPOINT_MIN && !player->HasSpell(SPELL_SMELT_DARK_IRON))
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TEACH_1, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-
-                if (player->GetQuestRewardStatus(QUEST_SPECTRAL_CHALICE) == 0 && player->GetSkillValue(SKILL_MINING) >= DATA_SKILLPOINT_MIN)
-                    AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_TRIBUTE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
-
-                SendGossipMenuFor(player, player->GetGossipTextId(me), me->GetGUID());
-                return true;
-            }
-        };
-
-        CreatureAI* GetAI(Creature* creature) const override
-        {
-            return GetBlackrockDepthsAI<boss_gloomrelAI>(creature);
+            return true;
         }
+    };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return new boss_gloomrelAI(creature);
+    }
 };
 
 enum DoomrelSpells
@@ -115,14 +116,7 @@ enum DoomrelSpells
     SPELL_DEMONARMOR                                       = 13787,
     SPELL_SUMMON_VOIDWALKERS                               = 15092
 };
-enum DoomrelText
-{
-    GOSSIP_SELECT_DOOMREL                                  = 1828,
-    GOSSIP_MENU_ID_CONTINUE                                = 1,
 
-    GOSSIP_MENU_CHALLENGE                                  = 1947,
-    GOSSIP_MENU_ID_CHALLENGE                               = 0
-};
 enum DoomrelEvents
 {
     EVENT_SHADOW_BOLT_VOLLEY                               = 1,
@@ -131,6 +125,9 @@ enum DoomrelEvents
     EVENT_DEMONARMOR                                       = 4,
     EVENT_SUMMON_VOIDWALKERS                               = 5
 };
+
+#define GOSSIP_ITEM_CHALLENGE   "Your bondage is at an end, Doom'rel. I challenge you!"
+#define GOSSIP_SELECT_DOOMREL   "[PH] Continue..."
 
 class boss_doomrel : public CreatureScript
 {
@@ -145,6 +142,39 @@ class boss_doomrel : public CreatureScript
                 _instance = creature->GetInstanceScript();
             }
 
+            bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
+            {
+                uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
+                ClearGossipMenuFor(player);
+
+                switch (action)
+                {
+                    case GOSSIP_ACTION_INFO_DEF + 1:
+                        AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_SELECT_DOOMREL, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
+                        SendGossipMenuFor(player, 2605, me->GetGUID());
+                        break;
+                    case GOSSIP_ACTION_INFO_DEF + 2:
+                        CloseGossipMenuFor(player);
+                        //start event here
+                        me->SetFaction(FACTION_DARK_IRON_DWARVES);
+                        me->RemoveFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
+                        me->AI()->AttackStart(player);
+                        InstanceScript* instance = me->GetInstanceScript();
+                        if (instance)
+                            instance->SetGuidData(DATA_EVENSTARTER, player->GetGUID());
+                        break;
+                }
+                return true;
+            }
+
+            bool GossipHello(Player* player) override
+            {
+                AddGossipItemFor(player, GOSSIP_ICON_CHAT, GOSSIP_ITEM_CHALLENGE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
+                SendGossipMenuFor(player, 2601, me->GetGUID());
+
+                return true;
+            }
+
             void Initialize()
             {
                 _voidwalkers = false;
@@ -157,7 +187,7 @@ class boss_doomrel : public CreatureScript
                 me->SetFaction(FACTION_FRIENDLY);
 
                 // was set before event start, so set again
-                me->SetImmuneToPC(true);
+                me->SetFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_PC);
 
                 if (_instance->GetData(DATA_GHOSTKILL) >= 7)
                     me->SetUInt32Value(UNIT_NPC_FLAGS, UNIT_NPC_FLAG_NONE);
@@ -167,10 +197,10 @@ class boss_doomrel : public CreatureScript
 
             void JustEngagedWith(Unit* /*who*/) override
             {
-                _events.ScheduleEvent(EVENT_SHADOW_BOLT_VOLLEY, 10s);
-                _events.ScheduleEvent(EVENT_IMMOLATE, 18s);
-                _events.ScheduleEvent(EVENT_CURSE_OF_WEAKNESS, 5s);
-                _events.ScheduleEvent(EVENT_DEMONARMOR, 16s);
+                _events.ScheduleEvent(EVENT_SHADOW_BOLT_VOLLEY, 10000);
+                _events.ScheduleEvent(EVENT_IMMOLATE, 18000);
+                _events.ScheduleEvent(EVENT_CURSE_OF_WEAKNESS, 5000);
+                _events.ScheduleEvent(EVENT_DEMONARMOR, 16000);
             }
 
             void DamageTaken(Unit* /*attacker*/, uint32& /*damage*/) override
@@ -207,20 +237,20 @@ class boss_doomrel : public CreatureScript
                     {
                         case EVENT_SHADOW_BOLT_VOLLEY:
                             DoCastVictim(SPELL_SHADOWBOLTVOLLEY);
-                            _events.ScheduleEvent(EVENT_SHADOW_BOLT_VOLLEY, 12s);
+                            _events.ScheduleEvent(EVENT_SHADOW_BOLT_VOLLEY, 12000);
                             break;
                         case EVENT_IMMOLATE:
                             if (Unit* target = SelectTarget(SELECT_TARGET_RANDOM, 0, 100.0f, true))
                                 DoCast(target, SPELL_IMMOLATE);
-                            _events.ScheduleEvent(EVENT_IMMOLATE, 25s);
+                            _events.ScheduleEvent(EVENT_IMMOLATE, 25000);
                             break;
                         case EVENT_CURSE_OF_WEAKNESS:
                             DoCastVictim(SPELL_CURSEOFWEAKNESS);
-                            _events.ScheduleEvent(EVENT_CURSE_OF_WEAKNESS, 45s);
+                            _events.ScheduleEvent(EVENT_CURSE_OF_WEAKNESS, 45000);
                             break;
                         case EVENT_DEMONARMOR:
                             DoCast(me, SPELL_DEMONARMOR);
-                            _events.ScheduleEvent(EVENT_DEMONARMOR, 5min);
+                            _events.ScheduleEvent(EVENT_DEMONARMOR, 300000);
                             break;
                         default:
                             break;
@@ -228,38 +258,6 @@ class boss_doomrel : public CreatureScript
                 }
 
                 DoMeleeAttackIfReady();
-            }
-
-            bool GossipSelect(Player* player, uint32 /*menuId*/, uint32 gossipListId) override
-            {
-                uint32 const action = player->PlayerTalkClass->GetGossipOptionAction(gossipListId);
-                ClearGossipMenuFor(player);
-
-                switch (action)
-                {
-                    case GOSSIP_ACTION_INFO_DEF + 1:
-                        AddGossipItemFor(player, GOSSIP_SELECT_DOOMREL, GOSSIP_MENU_ID_CONTINUE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 2);
-                        SendGossipMenuFor(player, 2605, me->GetGUID());
-                        break;
-                    case GOSSIP_ACTION_INFO_DEF + 2:
-                        CloseGossipMenuFor(player);
-                        //start event here
-                        me->SetFaction(FACTION_DARK_IRON_DWARVES);
-                        me->SetImmuneToPC(false);
-                        me->AI()->AttackStart(player);
-
-                        _instance->SetGuidData(DATA_EVENSTARTER, player->GetGUID());
-                        break;
-                }
-                return true;
-            }
-
-            bool GossipHello(Player* player) override
-            {
-                AddGossipItemFor(player, GOSSIP_MENU_CHALLENGE, GOSSIP_MENU_ID_CHALLENGE, GOSSIP_SENDER_MAIN, GOSSIP_ACTION_INFO_DEF + 1);
-                SendGossipMenuFor(player, 2601, me->GetGUID());
-
-                return true;
             }
 
         private:

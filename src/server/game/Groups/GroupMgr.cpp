@@ -227,7 +227,7 @@ void GroupMgr::LoadGroups()
         {
             Field* fields = result->Fetch();
             Group* group = GetGroupByDbStoreId(fields[0].GetUInt32());
-            // group will never be NULL (we have run consistency sql's before loading)
+            // group will never be nullptr (we have run consistency sql's before loading)
 
             MapEntry const* mapEntry = sMapStore.LookupEntry(fields[1].GetUInt16());
             if (!mapEntry || !mapEntry->IsDungeon())

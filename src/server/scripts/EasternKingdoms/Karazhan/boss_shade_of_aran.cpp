@@ -24,9 +24,9 @@ SDCategory: Karazhan
 EndScriptData */
 
 #include "ScriptMgr.h"
-#include "karazhan.h"
-#include "InstanceScript.h"
 #include "GameObject.h"
+#include "InstanceScript.h"
+#include "karazhan.h"
 #include "ObjectAccessor.h"
 #include "ScriptedCreature.h"
 #include "SpellInfo.h"
@@ -86,11 +86,6 @@ class boss_shade_of_aran : public CreatureScript
 {
 public:
     boss_shade_of_aran() : CreatureScript("boss_shade_of_aran") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<boss_aranAI>(creature);
-    }
 
     struct boss_aranAI : public ScriptedAI
     {
@@ -184,12 +179,17 @@ public:
 
         void FlameWreathEffect()
         {
+            ThreatContainer::StorageType const& t_list = me->getThreatManager().getThreatList();
+            if (t_list.empty())
+                return;
+
             std::vector<Unit*> targets;
             //store the threat list in a different container
-            for (auto* ref : me->GetThreatManager().GetUnsortedThreatList())
+            for (ThreatContainer::StorageType::const_iterator itr = t_list.begin(); itr!= t_list.end(); ++itr)
             {
-                Unit* target = ref->GetVictim();
-                if (ref->GetVictim()->GetTypeId() == TYPEID_PLAYER && ref->GetVictim()->IsAlive())
+                Unit* target = ObjectAccessor::GetUnit(*me, (*itr)->getUnitGuid());
+                //only on alive players
+                if (target && target->IsAlive() && target->GetTypeId() == TYPEID_PLAYER)
                     targets.push_back(target);
             }
 
@@ -460,7 +460,7 @@ public:
                         Unit* unit = ObjectAccessor::GetUnit(*me, FlameWreathTarget[i]);
                         if (unit && !unit->IsWithinDist2d(FWTargPosX[i], FWTargPosY[i], 3))
                         {
-                            unit->CastSpell(unit, 20476, me->GetGUID());
+                            unit->CastSpell(unit, 20476, true, 0, 0, me->GetGUID());
                             unit->CastSpell(unit, 11027, true);
                             FlameWreathTarget[i].Clear();
                         }
@@ -501,17 +501,17 @@ public:
             }
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<boss_aranAI>(creature);
+    }
 };
 
 class npc_aran_elemental : public CreatureScript
 {
 public:
     npc_aran_elemental() : CreatureScript("npc_aran_elemental") { }
-
-    CreatureAI* GetAI(Creature* creature) const override
-    {
-        return GetKarazhanAI<water_elementalAI>(creature);
-    }
 
     struct water_elementalAI : public ScriptedAI
     {
@@ -546,6 +546,11 @@ public:
             } else CastTimer -= diff;
         }
     };
+
+    CreatureAI* GetAI(Creature* creature) const override
+    {
+        return GetKarazhanAI<water_elementalAI>(creature);
+    }
 };
 
 void AddSC_boss_shade_of_aran()

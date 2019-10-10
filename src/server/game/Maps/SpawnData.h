@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2008-2019 TrinityCore <https://www.trinitycore.org/>
+ * Copyright (C) 2008-2018 TrinityCore <http://www.trinitycore.org/>
  *
  * This program is free software; you can redistribute it and/or modify it
  * under the terms of the GNU General Public License as published by the
@@ -20,13 +20,12 @@
 
 #include "Position.h"
 
-// EnumUtils: DESCRIBE THIS
 enum SpawnObjectType
 {
-    SPAWN_TYPE_CREATURE = 0,   // TITLE Creature
-    SPAWN_TYPE_GAMEOBJECT = 1, // TITLE Gameobject
+    SPAWN_TYPE_CREATURE = 0,
+    SPAWN_TYPE_GAMEOBJECT = 1,
 
-    SPAWN_TYPE_MAX             // SKIP
+    SPAWN_TYPE_MAX
 };
 
 enum SpawnObjectTypeMask
@@ -67,19 +66,15 @@ struct SpawnData
     int32 spawntimesecs = 0;
     uint8 spawnMask = 0;
     SpawnGroupTemplateData const* spawnGroupData = nullptr;
+    uint8 phaseUseFlags = 0;
+    uint32 phaseId = 0;
+    uint32 phaseGroup = 0;
+    int32 terrainSwapMap = -1;
     uint32 scriptId = 0;
     bool dbData = true;
 
     protected:
     SpawnData(SpawnObjectType t) : type(t) {}
-};
-
-enum LinkedRespawnType
-{
-    LINKED_RESPAWN_CREATURE_TO_CREATURE  = 0,
-    LINKED_RESPAWN_CREATURE_TO_GO        = 1, // Creature is dependant on GameObject
-    LINKED_RESPAWN_GO_TO_GO              = 2,
-    LINKED_RESPAWN_GO_TO_CREATURE        = 3, // GameObject is dependant on Creature
 };
 
 #endif

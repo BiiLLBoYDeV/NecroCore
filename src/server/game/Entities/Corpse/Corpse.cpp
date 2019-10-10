@@ -16,18 +16,17 @@
  * with this program. If not, see <http://www.gnu.org/licenses/>.
  */
 
+#include "Corpse.h"
 #include "CharacterCache.h"
 #include "Common.h"
-#include "Corpse.h"
-#include "DBCStores.h"
-#include "GameTime.h"
+#include "DatabaseEnv.h"
 #include "Log.h"
 #include "Map.h"
+#include "ObjectAccessor.h"
+#include "PhasingHandler.h"
 #include "Player.h"
 #include "UpdateData.h"
 #include "UpdateMask.h"
-#include "ObjectAccessor.h"
-#include "DatabaseEnv.h"
 #include "World.h"
 
 Corpse::Corpse(CorpseType type) : WorldObject(type != CORPSE_BONES), m_type(type)
@@ -35,12 +34,13 @@ Corpse::Corpse(CorpseType type) : WorldObject(type != CORPSE_BONES), m_type(type
     m_objectType |= TYPEMASK_CORPSE;
     m_objectTypeId = TYPEID_CORPSE;
 
-    m_updateFlag = (UPDATEFLAG_LOWGUID | UPDATEFLAG_STATIONARY_POSITION | UPDATEFLAG_POSITION);
+    m_updateFlag = UPDATEFLAG_STATIONARY_POSITION;
 
     m_valuesCount = CORPSE_END;
 
-    m_time = GameTime::GetGameTime();
+    m_time = time(nullptr);
 
+    lootForBody = false;
     lootRecipient = nullptr;
 }
 
@@ -90,6 +90,8 @@ bool Corpse::Create(ObjectGuid::LowType guidlow, Player* owner)
 
     _cellCoord = Trinity::ComputeCellCoord(GetPositionX(), GetPositionY());
 
+    PhasingHandler::InheritPhaseShift(this, owner);
+
     return true;
 }
 
@@ -111,21 +113,28 @@ void Corpse::SaveToDB()
     stmt->setString(index++, _ConcatFields(CORPSE_FIELD_ITEM, EQUIPMENT_SLOT_END));   // itemCache
     stmt->setUInt32(index++, GetUInt32Value(CORPSE_FIELD_BYTES_1));                   // bytes1
     stmt->setUInt32(index++, GetUInt32Value(CORPSE_FIELD_BYTES_2));                   // bytes2
-    stmt->setUInt32(index++, GetUInt32Value(CORPSE_FIELD_GUILD));                     // guildId
     stmt->setUInt8 (index++, GetUInt32Value(CORPSE_FIELD_FLAGS));                     // flags
     stmt->setUInt8 (index++, GetUInt32Value(CORPSE_FIELD_DYNAMIC_FLAGS));             // dynFlags
     stmt->setUInt32(index++, uint32(m_time));                                         // time
     stmt->setUInt8 (index++, GetType());                                              // corpseType
     stmt->setUInt32(index++, GetInstanceId());                                        // instanceId
-    stmt->setUInt32(index++, GetPhaseMask());                                         // phaseMask
     trans->Append(stmt);
+
+    for (PhaseShift::PhaseRef const& phase : GetPhaseShift().GetPhases())
+    {
+        index = 0;
+        stmt = CharacterDatabase.GetPreparedStatement(CHAR_INS_CORPSE_PHASES);
+        stmt->setUInt32(index++, GetOwnerGUID().GetCounter());                        // OwnerGuid
+        stmt->setUInt32(index++, phase.Id);                                           // PhaseId
+        trans->Append(stmt);
+    }
 
     CharacterDatabase.CommitTransaction(trans);
 }
 
 void Corpse::DeleteFromDB(SQLTransaction& trans)
 {
-    DeleteFromDB(GetOwnerGUID(), trans);
+    Corpse::DeleteFromDB(GetOwnerGUID(), trans);
 }
 
 void Corpse::DeleteFromDB(ObjectGuid const& ownerGuid, SQLTransaction& trans)
@@ -133,29 +142,17 @@ void Corpse::DeleteFromDB(ObjectGuid const& ownerGuid, SQLTransaction& trans)
     PreparedStatement* stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CORPSE);
     stmt->setUInt32(0, ownerGuid.GetCounter());
     CharacterDatabase.ExecuteOrAppend(trans, stmt);
-}
 
-uint32 Corpse::GetFaction() const
-{
-    // inherit faction from player race
-    uint32 const race = GetByteValue(CORPSE_FIELD_BYTES_1, 1);
-
-    ChrRacesEntry const* rEntry = sChrRacesStore.LookupEntry(race);
-    return rEntry ? rEntry->FactionID : 0;
-}
-
-void Corpse::ResetGhostTime()
-{
-    m_time = GameTime::GetGameTime();
+    stmt = CharacterDatabase.GetPreparedStatement(CHAR_DEL_CORPSE_PHASES);
+    stmt->setUInt32(0, ownerGuid.GetCounter());
+    CharacterDatabase.ExecuteOrAppend(trans, stmt);
 }
 
 bool Corpse::LoadCorpseFromDB(ObjectGuid::LowType guid, Field* fields)
 {
-    //        0     1     2     3            4      5          6          7       8       9        10     11        12    13          14          15         16
-    // SELECT posX, posY, posZ, orientation, mapId, displayId, itemCache, bytes1, bytes2, guildId, flags, dynFlags, time, corpseType, instanceId, phaseMask, guid FROM corpse WHERE mapId = ? AND instanceId = ?
+    //        0     1     2     3            4      5          6          7       8       9      10        11    12          13          14
+    // SELECT posX, posY, posZ, orientation, mapId, displayId, itemCache, bytes1, bytes2, flags, dynFlags, time, corpseType, instanceId, guid FROM corpse WHERE mapId = ? AND instanceId = ?
 
-
-    ObjectGuid::LowType ownerGuid = fields[16].GetUInt32();
     float posX   = fields[0].GetFloat();
     float posY   = fields[1].GetFloat();
     float posZ   = fields[2].GetFloat();
@@ -169,20 +166,17 @@ bool Corpse::LoadCorpseFromDB(ObjectGuid::LowType guid, Field* fields)
     _LoadIntoDataField(fields[6].GetString(), CORPSE_FIELD_ITEM, EQUIPMENT_SLOT_END);
     SetUInt32Value(CORPSE_FIELD_BYTES_1, fields[7].GetUInt32());
     SetUInt32Value(CORPSE_FIELD_BYTES_2, fields[8].GetUInt32());
-    SetUInt32Value(CORPSE_FIELD_GUILD, fields[9].GetUInt32());
-    SetUInt32Value(CORPSE_FIELD_FLAGS, fields[10].GetUInt8());
-    SetUInt32Value(CORPSE_FIELD_DYNAMIC_FLAGS, fields[11].GetUInt8());
-    SetGuidValue(CORPSE_FIELD_OWNER, ObjectGuid(HighGuid::Player, ownerGuid));
+    SetUInt32Value(CORPSE_FIELD_FLAGS, fields[9].GetUInt8());
+    SetUInt32Value(CORPSE_FIELD_DYNAMIC_FLAGS, fields[10].GetUInt8());
+    SetGuidValue(CORPSE_FIELD_OWNER, ObjectGuid::Create<HighGuid::Player>(fields[14].GetUInt32()));
 
-    m_time = time_t(fields[12].GetUInt32());
+    m_time = time_t(fields[11].GetUInt32());
 
-    uint32 instanceId  = fields[14].GetUInt32();
-    uint32 phaseMask   = fields[15].GetUInt32();
+    uint32 instanceId  = fields[13].GetUInt32();
 
     // place
     SetLocationInstanceId(instanceId);
     SetLocationMapId(mapId);
-    SetPhaseMask(phaseMask, false);
     Relocate(posX, posY, posZ, o);
 
     if (!IsPositionValid())

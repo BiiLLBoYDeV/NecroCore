@@ -69,6 +69,40 @@ Tokenizer::Tokenizer(const std::string &src, const char sep, uint32 vectorReserv
     }
 }
 
+void stripLineInvisibleChars(std::string &str)
+{
+    static std::string const invChars = " \t\7\n";
+
+    size_t wpos = 0;
+
+    bool space = false;
+    for (size_t pos = 0; pos < str.size(); ++pos)
+    {
+        if (invChars.find(str[pos])!=std::string::npos)
+        {
+            if (!space)
+            {
+                str[wpos++] = ' ';
+                space = true;
+            }
+        }
+        else
+        {
+            if (wpos!=pos)
+                str[wpos++] = str[pos];
+            else
+                ++wpos;
+            space = false;
+        }
+    }
+
+    if (wpos < str.size())
+        str.erase(wpos, str.size());
+    if (str.find("|TInterface")!=std::string::npos)
+        str.clear();
+
+}
+
 #if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
 struct tm* localtime_r(time_t const* time, struct tm *result)
 {
@@ -77,13 +111,6 @@ struct tm* localtime_r(time_t const* time, struct tm *result)
 }
 #endif
 
-tm TimeBreakdown(time_t time)
-{
-    tm timeLocal;
-    localtime_r(&time, &timeLocal);
-    return timeLocal;
-}
-
 time_t LocalTimeToUTCTime(time_t time)
 {
 #if (defined(WIN32) || defined(_WIN32) || defined(__WIN32__))
@@ -91,21 +118,6 @@ time_t LocalTimeToUTCTime(time_t time)
 #else
     return time + timezone;
 #endif
-}
-
-time_t GetLocalHourTimestamp(time_t time, uint8 hour, bool onlyAfterTime)
-{
-    tm timeLocal = TimeBreakdown(time);
-    timeLocal.tm_hour = 0;
-    timeLocal.tm_min = 0;
-    timeLocal.tm_sec = 0;
-    time_t midnightLocal = mktime(&timeLocal);
-    time_t hourLocal = midnightLocal + hour * HOUR;
-
-    if (onlyAfterTime && hourLocal <= time)
-        hourLocal += DAY;
-
-    return hourLocal;
 }
 
 std::string secsToTimeString(uint64 timeInSecs, bool shortText, bool hoursOnly)
@@ -131,9 +143,9 @@ std::string secsToTimeString(uint64 timeInSecs, bool shortText, bool hoursOnly)
     return ss.str();
 }
 
-int32 MoneyStringToMoney(std::string const& moneyString)
+int64 MoneyStringToMoney(std::string const& moneyString)
 {
-    int32 money = 0;
+    int64 money = 0;
 
     if (!(std::count(moneyString.begin(), moneyString.end(), 'g') == 1 ||
         std::count(moneyString.begin(), moneyString.end(), 's') == 1 ||
@@ -150,7 +162,7 @@ int32 MoneyStringToMoney(std::string const& moneyString)
         if (gCount + sCount + cCount != 1)
             return 0;
 
-        uint32 amount = strtoul(*itr, nullptr, 10);
+        uint64 amount = strtoull(*itr, nullptr, 10);
         if (gCount == 1)
             money += amount * 100 * 100;
         else if (sCount == 1)
@@ -209,15 +221,6 @@ std::string TimeToTimestampStr(time_t t)
     return std::string(buf);
 }
 
-std::string TimeToHumanReadable(time_t t)
-{
-    tm time;
-    localtime_r(&t, &time);
-    char buf[30];
-    strftime(buf, 30, "%c", &time);
-    return std::string(buf);
-}
-
 /// Check if the string is a valid ip address representation
 bool IsIPAddress(char const* ipaddress)
 {
@@ -261,7 +264,7 @@ size_t utf8length(std::string& utf8str)
     {
         return utf8::distance(utf8str.c_str(), utf8str.c_str()+utf8str.size());
     }
-    catch(std::exception const&)
+    catch(std::exception)
     {
         utf8str.clear();
         return 0;
@@ -283,7 +286,7 @@ void utf8truncate(std::string& utf8str, size_t len)
         char* oend = utf8::utf16to8(wstr.c_str(), wstr.c_str()+wstr.size(), &utf8str[0]);
         utf8str.resize(oend-(&utf8str[0]));                 // remove unused tail
     }
-    catch(std::exception const&)
+    catch(std::exception)
     {
         utf8str.clear();
     }
@@ -298,7 +301,7 @@ bool Utf8toWStr(char const* utf8str, size_t csize, wchar_t* wstr, size_t& wsize)
         wsize -= out.remaining(); // remaining unused space
         wstr[wsize] = L'\0';
     }
-    catch(std::exception const&)
+    catch(std::exception)
     {
         // Replace the converted string with an error message if there is enough space
         // Otherwise just return an empty string
@@ -330,7 +333,7 @@ bool Utf8toWStr(const std::string& utf8str, std::wstring& wstr)
     {
         utf8::utf8to16(utf8str.c_str(), utf8str.c_str()+utf8str.size(), std::back_inserter(wstr));
     }
-    catch(std::exception const&)
+    catch(std::exception)
     {
         wstr.clear();
         return false;
@@ -353,7 +356,7 @@ bool WStrToUtf8(wchar_t* wstr, size_t size, std::string& utf8str)
         }
         utf8str = utf8str2;
     }
-    catch(std::exception const&)
+    catch(std::exception)
     {
         utf8str.clear();
         return false;
@@ -376,7 +379,7 @@ bool WStrToUtf8(std::wstring const& wstr, std::string& utf8str)
         }
         utf8str = utf8str2;
     }
-    catch(std::exception const&)
+    catch(std::exception)
     {
         utf8str.clear();
         return false;
@@ -400,47 +403,43 @@ void wstrToLower(std::wstring& str)
 std::wstring GetMainPartOfName(std::wstring const& wname, uint32 declension)
 {
     // supported only Cyrillic cases
-    if (wname.empty() || !isCyrillicCharacter(wname[0]) || declension > 5)
+    if (wname.size() < 1 || !isCyrillicCharacter(wname[0]) || declension > 5)
         return wname;
 
     // Important: end length must be <= MAX_INTERNAL_PLAYER_NAME-MAX_PLAYER_NAME (3 currently)
-    static std::wstring const a_End    = { wchar_t(0x0430), wchar_t(0x0000) };
-    static std::wstring const o_End    = { wchar_t(0x043E), wchar_t(0x0000) };
-    static std::wstring const ya_End   = { wchar_t(0x044F), wchar_t(0x0000) };
-    static std::wstring const ie_End   = { wchar_t(0x0435), wchar_t(0x0000) };
-    static std::wstring const i_End    = { wchar_t(0x0438), wchar_t(0x0000) };
-    static std::wstring const yeru_End = { wchar_t(0x044B), wchar_t(0x0000) };
-    static std::wstring const u_End    = { wchar_t(0x0443), wchar_t(0x0000) };
-    static std::wstring const yu_End   = { wchar_t(0x044E), wchar_t(0x0000) };
-    static std::wstring const oj_End   = { wchar_t(0x043E), wchar_t(0x0439), wchar_t(0x0000) };
-    static std::wstring const ie_j_End = { wchar_t(0x0435), wchar_t(0x0439), wchar_t(0x0000) };
-    static std::wstring const io_j_End = { wchar_t(0x0451), wchar_t(0x0439), wchar_t(0x0000) };
-    static std::wstring const o_m_End  = { wchar_t(0x043E), wchar_t(0x043C), wchar_t(0x0000) };
-    static std::wstring const io_m_End = { wchar_t(0x0451), wchar_t(0x043C), wchar_t(0x0000) };
-    static std::wstring const ie_m_End = { wchar_t(0x0435), wchar_t(0x043C), wchar_t(0x0000) };
-    static std::wstring const soft_End = { wchar_t(0x044C), wchar_t(0x0000) };
-    static std::wstring const j_End    = { wchar_t(0x0439), wchar_t(0x0000) };
 
-    static std::array<std::array<std::wstring const*, 7>, 6> const dropEnds = {{
-        { &a_End,  &o_End,    &ya_End,   &ie_End,  &soft_End, &j_End,    nullptr },
-        { &a_End,  &ya_End,   &yeru_End, &i_End,   nullptr,   nullptr,   nullptr },
-        { &ie_End, &u_End,    &yu_End,   &i_End,   nullptr,   nullptr,   nullptr },
-        { &u_End,  &yu_End,   &o_End,    &ie_End,  &soft_End, &ya_End,   &a_End  },
-        { &oj_End, &io_j_End, &ie_j_End, &o_m_End, &io_m_End, &ie_m_End, &yu_End },
-        { &ie_End, &i_End,    nullptr,   nullptr,  nullptr,   nullptr,   nullptr }
-    }};
+    static wchar_t const a_End[]    = { wchar_t(1), wchar_t(0x0430), wchar_t(0x0000)};
+    static wchar_t const o_End[]    = { wchar_t(1), wchar_t(0x043E), wchar_t(0x0000)};
+    static wchar_t const ya_End[]   = { wchar_t(1), wchar_t(0x044F), wchar_t(0x0000)};
+    static wchar_t const ie_End[]   = { wchar_t(1), wchar_t(0x0435), wchar_t(0x0000)};
+    static wchar_t const i_End[]    = { wchar_t(1), wchar_t(0x0438), wchar_t(0x0000)};
+    static wchar_t const yeru_End[] = { wchar_t(1), wchar_t(0x044B), wchar_t(0x0000)};
+    static wchar_t const u_End[]    = { wchar_t(1), wchar_t(0x0443), wchar_t(0x0000)};
+    static wchar_t const yu_End[]   = { wchar_t(1), wchar_t(0x044E), wchar_t(0x0000)};
+    static wchar_t const oj_End[]   = { wchar_t(2), wchar_t(0x043E), wchar_t(0x0439), wchar_t(0x0000)};
+    static wchar_t const ie_j_End[] = { wchar_t(2), wchar_t(0x0435), wchar_t(0x0439), wchar_t(0x0000)};
+    static wchar_t const io_j_End[] = { wchar_t(2), wchar_t(0x0451), wchar_t(0x0439), wchar_t(0x0000)};
+    static wchar_t const o_m_End[]  = { wchar_t(2), wchar_t(0x043E), wchar_t(0x043C), wchar_t(0x0000)};
+    static wchar_t const io_m_End[] = { wchar_t(2), wchar_t(0x0451), wchar_t(0x043C), wchar_t(0x0000)};
+    static wchar_t const ie_m_End[] = { wchar_t(2), wchar_t(0x0435), wchar_t(0x043C), wchar_t(0x0000)};
+    static wchar_t const soft_End[] = { wchar_t(1), wchar_t(0x044C), wchar_t(0x0000)};
+    static wchar_t const j_End[]    = { wchar_t(1), wchar_t(0x0439), wchar_t(0x0000)};
 
-    std::size_t const thisLen = wname.length();
-    std::array<std::wstring const*, 7> const& endings = dropEnds[declension];
-    for (auto itr = endings.begin(), end = endings.end(); (itr != end) && *itr; ++itr)
+    static wchar_t const* const dropEnds[6][8] = {
+        { &a_End[1],  &o_End[1],    &ya_End[1],   &ie_End[1],  &soft_End[1], &j_End[1],    nullptr,    nullptr },
+        { &a_End[1],  &ya_End[1],   &yeru_End[1], &i_End[1],   nullptr,      nullptr,      nullptr,    nullptr },
+        { &ie_End[1], &u_End[1],    &yu_End[1],   &i_End[1],   nullptr,      nullptr,      nullptr,    nullptr },
+        { &u_End[1],  &yu_End[1],   &o_End[1],    &ie_End[1],  &soft_End[1], &ya_End[1],   &a_End[1],  nullptr },
+        { &oj_End[1], &io_j_End[1], &ie_j_End[1], &o_m_End[1], &io_m_End[1], &ie_m_End[1], &yu_End[1], nullptr },
+        { &ie_End[1], &i_End[1],    nullptr,      nullptr,     nullptr,      nullptr,      nullptr,    nullptr }
+    };
+
+    for (wchar_t const* const* itr = &dropEnds[declension][0]; *itr; ++itr)
     {
-        std::wstring const& ending = **itr;
-        std::size_t const endLen = ending.length();
-        if (!(endLen <= thisLen))
-            continue;
+        size_t len = size_t((*itr)[-1]);                    // get length from string size field
 
-        if (wname.substr(thisLen-endLen, thisLen) == ending)
-            return wname.substr(0, thisLen-endLen);
+        if (wname.substr(wname.size() - len, len) == *itr)
+            return wname.substr(0, wname.size() - len);
     }
 
     return wname;
@@ -565,12 +564,12 @@ void HexStrToByteArray(std::string const& str, uint8* out, bool reverse /*= fals
         return;
 
     int32 init = 0;
-    int32 end = int32(str.length());
+    int32 end = str.length();
     int8 op = 1;
 
     if (reverse)
     {
-        init = int32(str.length() - 2);
+        init = str.length() - 2;
         end = -2;
         op = -1;
     }
@@ -579,7 +578,7 @@ void HexStrToByteArray(std::string const& str, uint8* out, bool reverse /*= fals
     for (int32 i = init; i != end; i += 2 * op)
     {
         char buffer[3] = { str[i], str[i + 1], '\0' };
-        out[j++] = uint8(strtoul(buffer, nullptr, 16));
+        out[j++] = strtoul(buffer, nullptr, 16);
     }
 }
 
@@ -594,4 +593,9 @@ bool StringContainsStringI(std::string const& haystack, std::string const& needl
 {
     return haystack.end() !=
         std::search(haystack.begin(), haystack.end(), needle.begin(), needle.end(), [](char c1, char c2) { return std::toupper(c1) == std::toupper(c2); });
+}
+
+float DegToRad(float degrees)
+{
+    return degrees * (2.f * float(M_PI) / 360.f);
 }

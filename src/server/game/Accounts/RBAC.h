@@ -58,8 +58,8 @@ enum RBACPermissions
     RBAC_PERM_JOIN_ARENAS                                    = 5,
     RBAC_PERM_JOIN_DUNGEON_FINDER                            = 6,
     RBAC_PERM_IGNORE_IDLE_CONNECTION                         = 7,
-    RBAC_PERM_CANNOT_EARN_ACHIEVEMENTS                       = 8,
-    RBAC_PERM_CANNOT_EARN_REALM_FIRST_ACHIEVEMENTS           = 9,
+    //  8 - reuse
+    //  9 - reuse
     RBAC_PERM_USE_CHARACTER_TEMPLATES                        = 10, // not on 3.3.5a
     RBAC_PERM_LOG_GM_TRADE                                   = 11,
     RBAC_PERM_SKIP_CHECK_CHARACTER_CREATION_DEMON_HUNTER     = 12, // not on 3.3.5a
@@ -119,9 +119,9 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_BNET_ACCOUNT_PASSWORD                  = 211, // not on 3.3.5a
     RBAC_PERM_COMMAND_BNET_ACCOUNT_SET                       = 212, // not on 3.3.5a
     RBAC_PERM_COMMAND_BNET_ACCOUNT_SET_PASSWORD              = 213, // not on 3.3.5a
-    RBAC_PERM_COMMAND_BNET_ACCOUNT_LINK                      = 214, // not on 3.3.5a
-    RBAC_PERM_COMMAND_BNET_ACCOUNT_UNLINK                    = 215, // not on 3.3.5a
-    RBAC_PERM_COMMAND_BNET_ACCOUNT_CREATE_GAME               = 216, // not on 3.3.5a
+    RBAC_PERM_COMMAND_BNET_ACCOUNT_LINK                      = 214, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_BNET_ACCOUNT_UNLINK                    = 215, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_BNET_ACCOUNT_CREATE_GAME               = 216, // not on 3.3.5a or 4.3.4
     RBAC_PERM_COMMAND_ACCOUNT                                = 217,
     RBAC_PERM_COMMAND_ACCOUNT_ADDON                          = 218,
     RBAC_PERM_COMMAND_ACCOUNT_CREATE                         = 219,
@@ -283,11 +283,7 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_GM_LIST                                = 375,
     RBAC_PERM_COMMAND_GM_VISIBLE                             = 376,
     RBAC_PERM_COMMAND_GO                                     = 377,
-    RBAC_PERM_COMMAND_ACCOUNT_2FA                            = 378,
-    RBAC_PERM_COMMAND_ACCOUNT_2FA_SETUP                      = 379,
-    RBAC_PERM_COMMAND_ACCOUNT_2FA_REMOVE                     = 380,
-    RBAC_PERM_COMMAND_ACCOUNT_SET_2FA                        = 381,
-    // unused 382-386
+    // unused 378-386
     RBAC_PERM_COMMAND_GOBJECT                                = 387,
     RBAC_PERM_COMMAND_GOBJECT_ACTIVATE                       = 388,
     RBAC_PERM_COMMAND_GOBJECT_ADD                            = 389,
@@ -573,7 +569,7 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_RELOAD_MAIL_LOOT_TEMPLATE              = 669,
     RBAC_PERM_COMMAND_RELOAD_MILLING_LOOT_TEMPLATE           = 670,
     RBAC_PERM_COMMAND_RELOAD_NPC_SPELLCLICK_SPELLS           = 671,
-    RBAC_PERM_COMMAND_RELOAD_TRAINER                         = 672,
+    RBAC_PERM_COMMAND_RELOAD_NPC_TRAINER                     = 672,
     RBAC_PERM_COMMAND_RELOAD_NPC_VENDOR                      = 673,
     RBAC_PERM_COMMAND_RELOAD_PAGE_TEXT                       = 674,
     RBAC_PERM_COMMAND_RELOAD_PICKPOCKETING_LOOT_TEMPLATE     = 675,
@@ -700,42 +696,42 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_INSTANCE_GET_BOSS_STATE                = 796,
     RBAC_PERM_COMMAND_PVPSTATS                               = 797,
     RBAC_PERM_COMMAND_MODIFY_XP                              = 798,
-    RBAC_PERM_COMMAND_GO_BUG_TICKET                          = 799, // not on 3.3.5a
-    RBAC_PERM_COMMAND_GO_COMPLAINT_TICKET                    = 800, // not on 3.3.5a
-    RBAC_PERM_COMMAND_GO_SUGGESTION_TICKET                   = 801, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_BUG                             = 802, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_COMPLAINT                       = 803, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_SUGGESTION                      = 804, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_BUG_ASSIGN                      = 805, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_BUG_CLOSE                       = 806, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_BUG_CLOSEDLIST                  = 807, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_BUG_COMMENT                     = 808, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_BUG_DELETE                      = 809, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_BUG_LIST                        = 810, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_BUG_UNASSIGN                    = 811, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_BUG_VIEW                        = 812, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_COMPLAINT_ASSIGN                = 813, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_COMPLAINT_CLOSE                 = 814, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_COMPLAINT_CLOSEDLIST            = 815, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_COMPLAINT_COMMENT               = 816, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_COMPLAINT_DELETE                = 817, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_COMPLAINT_LIST                  = 818, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_COMPLAINT_UNASSIGN              = 819, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_COMPLAINT_VIEW                  = 820, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_SUGGESTION_ASSIGN               = 821, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_SUGGESTION_CLOSE                = 822, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_SUGGESTION_CLOSEDLIST           = 823, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_SUGGESTION_COMMENT              = 824, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_SUGGESTION_DELETE               = 825, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_SUGGESTION_LIST                 = 826, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_SUGGESTION_UNASSIGN             = 827, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_SUGGESTION_VIEW                 = 828, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_RESET_ALL                       = 829, // not on 3.3.5a
-    RBAC_PERM_COMMAND_BNET_ACCOUNT_LIST_GAME_ACCOUTNS        = 830, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_RESET_BUG                       = 831, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_RESET_COMPLAINT                 = 832, // not on 3.3.5a
-    RBAC_PERM_COMMAND_TICKET_RESET_SUGGESTION                = 833, // not on 3.3.5a
-    RBAC_PERM_COMMAND_GO_QUEST                               = 834, // not on 3.3.5a
+    RBAC_PERM_COMMAND_GO_BUG_TICKET                          = 799, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_GO_COMPLAINT_TICKET                    = 800, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_GO_SUGGESTION_TICKET                   = 801, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_BUG                             = 802, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_COMPLAINT                       = 803, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_SUGGESTION                      = 804, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_BUG_ASSIGN                      = 805, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_BUG_CLOSE                       = 806, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_BUG_CLOSEDLIST                  = 807, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_BUG_COMMENT                     = 808, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_BUG_DELETE                      = 809, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_BUG_LIST                        = 810, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_BUG_UNASSIGN                    = 811, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_BUG_VIEW                        = 812, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_COMPLAINT_ASSIGN                = 813, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_COMPLAINT_CLOSE                 = 814, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_COMPLAINT_CLOSEDLIST            = 815, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_COMPLAINT_COMMENT               = 816, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_COMPLAINT_DELETE                = 817, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_COMPLAINT_LIST                  = 818, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_COMPLAINT_UNASSIGN              = 819, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_COMPLAINT_VIEW                  = 820, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_SUGGESTION_ASSIGN               = 821, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_SUGGESTION_CLOSE                = 822, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_SUGGESTION_CLOSEDLIST           = 823, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_SUGGESTION_COMMENT              = 824, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_SUGGESTION_DELETE               = 825, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_SUGGESTION_LIST                 = 826, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_SUGGESTION_UNASSIGN             = 827, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_SUGGESTION_VIEW                 = 828, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_RESET_ALL                       = 829, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_BNET_ACCOUNT_LIST_GAME_ACCOUTNS        = 830, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_RESET_BUG                       = 831, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_RESET_COMPLAINT                 = 832, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_TICKET_RESET_SUGGESTION                = 833, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_GO_QUEST                               = 834, // not on 3.3.5a or 4.3.4
     RBAC_PERM_COMMAND_DEBUG_LOADCELLS                        = 835,
     RBAC_PERM_COMMAND_DEBUG_BOUNDARY                         = 836,
     RBAC_PERM_COMMAND_NPC_EVADE                              = 837,
@@ -743,19 +739,19 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_SERVER_SHUTDOWN_FORCE                  = 839,
     RBAC_PERM_COMMAND_SERVER_RESTART_FORCE                   = 840,
     RBAC_PERM_COMMAND_NEARGRAVEYARD                          = 841,
-    RBAC_PERM_COMMAND_RELOAD_CHARACTER_TEMPLATE              = 842, // not on 3.3.5a
+    RBAC_PERM_COMMAND_RELOAD_CHARACTER_TEMPLATE              = 842, // not on 3.3.5a or 4.3.4
     RBAC_PERM_COMMAND_RELOAD_QUEST_GREETING                  = 843,
-    RBAC_PERM_COMMAND_SCENE                                  = 844, // not on 3.3.5a
-    RBAC_PERM_COMMAND_SCENE_DEBUG                            = 845, // not on 3.3.5a
-    RBAC_PERM_COMMAND_SCENE_PLAY                             = 846, // not on 3.3.5a
-    RBAC_PERM_COMMAND_SCENE_PLAY_PACKAGE                     = 847, // not on 3.3.5a
-    RBAC_PERM_COMMAND_SCENE_CANCEL                           = 848, // not on 3.3.5a
-    RBAC_PERM_COMMAND_LIST_SCENES                            = 849, // not on 3.3.5a
-    RBAC_PERM_COMMAND_RELOAD_SCENE_TEMPLATE                  = 850, // not on 3.3.5a
-    RBAC_PERM_COMMAND_RELOAD_AREATRIGGER_TEMPLATE            = 851, // not on 3.3.5a
+    RBAC_PERM_COMMAND_DEBUG_SEND_PLAYSCENE                   = 844, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_SCENE_DEBUG                            = 845, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_SCENE_PLAY                             = 846, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_SCENE_PLAY_PACKAGE                     = 847, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_SCENE_CANCEL                           = 848, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_LIST_SCENES                            = 849, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_RELOAD_SCENE_TEMPLATE                  = 850, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_RELOAD_AREATRIGGER_TEMPLATE            = 851, // not on 3.3.5a or 4.3.4
     RBAC_PERM_COMMAND_DEBUG_DUMMY                            = 852,
-    RBAC_PERM_COMMAND_RELOAD_CONVERSATION_TEMPLATE           = 853, // not on 3.3.5a
-    RBAC_PERM_COMMAND_DEBUG_CONVERSATION                     = 854, // not on 3.3.5a
+    RBAC_PERM_COMMAND_RELOAD_CONVERSATION_TEMPLATE           = 853, // not on 3.3.5a or 4.3.4
+    RBAC_PERM_COMMAND_DEBUG_CONVERSATION                     = 854, // not on 3.3.5a or 4.3.4
     RBAC_PERM_COMMAND_DEBUG_PLAY_MUSIC                       = 855,
     RBAC_PERM_COMMAND_NPC_SPAWNGROUP                         = 856,
     RBAC_PERM_COMMAND_NPC_DESPAWNGROUP                       = 857,
@@ -779,15 +775,10 @@ enum RBACPermissions
     RBAC_PERM_COMMAND_LOOKUP_MAP_ID                          = 875,
     RBAC_PERM_COMMAND_LOOKUP_ITEM_ID                         = 876,
     RBAC_PERM_COMMAND_LOOKUP_QUEST_ID                        = 877,
-    RBAC_PERM_COMMAND_DEBUG_QUESTRESET                       = 878,
-    RBAC_PERM_COMMAND_DEBUG_POOLSTATUS                       = 879,
-
     //
     // IF YOU ADD NEW PERMISSIONS, ADD THEM IN MASTER BRANCH AS WELL!
     //
     // custom permissions 1000+
-    RBAC_PERM_COMMAND_GOBJECT_SET_SCALE                      = 1398,
-    RBAC_PERM_COMMAND_NPC_SET_SCALE                          = 1589,
     RBAC_PERM_MAX
 };
 
