@@ -17,6 +17,7 @@ endif(WIN32)
 
 add_subdirectory(genrev)
 add_subdirectory(common)
+add_subdirectory(LuaEngine)
 
 if(SERVERS)
   add_subdirectory(server)
@@ -25,7 +26,3 @@ endif(SERVERS)
 if(TOOLS)
   add_subdirectory(tools)
 endif(TOOLS)
-
-if ( ELUNA )
-  add_subdirectory(LuaEngine)
-endif(ELUNA)

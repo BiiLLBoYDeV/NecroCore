@@ -12,13 +12,8 @@ set(lua_STAT_SRCS
   ${sources}
 )
 
+include_directories(
+  ${CMAKE_CURRENT_SOURCE_DIR}
+)
 add_library(lualib STATIC ${lua_STAT_SRCS})
 
-
-target_include_directories(lualib
-  PUBLIC
-    ${CMAKE_CURRENT_SOURCE_DIR})
-
-target_link_libraries(lualib
-  PRIVATE
-    trinity-dependency-interface)
