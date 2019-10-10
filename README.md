@@ -1,17 +1,3 @@
-##
-## _|      _|                                            _|_|_|                                
-## _|_|    _|    _|_|      _|_|_|  _|  _|_|    _|_|    _|          _|_|    _|  _|_|    _|_|    
-## _|  _|  _|  _|_|_|_|  _|        _|_|      _|    _|  _|        _|    _|  _|_|      _|_|_|_|  
-## _|    _|_|  _|        _|        _|        _|    _|  _|        _|    _|  _|        _|        
-## _|      _|    _|_|_|    _|_|_|  _|          _|_|      _|_|_|    _|_|    _|          _|_|_|
-##                                              https://github.com/necromancers-dev/NecroCore
-##
-## -| Support NecroCore |- paypal.me/DevNecromancers
-## -| Debug NecroCore   |- debug.arcanic.eu
-## -| Contributors      |- Necromancers, Hidoyatmz, Rochet2, BillBoy
-##
-##
-##
 # NecroCore
 NecroCore est un fork de TrinityCore avec les scripts de :
 
