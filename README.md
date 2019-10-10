@@ -22,6 +22,9 @@ NecroCore est un fork de TrinityCore avec les scripts de :
 - DressNPC
 - Eluna
 
+### BillBoy [Arcanic.eu](https://arcanic.eu) :
+- Serveur de Test
+
 Merci pour votre contribution et l'utilisation de ce Core.
 
 Me soutenir : https://paypal.me/Necromancers
