@@ -13,6 +13,14 @@
 ##
 ##]]--
 
+--[[
+	.event create 	|- Pour créer un point d'event pour vos joueurs
+	.event delete 	|- Pour supprimer le point d'event
+
+	.event join			|- Téléporte le personnage au point d'event (peu être utilisés par les joueurs)
+	.event leave		|- Téléporte le personnage à son point de départ
+]]--
+
 
 
 --[[ Verification Modules Active ]]--
