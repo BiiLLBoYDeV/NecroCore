@@ -42,7 +42,12 @@ target_link_libraries(game-interface
     Detour)
 
 add_library(game
-  ${PRIVATE_SOURCES})
+  ${PRIVATE_SOURCES}
+  ${game_STAT_SRCS}
+  ${game_STAT_PCH_SRC}
+  ${lua_STAT_SRCS}
+  ${LuaEngine_STAT_SRCS}
+)
 
 target_include_directories(game
   PRIVATE
@@ -186,13 +191,6 @@ include_directories(
   ${OPENSSL_INCLUDE_DIR}
   ${VALGRIND_INCLUDE_DIR}
   ${ZMQ_INCLUDE_DIR}
-)
-
-add_library(game STATIC
-  ${game_STAT_SRCS}
-  ${game_STAT_PCH_SRC}
-  ${lua_STAT_SRCS}
-  ${LuaEngine_STAT_SRCS}
 )
 
 add_dependencies(game revision.h)
