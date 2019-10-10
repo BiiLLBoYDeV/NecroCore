@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 - 2016 Eluna Lua Engine <http://emudevs.com/>
+ * Copyright (C) 2010 - 2015 Eluna Lua Engine <http://emudevs.com/>
  * This program is free software licensed under GPL version 3
  * Please see the included DOCS/LICENSE.md for more information
  */
@@ -9,25 +9,22 @@
 
 #include "LuaEngine.h"
 
-#if defined TRINITY || AZEROTHCORE
-struct ScriptedAI;
-#else
+#ifndef TRINITY
 class AggressorAI;
 typedef AggressorAI ScriptedAI;
+#else
+struct ScriptedAI;
 #endif
 
 struct ElunaCreatureAI : ScriptedAI
 {
-    // used to delay the spawn hook triggering on AI creation
-    bool justSpawned;
-    // used to delay movementinform hook (WP hook)
-    std::vector< std::pair<uint32, uint32> > movepoints;
-#if defined MANGOS || defined CMANGOS
+#ifndef TRINITY
 #define me  m_creature
 #endif
 
-    ElunaCreatureAI(Creature* creature) : ScriptedAI(creature), justSpawned(true)
+    ElunaCreatureAI(Creature* creature) : ScriptedAI(creature)
     {
+        JustRespawned();
     }
     ~ElunaCreatureAI() { }
 
@@ -38,29 +35,9 @@ struct ElunaCreatureAI : ScriptedAI
     void UpdateAI(uint32 diff) override
 #endif
     {
-        if (justSpawned)
-        {
-            justSpawned = false;
-#ifdef TRINITY
-            JustAppeared();
-#else
-            JustRespawned();
-#endif
-        }
-
-        if (!movepoints.empty())
-        {
-            for (auto& point : movepoints)
-            {
-                if (!sEluna->MovementInform(me, point.first, point.second))
-                    ScriptedAI::MovementInform(point.first, point.second);
-            }
-            movepoints.clear();
-        }
-
         if (!sEluna->UpdateAI(me, diff))
         {
-#if defined TRINITY || AZEROTHCORE
+#ifdef TRINITY
             if (!me->HasFlag(UNIT_FIELD_FLAGS, UNIT_FLAG_IMMUNE_TO_NPC))
                 ScriptedAI::UpdateAI(diff);
 #else
@@ -70,15 +47,6 @@ struct ElunaCreatureAI : ScriptedAI
         }
     }
 
-#ifdef TRINITY
-    // Called for reaction when initially engaged - this will always happen _after_ JustEnteredCombat
-    // Called at creature aggro either by MoveInLOS or Attack Start
-    void JustEngagedWith(Unit* target) override
-    {
-        if (!sEluna->EnterCombat(me, target))
-            ScriptedAI::JustEngagedWith(target);
-    }
-#else
     //Called for reaction at enter to combat if not in combat yet (enemy can be NULL)
     //Called at creature aggro either by MoveInLOS or Attack Start
     void EnterCombat(Unit* target) override
@@ -86,23 +54,12 @@ struct ElunaCreatureAI : ScriptedAI
         if (!sEluna->EnterCombat(me, target))
             ScriptedAI::EnterCombat(target);
     }
-#endif
 
     // Called at any Damage from any attacker (before damage apply)
-#if AZEROTHCORE
-    void DamageTaken(Unit* attacker, uint32& damage, DamageEffectType damagetype, SpellSchoolMask damageSchoolMask) override
-#else
     void DamageTaken(Unit* attacker, uint32& damage) override
-#endif
     {
         if (!sEluna->DamageTaken(me, attacker, damage))
-        {
-#if AZEROTHCORE
-            ScriptedAI::DamageTaken(attacker, damage, damagetype, damageSchoolMask);
-#else
             ScriptedAI::DamageTaken(attacker, damage);
-#endif
-        }
     }
 
     //Called at creature death
@@ -136,9 +93,8 @@ struct ElunaCreatureAI : ScriptedAI
     //Called at waypoint reached or PointMovement end
     void MovementInform(uint32 type, uint32 id) override
     {
-        // delayed since hook triggers before actually reaching the point
-        // and starting new movement would bug
-        movepoints.push_back(std::make_pair(type, id));
+        if (!sEluna->MovementInform(me, type, id))
+            ScriptedAI::MovementInform(type, id);
     }
 
     // Called before EnterCombat even before the creature is in combat.
@@ -148,37 +104,26 @@ struct ElunaCreatureAI : ScriptedAI
             ScriptedAI::AttackStart(target);
     }
 
-#ifdef TRINITY
-    // Called for reaction at stopping attack at no attackers or targets
-    void EnterEvadeMode(EvadeReason /*why*/) override
-    {
-        if (!sEluna->EnterEvadeMode(me))
-            ScriptedAI::EnterEvadeMode();
-    }
-#else
     // Called for reaction at stopping attack at no attackers or targets
     void EnterEvadeMode() override
     {
         if (!sEluna->EnterEvadeMode(me))
             ScriptedAI::EnterEvadeMode();
     }
-#endif
 
-#ifdef TRINITY
-    // Called when creature appears in the world (spawn, respawn, grid load etc...)
-    void JustAppeared() override
+    // Called when the creature is target of hostile action: swing, hostile spell landed, fear/etc)
+    void AttackedBy(Unit* attacker) override
     {
-        if (!sEluna->JustRespawned(me))
-            ScriptedAI::JustAppeared();
+        if (!sEluna->AttackedBy(me, attacker))
+            ScriptedAI::AttackedBy(attacker);
     }
-#else
+
     // Called when creature is spawned or respawned (for reseting variables)
     void JustRespawned() override
     {
         if (!sEluna->JustRespawned(me))
             ScriptedAI::JustRespawned();
     }
-#endif
 
     // Called at reaching home after evade
     void JustReachedHome() override
@@ -201,7 +146,7 @@ struct ElunaCreatureAI : ScriptedAI
             ScriptedAI::CorpseRemoved(respawnDelay);
     }
 
-#if !defined TRINITY && !AZEROTHCORE
+#ifndef TRINITY
     // Enables use of MoveInLineOfSight
     bool IsVisible(Unit* who) const override
     {
@@ -229,23 +174,14 @@ struct ElunaCreatureAI : ScriptedAI
             ScriptedAI::SpellHitTarget(target, spell);
     }
 
-#if defined TRINITY || AZEROTHCORE
+#ifdef TRINITY
 
-#if defined TRINITY
-    // Called when the creature is summoned successfully by other creature
-    void IsSummonedBy(WorldObject* summoner) override
-    {
-        if (!summoner->ToUnit() || !sEluna->OnSummoned(me, summoner->ToUnit()))
-            ScriptedAI::IsSummonedBy(summoner);
-    }
-#else
     // Called when the creature is summoned successfully by other creature
     void IsSummonedBy(Unit* summoner) override
     {
         if (!sEluna->OnSummoned(me, summoner))
             ScriptedAI::IsSummonedBy(summoner);
     }
-#endif
 
     void SummonedCreatureDies(Creature* summon, Unit* killer) override
     {
@@ -268,7 +204,7 @@ struct ElunaCreatureAI : ScriptedAI
     }
 #endif
 
-#if defined MANGOS || defined CMANGOS
+#ifndef TRINITY
 #undef me
 #endif
 };

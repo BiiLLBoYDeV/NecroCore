@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 - 2016 Eluna Lua Engine <http://emudevs.com/>
+ * Copyright (C) 2010 - 2015 Eluna Lua Engine <http://emudevs.com/>
  * This program is free software licensed under GPL version 3
  * Please see the included DOCS/LICENSE.md for more information
  */
@@ -84,8 +84,6 @@ namespace Hooks
         REGTYPE_ITEM_GOSSIP,
         REGTYPE_PLAYER_GOSSIP,
         REGTYPE_BG,
-        REGTYPE_MAP,
-        REGTYPE_INSTANCE,
         REGTYPE_COUNT
     };
 
@@ -143,7 +141,7 @@ namespace Hooks
         AUCTION_EVENT_ON_SUCCESSFUL             =     28,       // (event, auctionId, owner, item, expireTime, buyout, startBid, currentBid, bidderGUIDLow)
         AUCTION_EVENT_ON_EXPIRE                 =     29,       // (event, auctionId, owner, item, expireTime, buyout, startBid, currentBid, bidderGUIDLow)
 
-        // AddOns
+	    // AddOns
         ADDON_EVENT_ON_MESSAGE                  =     30,       // (event, sender, type, prefix, msg, target) - target can be nil/whisper_target/guild/group/channel. Can return false
         
         WORLD_EVENT_ON_DELETE_CREATURE          =     31,       // (event, creature)
@@ -151,9 +149,6 @@ namespace Hooks
 
         // Eluna
         ELUNA_EVENT_ON_LUA_STATE_OPEN           =     33,       // (event) - triggers after all scripts are loaded
-
-        GAME_EVENT_START                        =     34,       // (event, gameeventid)
-        GAME_EVENT_STOP                         =     35,       // (event, gameeventid)
 
         SERVER_EVENT_COUNT
     };
@@ -192,7 +187,7 @@ namespace Hooks
         // Custom
         PLAYER_EVENT_ON_EQUIP                   =     29,       // (event, player, item, bag, slot)
         PLAYER_EVENT_ON_FIRST_LOGIN             =     30,       // (event, player)
-        PLAYER_EVENT_ON_CAN_USE_ITEM            =     31,       // (event, player, itemEntry) - Can return InventoryResult enum value
+        PLAYER_EVENT_ON_CAN_USE_ITEM            =     31,       // (event, player, itemEntry) - Can return InventoryResult
         PLAYER_EVENT_ON_LOOT_ITEM               =     32,       // (event, player, item, count)
         PLAYER_EVENT_ON_ENTER_COMBAT            =     33,       // (event, player, enemy)
         PLAYER_EVENT_ON_LEAVE_COMBAT            =     34,       // (event, player)
@@ -212,7 +207,7 @@ namespace Hooks
     {
         // Guild
         GUILD_EVENT_ON_ADD_MEMBER               =     1,       // (event, guild, player, rank)
-        GUILD_EVENT_ON_REMOVE_MEMBER            =     2,       // (event, guild, player, isDisbanding)
+        GUILD_EVENT_ON_REMOVE_MEMBER            =     2,       // (event, guild, isDisbanding)
         GUILD_EVENT_ON_MOTD_CHANGE              =     3,       // (event, guild, newMotd)
         GUILD_EVENT_ON_INFO_CHANGE              =     4,       // (event, guild, newInfo)
         GUILD_EVENT_ON_CREATE                   =     5,       // (event, guild, leader, name)  // Not on TC
@@ -263,7 +258,7 @@ namespace Hooks
         CREATURE_EVENT_ON_RECEIVE_EMOTE                   = 8,  // (event, creature, player, emoteid) - Can return true to stop normal action
         CREATURE_EVENT_ON_DAMAGE_TAKEN                    = 9,  // (event, creature, attacker, damage) - Can return new damage
         CREATURE_EVENT_ON_PRE_COMBAT                      = 10, // (event, creature, target) - Can return true to stop normal action
-        // UNUSED
+        CREATURE_EVENT_ON_ATTACKED_AT                     = 11, // (event, creature, attacker) - Can return true to stop normal action
         CREATURE_EVENT_ON_OWNER_ATTACKED                  = 12, // (event, creature, target) - Can return true to stop normal action            // Not on mangos
         CREATURE_EVENT_ON_OWNER_ATTACKED_AT               = 13, // (event, creature, attacker) - Can return true to stop normal action          // Not on mangos
         CREATURE_EVENT_ON_HIT_BY_SPELL                    = 14, // (event, creature, caster, spellid) - Can return true to stop normal action
@@ -301,8 +296,8 @@ namespace Hooks
         GAMEOBJECT_EVENT_ON_QUEST_ACCEPT                = 4,    // (event, player, go, quest) - Can return true
         GAMEOBJECT_EVENT_ON_QUEST_REWARD                = 5,    // (event, player, go, quest, opt) - Can return true
         GAMEOBJECT_EVENT_ON_DIALOG_STATUS               = 6,    // (event, player, go)
-        GAMEOBJECT_EVENT_ON_DESTROYED                   = 7,    // (event, go, attacker)
-        GAMEOBJECT_EVENT_ON_DAMAGED                     = 8,    // (event, go, attacker)
+        GAMEOBJECT_EVENT_ON_DESTROYED                   = 7,    // (event, go, player)
+        GAMEOBJECT_EVENT_ON_DAMAGED                     = 8,    // (event, go, player)
         GAMEOBJECT_EVENT_ON_LOOT_STATE_CHANGE           = 9,    // (event, go, state)
         GAMEOBJECT_EVENT_ON_GO_STATE_CHANGED            = 10,   // (event, go, state)
         // UNUSED                                       = 11,   // (event, gameobject)
@@ -336,18 +331,6 @@ namespace Hooks
         BG_EVENT_ON_CREATE                              = 3,    // (event, bg, bgId, instanceId) - Needs to be added to TC
         BG_EVENT_ON_PRE_DESTROY                         = 4,    // (event, bg, bgId, instanceId) - Needs to be added to TC
         BG_EVENT_COUNT
-    };
-
-    enum InstanceEvents
-    {
-        INSTANCE_EVENT_ON_INITIALIZE                    = 1,    // (event, instance_data, map)
-        INSTANCE_EVENT_ON_LOAD                          = 2,    // (event, instance_data, map)
-        INSTANCE_EVENT_ON_UPDATE                        = 3,    // (event, instance_data, map, diff)
-        INSTANCE_EVENT_ON_PLAYER_ENTER                  = 4,    // (event, instance_data, map, player)
-        INSTANCE_EVENT_ON_CREATURE_CREATE               = 5,    // (event, instance_data, map, creature)
-        INSTANCE_EVENT_ON_GAMEOBJECT_CREATE             = 6,    // (event, instance_data, map, go)
-        INSTANCE_EVENT_ON_CHECK_ENCOUNTER_IN_PROGRESS   = 7,    // (event, instance_data, map)
-        INSTANCE_EVENT_COUNT
     };
 };
 

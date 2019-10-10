@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2010 - 2016 Eluna Lua Engine <http://emudevs.com/>
+* Copyright (C) 2010 - 2015 Eluna Lua Engine <http://emudevs.com/>
 * This program is free software licensed under GPL version 3
 * Please see the included DOCS/LICENSE.md for more information
 */
@@ -15,8 +15,6 @@
  *   the client has sent a message that its [Player] wants to logout.
  *
  * The packet can contain further data, the format of which depends on the opcode.
- *
- * Inherits all methods from: none
  */
 namespace LuaPacket
 {
@@ -25,7 +23,7 @@ namespace LuaPacket
      *
      * @return uint16 opcode
      */
-    int GetOpcode(lua_State* L, WorldPacket* packet)
+    int GetOpcode(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         Eluna::Push(L, packet->GetOpcode());
         return 1;
@@ -36,7 +34,7 @@ namespace LuaPacket
      *
      * @return uint32 size
      */
-    int GetSize(lua_State* L, WorldPacket* packet)
+    int GetSize(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         Eluna::Push(L, packet->size());
         return 1;
@@ -47,7 +45,7 @@ namespace LuaPacket
      *
      * @param [Opcodes] opcode : see Opcodes.h for all known opcodes
      */
-    int SetOpcode(lua_State* L, WorldPacket* packet)
+    int SetOpcode(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         uint32 opcode = Eluna::CHECKVAL<uint32>(L, 2);
         if (opcode >= NUM_MSG_TYPES)
@@ -61,7 +59,7 @@ namespace LuaPacket
      *
      * @return int8 value
      */
-    int ReadByte(lua_State* L, WorldPacket* packet)
+    int ReadByte(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         int8 _byte;
         (*packet) >> _byte;
@@ -74,7 +72,7 @@ namespace LuaPacket
      *
      * @return uint8 value
      */
-    int ReadUByte(lua_State* L, WorldPacket* packet)
+    int ReadUByte(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         uint8 _ubyte;
         (*packet) >> _ubyte;
@@ -87,7 +85,7 @@ namespace LuaPacket
      *
      * @return int16 value
      */
-    int ReadShort(lua_State* L, WorldPacket* packet)
+    int ReadShort(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         int16 _short;
         (*packet) >> _short;
@@ -100,7 +98,7 @@ namespace LuaPacket
      *
      * @return uint16 value
      */
-    int ReadUShort(lua_State* L, WorldPacket* packet)
+    int ReadUShort(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         uint16 _ushort;
         (*packet) >> _ushort;
@@ -113,7 +111,7 @@ namespace LuaPacket
      *
      * @return int32 value
      */
-    int ReadLong(lua_State* L, WorldPacket* packet)
+    int ReadLong(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         int32 _long;
         (*packet) >> _long;
@@ -126,7 +124,7 @@ namespace LuaPacket
      *
      * @return uint32 value
      */
-    int ReadULong(lua_State* L, WorldPacket* packet)
+    int ReadULong(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         uint32 _ulong;
         (*packet) >> _ulong;
@@ -139,7 +137,7 @@ namespace LuaPacket
      *
      * @return float value
      */
-    int ReadFloat(lua_State* L, WorldPacket* packet)
+    int ReadFloat(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         float _val;
         (*packet) >> _val;
@@ -152,7 +150,7 @@ namespace LuaPacket
      *
      * @return double value
      */
-    int ReadDouble(lua_State* L, WorldPacket* packet)
+    int ReadDouble(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         double _val;
         (*packet) >> _val;
@@ -165,7 +163,7 @@ namespace LuaPacket
      *
      * @return uint64 value : value returned as string
      */
-    int ReadGUID(lua_State* L, WorldPacket* packet)
+    int ReadGUID(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         uint64 guid;
         (*packet) >> guid;
@@ -178,7 +176,7 @@ namespace LuaPacket
      *
      * @return string value
      */
-    int ReadString(lua_State* L, WorldPacket* packet)
+    int ReadString(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         std::string _val;
         (*packet) >> _val;
@@ -191,7 +189,7 @@ namespace LuaPacket
      *
      * @param uint64 value : the value to be written to the [WorldPacket]
      */
-    int WriteGUID(lua_State* L, WorldPacket* packet)
+    int WriteGUID(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         uint64 guid = Eluna::CHECKVAL<uint64>(L, 2);
         (*packet) << guid;
@@ -203,7 +201,7 @@ namespace LuaPacket
      *
      * @param string value : the string to be written to the [WorldPacket]
      */
-    int WriteString(lua_State* L, WorldPacket* packet)
+    int WriteString(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         std::string _val = Eluna::CHECKVAL<std::string>(L, 2);
         (*packet) << _val;
@@ -215,7 +213,7 @@ namespace LuaPacket
      *
      * @param int8 value : the int8 value to be written to the [WorldPacket]
      */
-    int WriteByte(lua_State* L, WorldPacket* packet)
+    int WriteByte(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         int8 byte = Eluna::CHECKVAL<int8>(L, 2);
         (*packet) << byte;
@@ -227,7 +225,7 @@ namespace LuaPacket
      *
      * @param uint8 value : the uint8 value to be written to the [WorldPacket]
      */
-    int WriteUByte(lua_State* L, WorldPacket* packet)
+    int WriteUByte(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         uint8 byte = Eluna::CHECKVAL<uint8>(L, 2);
         (*packet) << byte;
@@ -239,7 +237,7 @@ namespace LuaPacket
      *
      * @param int16 value : the int16 value to be written to the [WorldPacket]
      */
-    int WriteShort(lua_State* L, WorldPacket* packet)
+    int WriteShort(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         int16 _short = Eluna::CHECKVAL<int16>(L, 2);
         (*packet) << _short;
@@ -251,7 +249,7 @@ namespace LuaPacket
      *
      * @param uint16 value : the uint16 value to be written to the [WorldPacket]
      */
-    int WriteUShort(lua_State* L, WorldPacket* packet)
+    int WriteUShort(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         uint16 _ushort = Eluna::CHECKVAL<uint16>(L, 2);
         (*packet) << _ushort;
@@ -263,7 +261,7 @@ namespace LuaPacket
      *
      * @param int32 value : the int32 value to be written to the [WorldPacket]
      */
-    int WriteLong(lua_State* L, WorldPacket* packet)
+    int WriteLong(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         int32 _long = Eluna::CHECKVAL<int32>(L, 2);
         (*packet) << _long;
@@ -275,7 +273,7 @@ namespace LuaPacket
      *
      * @param uint32 value : the uint32 value to be written to the [WorldPacket]
      */
-    int WriteULong(lua_State* L, WorldPacket* packet)
+    int WriteULong(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         uint32 _ulong = Eluna::CHECKVAL<uint32>(L, 2);
         (*packet) << _ulong;
@@ -287,7 +285,7 @@ namespace LuaPacket
      *
      * @param float value : the float value to be written to the [WorldPacket]
      */
-    int WriteFloat(lua_State* L, WorldPacket* packet)
+    int WriteFloat(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         float _val = Eluna::CHECKVAL<float>(L, 2);
         (*packet) << _val;
@@ -299,7 +297,7 @@ namespace LuaPacket
      *
      * @param double value : the double value to be written to the [WorldPacket]
      */
-    int WriteDouble(lua_State* L, WorldPacket* packet)
+    int WriteDouble(Eluna* /*E*/, lua_State* L, WorldPacket* packet)
     {
         double _val = Eluna::CHECKVAL<double>(L, 2);
         (*packet) << _val;

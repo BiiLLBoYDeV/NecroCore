@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 - 2016 Eluna Lua Engine <http://emudevs.com/>
+ * Copyright (C) 2010 - 2015 Eluna Lua Engine <http://emudevs.com/>
  * This program is free software licensed under GPL version 3
  * Please see the included DOCS/LICENSE.md for more information
  */
@@ -39,23 +39,35 @@ void Eluna::OnLearnTalents(Player* pPlayer, uint32 talentId, uint32 talentRank, 
     CallAllFunctions(PlayerEventBindings, key);
 }
 
+// Player
 bool Eluna::OnCommand(Player* player, const char* text)
 {
     // If from console, player is NULL
+    std::string fullcmd(text);
     if (!player || player->GetSession()->GetSecurity() >= SEC_ADMINISTRATOR)
     {
-        std::string reload = text;
-        std::transform(reload.begin(), reload.end(), reload.begin(), ::tolower);
-        if (reload.find("reload eluna") == 0)
+        char* creload = strtok((char*)text, " ");
+        char* celuna = strtok(NULL, "");
+        if (creload && celuna)
         {
-            ReloadEluna();
-            return false;
+            std::string reload(creload);
+            std::string eluna(celuna);
+            std::transform(reload.begin(), reload.end(), reload.begin(), ::tolower);
+            if (reload == "reload")
+            {
+                std::transform(eluna.begin(), eluna.end(), eluna.begin(), ::tolower);
+                if (std::string("eluna").find(eluna) == 0)
+                {
+                    ReloadEluna();
+                    return false;
+                }
+            }
         }
     }
 
     START_HOOK_WITH_RETVAL(PLAYER_EVENT_ON_COMMAND, true);
     Push(player);
-    Push(text);
+    Push(fullcmd);
     return CallAllFunctionsBool(PlayerEventBindings, key, true);
 }
 

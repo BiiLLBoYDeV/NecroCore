@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2010 - 2016 Eluna Lua Engine <http://emudevs.com/>
+* Copyright (C) 2010 - 2015 Eluna Lua Engine <http://emudevs.com/>
 * This program is free software licensed under GPL version 3
 * Please see the included DOCS/LICENSE.md for more information
 */
@@ -10,7 +10,6 @@
 #include <memory>
 #include "Common.h"
 #include "ElunaUtility.h"
-#include <type_traits>
 
 extern "C"
 {
@@ -23,7 +22,7 @@ extern "C"
  * A set of bindings from keys of type `K` to Lua references.
  */
 template<typename K>
-class BindingMap : public ElunaUtil::Lockable
+class BindingMap : public ElunaUtil::RWLockable
 {
 private:
     lua_State* L;
@@ -32,16 +31,16 @@ private:
     struct Binding
     {
         uint64 id;
-        lua_State* L;
-        uint32 remainingShots;
         int functionReference;
+        uint32 remainingShots;
+        lua_State* L;
 
         Binding(lua_State* L, uint64 id, int functionReference, uint32 remainingShots) :
-            id(id),
             L(L),
-            remainingShots(remainingShots),
-            functionReference(functionReference)
-        { }
+            id(id),
+            functionReference(functionReference),
+            remainingShots(remainingShots)
+        {}
 
         ~Binding()
         {
@@ -68,7 +67,8 @@ public:
     BindingMap(lua_State* L) :
         L(L),
         maxBindingID(0)
-    { }
+    {
+    }
 
     /*
      * Insert a new binding from `key` to `ref`, which lasts for `shots`-many pushes.
@@ -78,7 +78,7 @@ public:
      */
     uint64 Insert(const K& key, int ref, uint32 shots)
     {
-        Guard guard(GetLock());
+        WriteGuard guard(GetLock());
 
         uint64 id = (++maxBindingID);
         BindingList& list = bindings[key];
@@ -92,7 +92,7 @@ public:
      */
     void Clear(const K& key)
     {
-        Guard guard(GetLock());
+        WriteGuard guard(GetLock());
 
         if (bindings.empty())
             return;
@@ -118,7 +118,7 @@ public:
      */
     void Clear()
     {
-        Guard guard(GetLock());
+        WriteGuard guard(GetLock());
 
         if (bindings.empty())
             return;
@@ -134,7 +134,7 @@ public:
      */
     void Remove(uint64 id)
     {
-        Guard guard(GetLock());
+        WriteGuard guard(GetLock());
 
         auto iter = id_lookup_table.find(id);
         if (iter == id_lookup_table.end())
@@ -163,7 +163,7 @@ public:
      */
     bool HasBindingsFor(const K& key)
     {
-        Guard guard(GetLock());
+        ReadGuard guard(GetLock());
 
         if (bindings.empty())
             return false;
@@ -181,7 +181,7 @@ public:
      */
     void PushRefsFor(const K& key)
     {
-        Guard guard(GetLock());
+        WriteGuard guard(GetLock());
 
         if (bindings.empty())
             return;
@@ -224,7 +224,7 @@ struct EventKey
 
     EventKey(T event_id) :
         event_id(event_id)
-    { }
+    {}
 };
 
 /*
@@ -232,15 +232,14 @@ struct EventKey
  *   (CreatureEvents, GameObjectEvents, etc.).
  */
 template <typename T>
-struct EntryKey
+struct EntryKey : public EventKey<T>
 {
-    T event_id;
     uint32 entry;
 
-    EntryKey(T event_id, uint32 entry) :
-        event_id(event_id),
+    EntryKey(T event_type, uint32 entry) :
+        EventKey<T>(event_type),
         entry(entry)
-    { }
+    {}
 };
 
 /*
@@ -248,59 +247,18 @@ struct EntryKey
  *   (currently just CreatureEvents).
  */
 template <typename T>
-struct UniqueObjectKey
+struct UniqueObjectKey : public EventKey<T>
 {
-    T event_id;
     uint64 guid;
     uint32 instance_id;
 
-    UniqueObjectKey(T event_id, uint64 guid, uint32 instance_id) :
-        event_id(event_id),
+    UniqueObjectKey(T event_type, uint64 guid, uint32 instance_id) :
+        EventKey<T>(event_type),
         guid(guid),
         instance_id(instance_id)
-    { }
+    {}
 };
 
-class hash_helper
-{
-public:
-    typedef std::size_t result_type;
-
-    template <typename T1, typename T2, typename... T>
-    static inline result_type hash(T1 const & t1, T2 const & t2, T const &... t)
-    {
-        result_type seed = 0;
-        _hash_combine(seed, t1, t2, t...);
-        return seed;
-    }
-
-    template <typename T, typename std::enable_if<std::is_enum<T>::value>::type* = nullptr>
-    static inline result_type hash(T const & t)
-    {
-        return std::hash<typename std::underlying_type<T>::type>()(t);
-    }
-    
-    template <typename T, typename std::enable_if<!std::is_enum<T>::value>::type* = nullptr>
-    static inline result_type hash(T const & t)
-    {
-        return std::hash<T>()(t);
-    }
-
-private:
-    template <typename T>
-    static inline void _hash_combine(result_type& seed, T const & v)
-    {
-        // from http://www.boost.org/doc/libs/1_40_0/boost/functional/hash/hash.hpp
-        seed ^= hash(v) + 0x9e3779b9 + (seed << 6) + (seed >> 2);
-    }
-
-    template <typename H, typename T1, typename... T>
-    static inline void _hash_combine(result_type& seed, H const & h, T1 const & t1, T const &... t)
-    {
-        _hash_combine(seed, h);
-        _hash_combine(seed, t1, t...);
-    }
-};
 
 /*
  * Implementations of various std functions on the above key types,
@@ -342,10 +300,12 @@ namespace std
     struct hash < EventKey<T> >
     {
         typedef EventKey<T> argument_type;
+        typedef std::size_t result_type;
 
-        hash_helper::result_type operator()(argument_type const& k) const
+        result_type operator()(argument_type const& k) const
         {
-            return hash_helper::hash(k.event_id);
+            result_type const h1(std::hash<uint32>()(k.event_id));
+            return h1;
         }
     };
 
@@ -353,10 +313,14 @@ namespace std
     struct hash < EntryKey<T> >
     {
         typedef EntryKey<T> argument_type;
+        typedef std::size_t result_type;
 
-        hash_helper::result_type operator()(argument_type const& k) const
+        result_type operator()(argument_type const& k) const
         {
-            return hash_helper::hash(k.event_id, k.entry);
+            result_type const h1(std::hash<uint32>()(k.event_id));
+            result_type const h2(std::hash<uint32>()(k.entry));
+
+            return h1 ^ (h2 << 8); // `event_id` probably won't exceed 2^8.
         }
     };
 
@@ -364,10 +328,15 @@ namespace std
     struct hash < UniqueObjectKey<T> >
     {
         typedef UniqueObjectKey<T> argument_type;
+        typedef std::size_t result_type;
 
-        hash_helper::result_type operator()(argument_type const& k) const
+        result_type operator()(argument_type const& k) const
         {
-            return hash_helper::hash(k.event_id, k.instance_id, k.guid);
+            result_type const h1(std::hash<uint32>()(k.event_id));
+            result_type const h2(std::hash<uint32>()(k.instance_id));
+            result_type const h3(std::hash<uint64>()(k.guid));
+
+            return h1 ^ (h2 << 8) ^ (h3 << 24); // `instance_id` probably won't exceed 2^16.
         }
     };
 }

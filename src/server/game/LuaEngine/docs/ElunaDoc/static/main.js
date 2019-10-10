@@ -497,7 +497,9 @@
                         '</span></td></tr>';
                 });
             } else {
-                output += 'No results - Request function at <a href="https://github.com/ElunaLuaEngine/Eluna/issues">Eluna issue tracker</a>';
+                output += 'No results :( <a href="https://duckduckgo.com/?q=' +
+                    encodeURIComponent('eluna ' + query.query) +
+                    '">Try on DuckDuckGo?</a>';
             }
 
             output += "</p>";
@@ -528,9 +530,7 @@
 
             // Because searching is incremental by character, only the most
             // recent search query is added to the browser history.
-            // Do not do this on local due to chrome security errors.
-            // http://stackoverflow.com/a/32454237/3586583
-            if (browserSupportsHistoryApi() && window.location.protocol != "file:") {
+            if (browserSupportsHistoryApi()) {
                 if (!history.state && !params.search) {
                     history.pushState(query, "", "?search=" +
                                                 encodeURIComponent(query.query));

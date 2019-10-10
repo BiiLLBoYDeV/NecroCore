@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2010 - 2016 Eluna Lua Engine <http://emudevs.com/>
+ * Copyright (C) 2010 - 2015 Eluna Lua Engine <http://emudevs.com/>
  * This program is free software licensed under GPL version 3
  * Please see the included DOCS/LICENSE.md for more information
  */
@@ -21,7 +21,7 @@ using namespace Hooks;
         return RETVAL;\
     LOCK_ELUNA
 
-bool Eluna::OnDummyEffect(WorldObject* pCaster, uint32 spellId, SpellEffIndex effIndex, Item* pTarget)
+bool Eluna::OnDummyEffect(Unit* pCaster, uint32 spellId, SpellEffIndex effIndex, Item* pTarget)
 {
     START_HOOK_WITH_RETVAL(ITEM_EVENT_ON_DUMMY_EFFECT, pTarget->GetEntry(), false);
     Push(pCaster);
@@ -66,11 +66,7 @@ bool Eluna::OnUse(Player* pPlayer, Item* pItem, SpellCastTargets const& targets)
     data << ObjectGuid(guid);
     data << ObjectGuid(uint64(0));
     data << uint8(0);
-#ifdef CMANGOS
-    pPlayer->GetSession()->SendPacket(data);
-#else
     pPlayer->GetSession()->SendPacket(&data);
-#endif
     return false;
 }
 
@@ -79,7 +75,18 @@ bool Eluna::OnItemUse(Player* pPlayer, Item* pItem, SpellCastTargets const& targ
     START_HOOK_WITH_RETVAL(ITEM_EVENT_ON_USE, pItem->GetEntry(), true);
     Push(pPlayer);
     Push(pItem);
-#if defined TRINITY || AZEROTHCORE
+#ifndef TRINITY
+    if (GameObject* target = targets.getGOTarget())
+        Push(target);
+    else if (Item* target = targets.getItemTarget())
+        Push(target);
+    else if (Corpse* target = pPlayer->GetMap()->GetCorpse(targets.getCorpseTargetGuid()))
+        Push(target);
+    else if (Unit* target = targets.getUnitTarget())
+        Push(target);
+    else
+        Push();
+#else
     if (GameObject* target = targets.GetGOTarget())
         Push(target);
     else if (Item* target = targets.GetItemTarget())
@@ -89,17 +96,6 @@ bool Eluna::OnItemUse(Player* pPlayer, Item* pItem, SpellCastTargets const& targ
     else if (Unit* target = targets.GetUnitTarget())
         Push(target);
     else if (WorldObject* target = targets.GetObjectTarget())
-        Push(target);
-    else
-        Push();
-#else
-    if (GameObject* target = targets.getGOTarget())
-        Push(target);
-    else if (Item* target = targets.getItemTarget())
-        Push(target);
-    else if (Corpse* target = pPlayer->GetMap()->GetCorpse(targets.getCorpseTargetGuid()))
-        Push(target);
-    else if (Unit* target = targets.getUnitTarget())
         Push(target);
     else
         Push();

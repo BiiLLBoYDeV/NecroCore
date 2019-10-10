@@ -1,5 +1,5 @@
 /*
-* Copyright (C) 2010 - 2016 Eluna Lua Engine <http://emudevs.com/>
+* Copyright (C) 2010 - 2015 Eluna Lua Engine <http://emudevs.com/>
 * This program is free software licensed under GPL version 3
 * Please see the included DOCS/LICENSE.md for more information
 */
@@ -12,25 +12,6 @@
 #include "ElunaTemplate.h"
 #include "ElunaUtility.h"
 #include "ElunaCreatureAI.h"
-#include "ElunaInstanceAI.h"
-
-#if defined(TRINITY_PLATFORM) && defined(TRINITY_PLATFORM_WINDOWS)
-#if TRINITY_PLATFORM == TRINITY_PLATFORM_WINDOWS
-#define ELUNA_WINDOWS
-#endif
-#elif defined(PLATFORM) && defined(PLATFORM_WINDOWS)
-#if PLATFORM == PLATFORM_WINDOWS
-#define ELUNA_WINDOWS
-#endif
-#else
-#error Eluna could not determine platform
-#endif
-
-// Some dummy includes containing BOOST_VERSION:
-// ObjectAccessor.h Config.h Log.h
-#if !defined MANGOS && !defined AZEROTHCORE
-#define USING_BOOST
-#endif
 
 #ifdef USING_BOOST
 #include <boost/filesystem.hpp>
@@ -66,12 +47,6 @@ void Eluna::Initialize()
     LOCK_ELUNA;
     ASSERT(!IsInitialized());
 
-#if defined TRINITY || AZEROTHCORE
-    // For instance data the data column needs to be able to hold more than 255 characters (tinytext)
-    // so we change it to TEXT automatically on startup
-    CharacterDatabase.DirectExecute("ALTER TABLE `instance` CHANGE COLUMN `data` `data` TEXT NOT NULL");
-#endif
-
     LoadScriptPaths();
 
     // Must be before creating GEluna
@@ -104,7 +79,7 @@ void Eluna::LoadScriptPaths()
     lua_extensions.clear();
 
     lua_folderpath = eConfigMgr->GetStringDefault("Eluna.ScriptPath", "lua_scripts");
-#ifndef ELUNA_WINDOWS
+#if PLATFORM == PLATFORM_UNIX || PLATFORM == PLATFORM_APPLE
     if (lua_folderpath[0] == '~')
         if (const char* home = getenv("HOME"))
             lua_folderpath.replace(0, 1, home);
@@ -141,6 +116,16 @@ void Eluna::_ReloadEluna()
     // Run scripts from laoded paths
     sEluna->RunScripts();
 
+#ifdef TRINITY
+    // Re initialize creature AI restoring C++ AI or applying lua AI
+    {
+        HashMapHolder<Creature>::MapType const m = ObjectAccessor::GetCreatures();
+        for (HashMapHolder<Creature>::MapType::const_iterator iter = m.begin(); iter != m.end(); ++iter)
+            if (iter->second->IsInWorld())
+                iter->second->AIM_Initialize();
+    }
+#endif
+
     reload = false;
 }
 
@@ -167,8 +152,6 @@ GameObjectGossipBindings(NULL),
 ItemEventBindings(NULL),
 ItemGossipBindings(NULL),
 PlayerGossipBindings(NULL),
-MapEventBindings(NULL),
-InstanceEventBindings(NULL),
 
 CreatureUniqueBindings(NULL)
 {
@@ -177,6 +160,7 @@ CreatureUniqueBindings(NULL)
     OpenLua();
 
     // Replace this with map insert if making multithread version
+    //
 
     // Set event manager. Must be after setting sEluna
     // on multithread have a map of state pointers and here insert this pointer to the map and then save a pointer of that pointer to the EventMgr
@@ -185,8 +169,6 @@ CreatureUniqueBindings(NULL)
 
 Eluna::~Eluna()
 {
-    ASSERT(IsInitialized());
-
     CloseLua();
 
     delete eventMgr;
@@ -203,9 +185,6 @@ void Eluna::CloseLua()
     if (L)
         lua_close(L);
     L = NULL;
-
-    instanceDataRefs.clear();
-    continentDataRefs.clear();
 }
 
 void Eluna::OpenLua()
@@ -218,10 +197,6 @@ void Eluna::OpenLua()
     }
 
     L = luaL_newstate();
-
-    lua_pushlightuserdata(L, this);
-    lua_setfield(L, LUA_REGISTRYINDEX, ELUNA_STATE_PTR);
-
     CreateBindStores();
 
     // open base lua libraries
@@ -231,6 +206,14 @@ void Eluna::OpenLua()
 
     // Register methods and functions
     RegisterFunctions(this);
+
+    // Create hidden table with weak values
+    lua_newtable(L);
+    lua_newtable(L);
+    lua_pushstring(L, "v");
+    lua_setfield(L, -2, "__mode");
+    lua_setmetatable(L, -2);
+    lua_setglobal(L, ELUNA_OBJECT_STORE);
 
     // Set lua require folder paths (scripts folder structure)
     lua_getglobal(L, "package");
@@ -260,8 +243,6 @@ void Eluna::CreateBindStores()
     ItemEventBindings        = new BindingMap< EntryKey<Hooks::ItemEvents> >(L);
     ItemGossipBindings       = new BindingMap< EntryKey<Hooks::GossipEvents> >(L);
     PlayerGossipBindings     = new BindingMap< EntryKey<Hooks::GossipEvents> >(L);
-    MapEventBindings         = new BindingMap< EntryKey<Hooks::InstanceEvents> >(L);
-    InstanceEventBindings    = new BindingMap< EntryKey<Hooks::InstanceEvents> >(L);
 
     CreatureUniqueBindings   = new BindingMap< UniqueObjectKey<Hooks::CreatureEvents> >(L);
 }
@@ -283,8 +264,6 @@ void Eluna::DestroyBindStores()
     delete ItemGossipBindings;
     delete PlayerGossipBindings;
     delete BGEventBindings;
-    delete MapEventBindings;
-    delete InstanceEventBindings;
 
     delete CreatureUniqueBindings;
 
@@ -303,8 +282,6 @@ void Eluna::DestroyBindStores()
     ItemGossipBindings = NULL;
     PlayerGossipBindings = NULL;
     BGEventBindings = NULL;
-    MapEventBindings = NULL;
-    InstanceEventBindings = NULL;
 
     CreatureUniqueBindings = NULL;
 }
@@ -321,7 +298,7 @@ void Eluna::AddScriptPath(std::string filename, const std::string& fullpath)
     filename = filename.substr(0, extDot);
 
     // check extension and add path to scripts to load
-    if (ext != ".lua" && ext != ".dll" && ext != ".so" && ext != ".ext")
+    if (ext != ".lua" && ext != ".dll" && ext != ".ext")
         return;
     bool extension = ext == ".ext";
 
@@ -349,6 +326,7 @@ void Eluna::GetScripts(std::string path)
     if (boost::filesystem::exists(someDir) && boost::filesystem::is_directory(someDir))
     {
         lua_requirepath +=
+            path + "/?;" +
             path + "/?.lua;" +
             path + "/?.ext;" +
             path + "/?.dll;" +
@@ -359,13 +337,14 @@ void Eluna::GetScripts(std::string path)
             std::string fullpath = dir_iter->path().generic_string();
 
             // Check if file is hidden
-#ifdef ELUNA_WINDOWS
+#ifdef WIN32
             DWORD dwAttrib = GetFileAttributes(fullpath.c_str());
             if (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_HIDDEN))
                 continue;
-#else
+#endif
+#ifdef UNIX
             std::string name = dir_iter->path().filename().generic_string().c_str();
-            if (name[0] == '.')
+            if (name != ".." || name != "." || name[0] == '.')
                 continue;
 #endif
 
@@ -390,6 +369,7 @@ void Eluna::GetScripts(std::string path)
         return;
 
     lua_requirepath +=
+        path + "/?;" +
         path + "/?.lua;" +
         path + "/?.ext;" +
         path + "/?.dll;" +
@@ -405,13 +385,14 @@ void Eluna::GetScripts(std::string path)
         std::string fullpath = path + "/" + directory->d_name;
 
         // Check if file is hidden
-#ifdef ELUNA_WINDOWS
+#ifdef WIN32
         DWORD dwAttrib = GetFileAttributes(fullpath.c_str());
         if (dwAttrib != INVALID_FILE_ATTRIBUTES && (dwAttrib & FILE_ATTRIBUTE_HIDDEN))
             continue;
-#else
-        std::string name = directory->d_name;
-        if (name[0] == '.')
+#endif
+#ifdef UNIX
+        std::string name = directory->d_name.c_str();
+        if (name != ".." || name != "." || name[0] == '.')
             continue;
 #endif
 
@@ -518,12 +499,17 @@ void Eluna::RunScripts()
 
 void Eluna::InvalidateObjects()
 {
-    ++callstackid;
-#ifdef TRINITY
-    ASSERT(callstackid, "Callstackid overflow");
-#else
-    ASSERT(callstackid && "Callstackid overflow");
-#endif
+    lua_getglobal(L, ELUNA_OBJECT_STORE);
+    ASSERT(lua_istable(L, -1));
+
+    lua_pushnil(L);
+    while (lua_next(L, -2))
+    {
+        if (ElunaObject* elunaObj = CHECKOBJ<ElunaObject>(L, -1, false))
+            elunaObj->Invalidate();
+        lua_pop(L, 1);
+    }
+    lua_pop(L, 1);
 }
 
 void Eluna::Report(lua_State* _L)
@@ -646,7 +632,7 @@ void Eluna::Push(lua_State* luastate, const int i)
 }
 void Eluna::Push(lua_State* luastate, const unsigned int u)
 {
-    lua_pushinteger(luastate, u);
+    lua_pushunsigned(luastate, u);
 }
 void Eluna::Push(lua_State* luastate, const double d)
 {
@@ -789,7 +775,7 @@ template<> bool Eluna::CHECKVAL<bool>(lua_State* luastate, int narg)
 }
 template<> float Eluna::CHECKVAL<float>(lua_State* luastate, int narg)
 {
-    return static_cast<float>(luaL_checknumber(luastate, narg));
+    return luaL_checknumber(luastate, narg);
 }
 template<> double Eluna::CHECKVAL<double>(lua_State* luastate, int narg)
 {
@@ -885,21 +871,34 @@ template<> ElunaObject* Eluna::CHECKOBJ<ElunaObject>(lua_State* luastate, int na
 
 ElunaObject* Eluna::CHECKTYPE(lua_State* luastate, int narg, const char* tname, bool error)
 {
-    if (lua_islightuserdata(luastate, narg))
+    bool valid = false;
+    ElunaObject** ptrHold = NULL;
+
+    if (!tname)
     {
-        if (error)
-            luaL_argerror(luastate, narg, "bad argument : userdata expected, got lightuserdata");
-        return NULL;
+        valid = true;
+        ptrHold = static_cast<ElunaObject**>(lua_touserdata(luastate, narg));
+    }
+    else
+    {
+        if (lua_getmetatable(luastate, narg))
+        {
+            luaL_getmetatable(luastate, tname);
+            if (lua_rawequal(luastate, -1, -2) == 1)
+            {
+                valid = true;
+                ptrHold = static_cast<ElunaObject**>(lua_touserdata(luastate, narg));
+            }
+            lua_pop(luastate, 2);
+        }
     }
 
-    ElunaObject** ptrHold = static_cast<ElunaObject**>(lua_touserdata(luastate, narg));
-
-    if (!ptrHold || (tname && (*ptrHold)->GetTypeName() != tname))
+    if (!valid || !ptrHold)
     {
         if (error)
         {
             char buff[256];
-            snprintf(buff, 256, "bad argument : %s expected, got %s", tname ? tname : "ElunaObject", ptrHold ? (*ptrHold)->GetTypeName() : luaL_typename(luastate, narg));
+            snprintf(buff, 256, "bad argument : %s expected, got %s", tname ? tname : "userdata", luaL_typename(luastate, narg));
             luaL_argerror(luastate, narg, buff);
         }
         return NULL;
@@ -1033,12 +1032,7 @@ int Eluna::Register(lua_State* L, uint8 regtype, uint32 entry, uint64 guid, uint
                 }
                 else
                 {
-                    if (guid == 0)
-                    {
-                        luaL_unref(L, LUA_REGISTRYINDEX, functionRef);
-                        luaL_error(L, "guid was 0!");
-                        return 0; // Stack: (empty)
-                    }
+                    ASSERT(guid != 0);
 
                     auto key = UniqueObjectKey<Hooks::CreatureEvents>((Hooks::CreatureEvents)event_id, guid, instanceId);
                     bindingID = CreatureUniqueBindings->Insert(key, functionRef, shots);
@@ -1142,29 +1136,9 @@ int Eluna::Register(lua_State* L, uint8 regtype, uint32 entry, uint64 guid, uint
                 return 1; // Stack: callback
             }
             break;
-        case Hooks::REGTYPE_MAP:
-            if (event_id < Hooks::INSTANCE_EVENT_COUNT)
-            {
-                auto key = EntryKey<Hooks::InstanceEvents>((Hooks::InstanceEvents)event_id, entry);
-                bindingID = MapEventBindings->Insert(key, functionRef, shots);
-                createCancelCallback(L, bindingID, MapEventBindings);
-                return 1; // Stack: callback
-            }
-            break;
-        case Hooks::REGTYPE_INSTANCE:
-            if (event_id < Hooks::INSTANCE_EVENT_COUNT)
-            {
-                auto key = EntryKey<Hooks::InstanceEvents>((Hooks::InstanceEvents)event_id, entry);
-                bindingID = InstanceEventBindings->Insert(key, functionRef, shots);
-                createCancelCallback(L, bindingID, InstanceEventBindings);
-                return 1; // Stack: callback
-            }
-            break;
     }
     luaL_unref(L, LUA_REGISTRYINDEX, functionRef);
-    std::ostringstream oss;
-    oss << "regtype " << static_cast<uint32>(regtype) << ", event " << event_id << ", entry " << entry << ", guid " << guid << ", instance " << instanceId;
-    luaL_error(L, "Unknown event type (%s)", oss.str().c_str());
+    luaL_error(L, "Unknown event type (regtype %hhu, event %u, entry %u, guid " UI64FMTD ", instance %u)", regtype, event_id, entry, guid, instanceId);
     return 0;
 }
 
@@ -1230,111 +1204,4 @@ CreatureAI* Eluna::GetAI(Creature* creature)
     }
 
     return NULL;
-}
-
-InstanceData* Eluna::GetInstanceData(Map* map)
-{
-    if (!IsEnabled())
-        return NULL;
-
-    for (int i = 1; i < Hooks::INSTANCE_EVENT_COUNT; ++i)
-    {
-        Hooks::InstanceEvents event_id = (Hooks::InstanceEvents)i;
-
-        auto key = EntryKey<Hooks::InstanceEvents>(event_id, map->GetId());
-
-        if (MapEventBindings->HasBindingsFor(key) ||
-            InstanceEventBindings->HasBindingsFor(key))
-            return new ElunaInstanceAI(map);
-    }
-
-    return NULL;
-}
-
-bool Eluna::HasInstanceData(Map const* map)
-{
-    if (!map->Instanceable())
-        return continentDataRefs.find(map->GetId()) != continentDataRefs.end();
-    else
-        return instanceDataRefs.find(map->GetInstanceId()) != instanceDataRefs.end();
-}
-
-void Eluna::CreateInstanceData(Map const* map)
-{
-    ASSERT(lua_istable(L, -1));
-    int ref = luaL_ref(L, LUA_REGISTRYINDEX);
-
-    if (!map->Instanceable())
-    {
-        uint32 mapId = map->GetId();
-
-        // If there's another table that was already stored for the map, unref it.
-        auto mapRef = continentDataRefs.find(mapId);
-        if (mapRef != continentDataRefs.end())
-        {
-            luaL_unref(L, LUA_REGISTRYINDEX, mapRef->second);
-        }
-
-        continentDataRefs[mapId] = ref;
-    }
-    else
-    {
-        uint32 instanceId = map->GetInstanceId();
-
-        // If there's another table that was already stored for the instance, unref it.
-        auto instRef = instanceDataRefs.find(instanceId);
-        if (instRef != instanceDataRefs.end())
-        {
-            luaL_unref(L, LUA_REGISTRYINDEX, instRef->second);
-        }
-
-        instanceDataRefs[instanceId] = ref;
-    }
-}
-
-/*
- * Unrefs the instanceId related events and data
- * Does all required actions for when an instance is freed.
- */
-void Eluna::FreeInstanceId(uint32 instanceId)
-{
-    LOCK_ELUNA;
-
-    if (!IsEnabled())
-        return;
-
-    for (int i = 1; i < Hooks::INSTANCE_EVENT_COUNT; ++i)
-    {
-        auto key = EntryKey<Hooks::InstanceEvents>((Hooks::InstanceEvents)i, instanceId);
-
-        if (MapEventBindings->HasBindingsFor(key))
-            MapEventBindings->Clear(key);
-
-        if (InstanceEventBindings->HasBindingsFor(key))
-            InstanceEventBindings->Clear(key);
-
-        if (instanceDataRefs.find(instanceId) != instanceDataRefs.end())
-        {
-            luaL_unref(L, LUA_REGISTRYINDEX, instanceDataRefs[instanceId]);
-            instanceDataRefs.erase(instanceId);
-        }
-    }
-}
-
-void Eluna::PushInstanceData(lua_State* L, ElunaInstanceAI* ai, bool incrementCounter)
-{
-    // Check if the instance data is missing (i.e. someone reloaded Eluna).
-    if (!HasInstanceData(ai->instance))
-        ai->Reload();
-
-    // Get the instance data table from the registry.
-    if (!ai->instance->Instanceable())
-        lua_rawgeti(L, LUA_REGISTRYINDEX, continentDataRefs[ai->instance->GetId()]);
-    else
-        lua_rawgeti(L, LUA_REGISTRYINDEX, instanceDataRefs[ai->instance->GetInstanceId()]);
-
-    ASSERT(lua_istable(L, -1));
-
-    if (incrementCounter)
-        ++push_counter;
 }
