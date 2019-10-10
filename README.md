@@ -1,7 +1,7 @@
 # NecroCore
 NecroCore est un fork de TrinityCore avec les scripts de : 
 
-@Rochet2 :
+## @Rochet2 :
 - Transmogrification
 - Retouche Arcanique
 - GoMove
@@ -10,19 +10,16 @@ NecroCore est un fork de TrinityCore avec les scripts de :
 - DressNPC
 - Eluna
 
-@LordPsyan :
-- ArenaSpectator
-
-@Google :
+## @Google :
 - Reload Creature & Item Template
 
-@Necromancers :
+## @Necromancers :
 - Limitation de Statistique retirés
 - Ajout de la phase 0
 - guild:SetCoinage(amount)
 - player:SetCompletedAchievement(HFentry)
 
-@Hidoyatmz :
+## @Hidoyatmz :
 - player:SendListInventory(sender, entry)
 
 Merci pour votre contribution et l'utilisation de ce Core.
