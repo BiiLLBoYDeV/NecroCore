@@ -1,0 +1,45 @@
+--[[##
+## _|      _|                                            _|_|_|
+## _|_|    _|    _|_|      _|_|_|  _|  _|_|    _|_|    _|          _|_|    _|  _|_|    _|_|
+## _|  _|  _|  _|_|_|_|  _|        _|_|      _|    _|  _|        _|    _|  _|_|      _|_|_|_|
+## _|    _|_|  _|        _|        _|        _|    _|  _|        _|    _|  _|        _|
+## _|      _|    _|_|_|    _|_|_|  _|          _|_|      _|_|_|    _|_|    _|          _|_|_|
+##                                              https://github.com/necromancers-dev/NecroCore
+##
+## -| Support NecroCore |- paypal.me/Necromancers
+## -| Debug NecroCore   |- debug.arcanic.eu
+## -| Contributors      |- Necromancers, Hidoyatmz, Rochet2, BillBoy
+##
+##
+##]]--
+
+
+--[[
+
+  modRateExp Config
+
+]]--
+
+  Conf_modRateExpConfig = {
+    db = 'R1_Eluna',
+    table = 'mod_rate_exp',
+    lang = 'frFR';
+  };
+
+  Conf_modRateExpText = {};
+    Conf_modRateExpText['frFR'] = {
+      t_1 = 'Bonjour,\n\nJe suis Epoque l\'intemporel.\nJe viens de loin pour vous permettre d\'accélerer votre avenir.\n\nGrace à moi vous pouvez modifier votre multiplicateur d\'experience.\n\n\nÀ vous de choisir :',
+      t_2 = 'Multiplier par',
+      t_3 = 'Votre rate d\'experience est désormais fixés à';
+    };
+
+    Conf_modRateExpText['enUS'] = {
+      t_1 = 'Hello, I\'m timeless Epoque. I\'ve come a long way to help you accelerate your future. Grace to me you can change your experience multiplier:',
+      t_2 = 'Multiply by',
+      t_3 = 'Your experience rate is now set at';
+    };
+
+if (Script.ModExp == 1) then
+  AuthDBQuery('CREATE DATABASE IF NOT EXISTS '..Conf_modRateExpConfig.db..';');
+  AuthDBQuery('CREATE TABLE IF NOT EXISTS '..Conf_modRateExpConfig.db..'.'..Conf_modRateExpConfig.table..' ( `guid` INT(10) NOT NULL, `rate` INT(1), PRIMARY KEY (`guid`) );');
+end

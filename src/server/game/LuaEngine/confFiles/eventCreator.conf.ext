@@ -1,0 +1,49 @@
+--[[##
+## _|      _|                                            _|_|_|
+## _|_|    _|    _|_|      _|_|_|  _|  _|_|    _|_|    _|          _|_|    _|  _|_|    _|_|
+## _|  _|  _|  _|_|_|_|  _|        _|_|      _|    _|  _|        _|    _|  _|_|      _|_|_|_|
+## _|    _|_|  _|        _|        _|        _|    _|  _|        _|    _|  _|        _|
+## _|      _|    _|_|_|    _|_|_|  _|          _|_|      _|_|_|    _|_|    _|          _|_|_|
+##                                              https://github.com/necromancers-dev/NecroCore
+##
+## -| Support NecroCore |- paypal.me/Necromancers
+## -| Debug NecroCore   |- debug.arcanic.eu
+## -| Contributors      |- Necromancers, Hidoyatmz, Rochet2, BillBoy
+##
+##
+##]]--
+
+
+--[[
+
+  EventCreator Config
+
+]]--
+
+  Conf_EventCreatorConfig = {
+    lang = 'enUS';
+  };
+
+  Conf_EventCreatorCommand = {
+    c_1 = 'event create',
+    c_2 = 'event delete',
+    c_3 = 'event join',
+    c_4 = 'event leave';
+  };
+
+  Conf_EventCreatorText = {};
+    Conf_EventCreatorText['frFR'] = {
+      t_1 = 'Event créé avec succés!',
+      t_2 = 'viens de créer un event, si vous souhaitez y participer : .event join\nPour sortir de l\'event un simple .event leave vous permet de vous téléporter à votre ancienne localisation.',
+      t_3 = 'Event supprimé avec succés!',
+      t_4 = 'viens de supprimer son event, vous ne pouvez plus y participer!',
+      t_5 = 'Aucun event n\'as été créé pour le moment!';
+    };
+
+    Conf_EventCreatorText['enUS'] = {
+      t_1 = 'Event successfully created!',
+      t_2 = 'just created an event, if you want to participate: .event join\nTo get out of the event a simple .event leave allows you to teleport to your old location.',
+      t_3 = 'Event successfully deleted!',
+      t_4 = 'has just deleted its event, you can no longer participate!',
+      t_5 = 'No events have been created yet!';
+    };
